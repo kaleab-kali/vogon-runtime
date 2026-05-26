@@ -1,4 +1,5 @@
 pub mod demo;
+pub mod redaction;
 pub mod run;
 pub mod trace;
 pub mod verify;

@@ -18,10 +18,20 @@ enum Commands {
     Demo,
 
     /// Run a workflow file.
-    Run { workflow_file: PathBuf },
+    Run {
+        /// Redact a literal value from replay outputs. May be repeated.
+        #[arg(long = "redact", value_name = "LABEL=VALUE")]
+        redactions: Vec<String>,
+
+        workflow_file: PathBuf,
+    },
 
     /// Verify a workflow against a replay file.
     Verify {
+        /// Redact a literal value before comparing replay outputs. May be repeated.
+        #[arg(long = "redact", value_name = "LABEL=VALUE")]
+        redactions: Vec<String>,
+
         workflow_file: PathBuf,
         replay_file: PathBuf,
     },
@@ -40,11 +50,15 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
         Commands::Demo => commands::demo::run(),
-        Commands::Run { workflow_file } => commands::run::run(&workflow_file),
+        Commands::Run {
+            redactions,
+            workflow_file,
+        } => commands::run::run(&workflow_file, &redactions),
         Commands::Verify {
+            redactions,
             workflow_file,
             replay_file,
-        } => commands::verify::run(&workflow_file, &replay_file),
+        } => commands::verify::run(&workflow_file, &replay_file, &redactions),
         Commands::Trace { jsonl, replay_file } => commands::trace::run(&replay_file, jsonl),
     };
 

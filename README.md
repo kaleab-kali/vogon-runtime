@@ -19,6 +19,7 @@ Vogon Runtime aims to make those workflows easier to operate by providing:
 - A clean model adapter boundary.
 - Deterministic fake models for local development and tests.
 - Replay logs that capture step-level inputs, outputs, and hashes.
+- Literal redaction for known sensitive output values.
 - Verification tools that compare a new run against a saved replay.
 - Trace output for debugging and observability.
 
@@ -48,6 +49,12 @@ Run a TOML workflow file:
 
 ```sh
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
+```
+
+Redact known sensitive literals from replay outputs:
+
+```sh
+cargo run -p vogon-cli -- run --redact api_key=sk-test-123 fixtures/workflows/support-triage.toml
 ```
 
 Verify a saved replay:
