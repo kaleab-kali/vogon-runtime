@@ -9,3 +9,7 @@ Vogon Runtime is split into three crates:
 The core crate must not depend on provider SDKs, environment variables, or CLI
 parsing. That boundary keeps deterministic replay verification testable without
 network access.
+
+Runtime execution can emit `RuntimeEvent` values through observer callbacks.
+This keeps observability provider-neutral: callers can log, count, or export
+events without coupling `vogon-core` to a tracing backend.

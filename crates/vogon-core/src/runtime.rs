@@ -1,5 +1,6 @@
 use crate::{
-    ReplayMismatch, Result, RunReport, Step, StepResult, VerificationReport, Workflow, stable_hash,
+    ReplayMismatch, Result, RunReport, RuntimeEvent, Step, StepResult, VerificationReport,
+    Workflow, stable_hash,
 };
 
 pub trait ModelAdapter {
@@ -20,12 +21,23 @@ where
     }
 
     pub fn run(&self, workflow: &Workflow) -> Result<RunReport> {
+        self.run_with_observer(workflow, |_| {})
+    }
+
+    pub fn run_with_observer<F>(&self, workflow: &Workflow, mut observer: F) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
         workflow.validate()?;
 
         let mut previous_output = String::new();
         let mut steps = Vec::with_capacity(workflow.steps().len());
 
         for step in workflow.steps() {
+            observer(RuntimeEvent::StepStarted {
+                step_id: step.id().clone(),
+            });
+
             let input = step_input(step, &previous_output);
             let output = self.adapter.complete(step, &input)?;
 
@@ -37,6 +49,10 @@ where
             });
 
             previous_output = output;
+
+            observer(RuntimeEvent::StepFinished {
+                step_id: step.id().clone(),
+            });
         }
 
         let run_hash_material = steps
@@ -60,63 +76,103 @@ where
     }
 
     pub fn verify(&self, workflow: &Workflow, expected: &RunReport) -> Result<VerificationReport> {
-        let actual = self.run(workflow)?;
+        self.verify_with_observer(workflow, expected, |_| {})
+    }
+
+    pub fn verify_with_observer<F>(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        mut observer: F,
+    ) -> Result<VerificationReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        let actual = self.run_with_observer(workflow, &mut observer)?;
         let mut mismatches = Vec::new();
 
         if expected.workflow_name != actual.workflow_name {
-            mismatches.push(ReplayMismatch::WorkflowName {
-                expected: expected.workflow_name.clone(),
-                actual: actual.workflow_name.clone(),
-            });
+            push_mismatch(
+                &mut mismatches,
+                ReplayMismatch::WorkflowName {
+                    expected: expected.workflow_name.clone(),
+                    actual: actual.workflow_name.clone(),
+                },
+                &mut observer,
+            );
         }
 
         if expected.run_hash != actual.run_hash {
-            mismatches.push(ReplayMismatch::RunHash {
-                expected: expected.run_hash.clone(),
-                actual: actual.run_hash.clone(),
-            });
+            push_mismatch(
+                &mut mismatches,
+                ReplayMismatch::RunHash {
+                    expected: expected.run_hash.clone(),
+                    actual: actual.run_hash.clone(),
+                },
+                &mut observer,
+            );
         }
 
         if expected.steps.len() != actual.steps.len() {
-            mismatches.push(ReplayMismatch::StepCount {
-                expected: expected.steps.len(),
-                actual: actual.steps.len(),
-            });
+            push_mismatch(
+                &mut mismatches,
+                ReplayMismatch::StepCount {
+                    expected: expected.steps.len(),
+                    actual: actual.steps.len(),
+                },
+                &mut observer,
+            );
         }
 
         for (index, (expected_step, actual_step)) in
             expected.steps.iter().zip(actual.steps.iter()).enumerate()
         {
             if expected_step.step_id != actual_step.step_id {
-                mismatches.push(ReplayMismatch::StepId {
-                    index,
-                    expected: expected_step.step_id.clone(),
-                    actual: actual_step.step_id.clone(),
-                });
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::StepId {
+                        index,
+                        expected: expected_step.step_id.clone(),
+                        actual: actual_step.step_id.clone(),
+                    },
+                    &mut observer,
+                );
             }
 
             if expected_step.input_hash != actual_step.input_hash {
-                mismatches.push(ReplayMismatch::StepInputHash {
-                    step_id: actual_step.step_id.clone(),
-                    expected: expected_step.input_hash.clone(),
-                    actual: actual_step.input_hash.clone(),
-                });
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::StepInputHash {
+                        step_id: actual_step.step_id.clone(),
+                        expected: expected_step.input_hash.clone(),
+                        actual: actual_step.input_hash.clone(),
+                    },
+                    &mut observer,
+                );
             }
 
             if expected_step.output_hash != actual_step.output_hash {
-                mismatches.push(ReplayMismatch::StepOutputHash {
-                    step_id: actual_step.step_id.clone(),
-                    expected: expected_step.output_hash.clone(),
-                    actual: actual_step.output_hash.clone(),
-                });
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::StepOutputHash {
+                        step_id: actual_step.step_id.clone(),
+                        expected: expected_step.output_hash.clone(),
+                        actual: actual_step.output_hash.clone(),
+                    },
+                    &mut observer,
+                );
             }
 
             if expected_step.output != actual_step.output {
-                mismatches.push(ReplayMismatch::StepOutput {
-                    step_id: actual_step.step_id.clone(),
-                    expected: expected_step.output.clone(),
-                    actual: actual_step.output.clone(),
-                });
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::StepOutput {
+                        step_id: actual_step.step_id.clone(),
+                        expected: expected_step.output.clone(),
+                        actual: actual_step.output.clone(),
+                    },
+                    &mut observer,
+                );
             }
         }
 
@@ -125,6 +181,19 @@ where
             mismatches,
         })
     }
+}
+
+fn push_mismatch<F>(
+    mismatches: &mut Vec<ReplayMismatch>,
+    mismatch: ReplayMismatch,
+    observer: &mut F,
+) where
+    F: FnMut(RuntimeEvent),
+{
+    observer(RuntimeEvent::ReplayMismatch {
+        step_id: mismatch.step_id().cloned(),
+    });
+    mismatches.push(mismatch);
 }
 
 fn step_input(step: &Step, previous_output: &str) -> String {
@@ -137,7 +206,7 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, Step, StepId, Workflow};
+    use crate::{Result, RuntimeEvent, Step, StepId, Workflow};
 
     use super::{ModelAdapter, Runtime};
 
@@ -169,6 +238,41 @@ mod tests {
     }
 
     #[test]
+    fn run_with_observer_emits_step_events() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![
+                Step::new(StepId::new("first").unwrap(), "hello"),
+                Step::new(StepId::new("second").unwrap(), "world"),
+            ],
+        )
+        .unwrap();
+        let mut events = Vec::new();
+
+        Runtime::new(TestModel)
+            .run_with_observer(&workflow, |event| events.push(event))
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                RuntimeEvent::StepStarted {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::StepFinished {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::StepStarted {
+                    step_id: StepId::new("second").unwrap()
+                },
+                RuntimeEvent::StepFinished {
+                    step_id: StepId::new("second").unwrap()
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn verify_accepts_matching_replay() {
         let workflow = Workflow::new(
             "demo",
@@ -197,5 +301,26 @@ mod tests {
         let verification = runtime.verify(&workflow, &replay).unwrap();
 
         assert!(!verification.is_match());
+    }
+
+    #[test]
+    fn verify_with_observer_emits_replay_mismatch_events() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let mut replay = runtime.run(&workflow).unwrap();
+        replay.steps[0].output = "changed".to_owned();
+        let mut events = Vec::new();
+
+        runtime
+            .verify_with_observer(&workflow, &replay, |event| events.push(event))
+            .unwrap();
+
+        assert!(events.contains(&RuntimeEvent::ReplayMismatch {
+            step_id: Some(StepId::new("first").unwrap())
+        }));
     }
 }
