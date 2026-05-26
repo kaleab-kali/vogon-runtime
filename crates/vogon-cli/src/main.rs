@@ -26,8 +26,14 @@ enum Commands {
         replay_file: PathBuf,
     },
 
-    /// Print a human-readable trace for a replay file.
-    Trace { replay_file: PathBuf },
+    /// Print a trace for a replay file.
+    Trace {
+        /// Emit newline-delimited JSON instead of human-readable text.
+        #[arg(long)]
+        jsonl: bool,
+
+        replay_file: PathBuf,
+    },
 }
 
 fn main() -> ExitCode {
@@ -39,7 +45,7 @@ fn main() -> ExitCode {
             workflow_file,
             replay_file,
         } => commands::verify::run(&workflow_file, &replay_file),
-        Commands::Trace { replay_file } => commands::trace::run(&replay_file),
+        Commands::Trace { jsonl, replay_file } => commands::trace::run(&replay_file, jsonl),
     };
 
     match result {
