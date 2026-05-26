@@ -65,3 +65,23 @@ impl VerificationReport {
         self.mismatches.is_empty()
     }
 }
+
+impl ReplayMismatch {
+    pub fn step_id(&self) -> Option<&StepId> {
+        match self {
+            ReplayMismatch::WorkflowName { .. }
+            | ReplayMismatch::RunHash { .. }
+            | ReplayMismatch::StepCount { .. } => None,
+            ReplayMismatch::StepId { actual, .. }
+            | ReplayMismatch::StepInputHash {
+                step_id: actual, ..
+            }
+            | ReplayMismatch::StepOutputHash {
+                step_id: actual, ..
+            }
+            | ReplayMismatch::StepOutput {
+                step_id: actual, ..
+            } => Some(actual),
+        }
+    }
+}
