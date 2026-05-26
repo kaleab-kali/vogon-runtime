@@ -51,6 +51,12 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+Write a replay file:
+
+```sh
+cargo run -p vogon-cli -- run --output target/support-triage.replay.json fixtures/workflows/support-triage.toml
+```
+
 Redact known sensitive literals from replay outputs:
 
 ```sh
