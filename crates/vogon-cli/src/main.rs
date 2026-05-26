@@ -23,6 +23,10 @@ enum Commands {
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
 
+        /// Write the replay JSON to a file instead of stdout.
+        #[arg(short, long, value_name = "FILE")]
+        output: Option<PathBuf>,
+
         workflow_file: PathBuf,
     },
 
@@ -51,9 +55,10 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Commands::Demo => commands::demo::run(),
         Commands::Run {
+            output,
             redactions,
             workflow_file,
-        } => commands::run::run(&workflow_file, &redactions),
+        } => commands::run::run(&workflow_file, &redactions, output.as_deref()),
         Commands::Verify {
             redactions,
             workflow_file,
