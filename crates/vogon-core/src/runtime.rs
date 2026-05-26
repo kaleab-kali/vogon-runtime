@@ -1,4 +1,6 @@
-use crate::{Result, RunReport, Step, StepResult, Workflow, stable_hash};
+use crate::{
+    ReplayMismatch, Result, RunReport, Step, StepResult, VerificationReport, Workflow, stable_hash,
+};
 
 pub trait ModelAdapter {
     fn complete(&self, step: &Step, input: &str) -> Result<String>;
@@ -56,6 +58,73 @@ where
             steps,
         })
     }
+
+    pub fn verify(&self, workflow: &Workflow, expected: &RunReport) -> Result<VerificationReport> {
+        let actual = self.run(workflow)?;
+        let mut mismatches = Vec::new();
+
+        if expected.workflow_name != actual.workflow_name {
+            mismatches.push(ReplayMismatch::WorkflowName {
+                expected: expected.workflow_name.clone(),
+                actual: actual.workflow_name.clone(),
+            });
+        }
+
+        if expected.run_hash != actual.run_hash {
+            mismatches.push(ReplayMismatch::RunHash {
+                expected: expected.run_hash.clone(),
+                actual: actual.run_hash.clone(),
+            });
+        }
+
+        if expected.steps.len() != actual.steps.len() {
+            mismatches.push(ReplayMismatch::StepCount {
+                expected: expected.steps.len(),
+                actual: actual.steps.len(),
+            });
+        }
+
+        for (index, (expected_step, actual_step)) in
+            expected.steps.iter().zip(actual.steps.iter()).enumerate()
+        {
+            if expected_step.step_id != actual_step.step_id {
+                mismatches.push(ReplayMismatch::StepId {
+                    index,
+                    expected: expected_step.step_id.clone(),
+                    actual: actual_step.step_id.clone(),
+                });
+            }
+
+            if expected_step.input_hash != actual_step.input_hash {
+                mismatches.push(ReplayMismatch::StepInputHash {
+                    step_id: actual_step.step_id.clone(),
+                    expected: expected_step.input_hash.clone(),
+                    actual: actual_step.input_hash.clone(),
+                });
+            }
+
+            if expected_step.output_hash != actual_step.output_hash {
+                mismatches.push(ReplayMismatch::StepOutputHash {
+                    step_id: actual_step.step_id.clone(),
+                    expected: expected_step.output_hash.clone(),
+                    actual: actual_step.output_hash.clone(),
+                });
+            }
+
+            if expected_step.output != actual_step.output {
+                mismatches.push(ReplayMismatch::StepOutput {
+                    step_id: actual_step.step_id.clone(),
+                    expected: expected_step.output.clone(),
+                    actual: actual_step.output.clone(),
+                });
+            }
+        }
+
+        Ok(VerificationReport {
+            workflow_name: actual.workflow_name,
+            mismatches,
+        })
+    }
 }
 
 fn step_input(step: &Step, previous_output: &str) -> String {
@@ -97,5 +166,36 @@ mod tests {
         assert_eq!(report.workflow_name, "demo");
         assert_eq!(report.steps.len(), 2);
         assert_ne!(report.run_hash, "");
+    }
+
+    #[test]
+    fn verify_accepts_matching_replay() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let replay = runtime.run(&workflow).unwrap();
+
+        let verification = runtime.verify(&workflow, &replay).unwrap();
+
+        assert!(verification.is_match());
+    }
+
+    #[test]
+    fn verify_reports_replay_mismatch() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let mut replay = runtime.run(&workflow).unwrap();
+        replay.steps[0].output = "changed".to_owned();
+
+        let verification = runtime.verify(&workflow, &replay).unwrap();
+
+        assert!(!verification.is_match());
     }
 }
