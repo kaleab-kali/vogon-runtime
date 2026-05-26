@@ -1,0 +1,18 @@
+{
+  "workflow_name": "support-triage",
+  "run_hash": "9c6fc55019bf7f5d510fa76a7f30c52470f14fdbdb0b1667362727b65dc3a291",
+  "steps": [
+    {
+      "step_id": "classify",
+      "input_hash": "25b99048d109fbed572129d473b8043dd72292d405951d7c0bb202a052a9a76d",
+      "output_hash": "507457097202872befc08b8955b2cfa0a5ffd4e9104ce268ec8e1650c96389c1",
+      "output": "classify:25b99048d109fbed572129d473b8043dd72292d405951d7c0bb202a052a9a76d"
+    },
+    {
+      "step_id": "draft_response",
+      "input_hash": "b40b9bbe17a17b580c858c926a5f244350c4f65c67921f9f920a1ba5255649a7",
+      "output_hash": "ca1f402f7b31ef2e21bde72d316b60326061f89ee15992fb78d3a4d1dd1463b9",
+      "output": "draft_response:b40b9bbe17a17b580c858c926a5f244350c4f65c67921f9f920a1ba5255649a7"
+    }
+  ]
+}

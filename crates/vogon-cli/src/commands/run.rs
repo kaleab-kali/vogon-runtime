@@ -1,13 +1,12 @@
-use std::{fs, path::Path};
+use std::path::Path;
 
 use vogon_adapters::DeterministicEchoModel;
-use vogon_core::{Runtime, Workflow};
+use vogon_core::Runtime;
+
+use crate::commands::workflow_file::read_toml_workflow;
 
 pub fn run(workflow_file: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let workflow_text = fs::read_to_string(workflow_file)?;
-    let workflow: Workflow = toml::from_str(&workflow_text)?;
-    workflow.validate()?;
-
+    let workflow = read_toml_workflow(workflow_file)?;
     let report = Runtime::new(DeterministicEchoModel).run(&workflow)?;
     println!("{}", serde_json::to_string_pretty(&report)?);
 

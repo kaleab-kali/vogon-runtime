@@ -50,6 +50,12 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+Verify a saved replay:
+
+```sh
+cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+```
+
 Run local checks:
 
 ```sh

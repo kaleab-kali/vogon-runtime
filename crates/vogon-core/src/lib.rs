@@ -11,7 +11,7 @@ mod workflow;
 pub use error::{Result, VogonError};
 pub use events::RuntimeEvent;
 pub use hash::stable_hash;
-pub use replay::{RunReport, StepResult};
+pub use replay::{ReplayMismatch, RunReport, StepResult, VerificationReport};
 pub use runtime::{ModelAdapter, Runtime};
 pub use step::{Step, StepId};
 pub use workflow::Workflow;
