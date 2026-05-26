@@ -75,10 +75,9 @@ cargo test --workspace --all-features
 ```text
 crates/
   vogon-core/      Workflow, runtime, replay, hashing, and errors.
-  vogon-adapters/  Model adapter implementations.
+  vogon-adapters/  Model adapter implementations and runtime examples.
   vogon-cli/       Command-line entrypoint.
 docs/              Architecture and replay format notes.
-examples/          Small API usage examples.
 fixtures/          Example workflows and replay logs.
 ```
 
