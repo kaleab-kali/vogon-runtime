@@ -1,0 +1,9 @@
+/target/
+/.idea/
+/.vscode/
+*.rs.bk
+*.pdb
+
+.env
+.env.*
+!.env.example
