@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::{Result, VogonError};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct StepId(String);
 
@@ -27,6 +27,28 @@ impl StepId {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for StepId {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        StepId::new(value).map_err(de::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::StepId;
+
+    #[test]
+    fn step_id_deserialization_validates_input() {
+        let result = serde_json::from_str::<StepId>(r#""bad id""#);
+
+        assert!(result.is_err());
     }
 }
 

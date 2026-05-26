@@ -44,6 +44,12 @@ Run the deterministic demo workflow:
 cargo run -p vogon-cli -- demo
 ```
 
+Run a TOML workflow file:
+
+```sh
+cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
+```
+
 Run local checks:
 
 ```sh
