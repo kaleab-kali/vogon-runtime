@@ -1,6 +1,6 @@
 use crate::{
-    ReplayMismatch, Result, RunReport, RuntimeEvent, Step, StepResult, VerificationReport,
-    Workflow, stable_hash,
+    RedactionSet, ReplayMismatch, Result, RunReport, RuntimeEvent, Step, StepResult,
+    VerificationReport, Workflow, stable_hash,
 };
 
 pub trait ModelAdapter {
@@ -21,10 +21,30 @@ where
     }
 
     pub fn run(&self, workflow: &Workflow) -> Result<RunReport> {
-        self.run_with_observer(workflow, |_| {})
+        self.run_with_redactions_and_observer(workflow, &RedactionSet::empty(), |_| {})
     }
 
     pub fn run_with_observer<F>(&self, workflow: &Workflow, mut observer: F) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.run_with_redactions_and_observer(workflow, &RedactionSet::empty(), &mut observer)
+    }
+
+    pub fn run_with_redactions(
+        &self,
+        workflow: &Workflow,
+        redactions: &RedactionSet,
+    ) -> Result<RunReport> {
+        self.run_with_redactions_and_observer(workflow, redactions, |_| {})
+    }
+
+    pub fn run_with_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        redactions: &RedactionSet,
+        mut observer: F,
+    ) -> Result<RunReport>
     where
         F: FnMut(RuntimeEvent),
     {
@@ -40,12 +60,13 @@ where
 
             let input = step_input(step, &previous_output);
             let output = self.adapter.complete(step, &input)?;
+            let redacted_output = redactions.redact(&output);
 
             steps.push(StepResult {
                 step_id: step.id().clone(),
                 input_hash: stable_hash(&input),
-                output_hash: stable_hash(&output),
-                output: output.clone(),
+                output_hash: stable_hash(&redacted_output),
+                output: redacted_output,
             });
 
             previous_output = output;
@@ -76,7 +97,7 @@ where
     }
 
     pub fn verify(&self, workflow: &Workflow, expected: &RunReport) -> Result<VerificationReport> {
-        self.verify_with_observer(workflow, expected, |_| {})
+        self.verify_with_redactions_and_observer(workflow, expected, &RedactionSet::empty(), |_| {})
     }
 
     pub fn verify_with_observer<F>(
@@ -88,7 +109,34 @@ where
     where
         F: FnMut(RuntimeEvent),
     {
-        let actual = self.run_with_observer(workflow, &mut observer)?;
+        self.verify_with_redactions_and_observer(
+            workflow,
+            expected,
+            &RedactionSet::empty(),
+            &mut observer,
+        )
+    }
+
+    pub fn verify_with_redactions(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        redactions: &RedactionSet,
+    ) -> Result<VerificationReport> {
+        self.verify_with_redactions_and_observer(workflow, expected, redactions, |_| {})
+    }
+
+    pub fn verify_with_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        redactions: &RedactionSet,
+        mut observer: F,
+    ) -> Result<VerificationReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        let actual = self.run_with_redactions_and_observer(workflow, redactions, &mut observer)?;
         let mut mismatches = Vec::new();
 
         if expected.workflow_name != actual.workflow_name {
@@ -206,7 +254,9 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, RuntimeEvent, Step, StepId, Workflow};
+    use crate::{
+        RedactionRule, RedactionSet, Result, RuntimeEvent, Step, StepId, Workflow, stable_hash,
+    };
 
     use super::{ModelAdapter, Runtime};
 
@@ -216,6 +266,15 @@ mod tests {
     impl ModelAdapter for TestModel {
         fn complete(&self, step: &Step, input: &str) -> Result<String> {
             Ok(format!("{}:{input}", step.id().as_str()))
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct SecretModel;
+
+    impl ModelAdapter for SecretModel {
+        fn complete(&self, _step: &Step, _input: &str) -> Result<String> {
+            Ok("token=sk-test-123".to_owned())
         }
     }
 
@@ -322,5 +381,45 @@ mod tests {
         assert!(events.contains(&RuntimeEvent::ReplayMismatch {
             step_id: Some(StepId::new("first").unwrap())
         }));
+    }
+
+    #[test]
+    fn run_with_redactions_scrubs_step_outputs() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let redactions =
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+
+        let report = Runtime::new(SecretModel)
+            .run_with_redactions(&workflow, &redactions)
+            .unwrap();
+
+        assert_eq!(report.steps[0].output, "token=[REDACTED:api_key]");
+        assert_eq!(
+            report.steps[0].output_hash,
+            stable_hash("token=[REDACTED:api_key]")
+        );
+    }
+
+    #[test]
+    fn verify_with_redactions_accepts_redacted_replay() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(SecretModel);
+        let redactions =
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+        let replay = runtime.run_with_redactions(&workflow, &redactions).unwrap();
+
+        let verification = runtime
+            .verify_with_redactions(&workflow, &replay, &redactions)
+            .unwrap();
+
+        assert!(verification.is_match());
     }
 }

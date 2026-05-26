@@ -19,6 +19,15 @@ pub enum VogonError {
     #[error("duplicate step id `{0}`")]
     DuplicateStepId(String),
 
+    #[error("redaction label cannot be empty")]
+    EmptyRedactionLabel,
+
+    #[error("redaction literal cannot be empty")]
+    EmptyRedactionLiteral,
+
+    #[error("redaction label `{0}` contains unsupported characters")]
+    InvalidRedactionLabel(String),
+
     #[error("model adapter failed: {0}")]
     Adapter(String),
 }
