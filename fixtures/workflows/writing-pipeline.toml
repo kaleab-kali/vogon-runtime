@@ -1,0 +1,13 @@
+name = "writing-pipeline"
+
+[[steps]]
+id = "outline"
+prompt = "Create a short outline for a technical article about deterministic LLM workflows."
+
+[[steps]]
+id = "draft"
+prompt = "Write a first draft from the outline."
+
+[[steps]]
+id = "revise"
+prompt = "Revise the draft for clarity and remove vague claims."

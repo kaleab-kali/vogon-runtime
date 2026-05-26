@@ -24,7 +24,8 @@ Vogon Runtime aims to make those workflows easier to operate by providing:
 
 ## Project Status
 
-Vogon Runtime is pre-release. The first milestone is a small Rust workspace with:
+Vogon Runtime is pre-release. The current codebase is a small Rust workspace
+with:
 
 - `vogon-core` for workflow, runtime, replay, hashing, and error types.
 - `vogon-adapters` for deterministic and provider-backed model adapters.
@@ -34,6 +35,34 @@ Vogon Runtime is pre-release. The first milestone is a small Rust workspace with
 
 The first implementation will use a deterministic fake model before adding real
 provider integrations.
+
+## Quickstart
+
+Run the deterministic demo workflow:
+
+```sh
+cargo run -p vogon-cli -- demo
+```
+
+Run local checks:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+```
+
+## Repository Layout
+
+```text
+crates/
+  vogon-core/      Workflow, runtime, replay, hashing, and errors.
+  vogon-adapters/  Model adapter implementations.
+  vogon-cli/       Command-line entrypoint.
+docs/              Architecture and replay format notes.
+examples/          Small API usage examples.
+fixtures/          Example workflows and replay logs.
+```
 
 ## Design Principles
 
@@ -58,4 +87,4 @@ provider integrations.
 
 ## License
 
-Vogon Runtime is intended to be released under the MIT License.
+Vogon Runtime is released under the MIT License.

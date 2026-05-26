@@ -1,0 +1,9 @@
+name = "support-triage"
+
+[[steps]]
+id = "classify"
+prompt = "Classify this support request as billing, bug, or general."
+
+[[steps]]
+id = "draft_response"
+prompt = "Draft a concise customer response based on the classification."
