@@ -13,3 +13,7 @@ network access.
 Runtime execution can emit `RuntimeEvent` values through observer callbacks.
 This keeps observability provider-neutral: callers can log, count, or export
 events without coupling `vogon-core` to a tracing backend.
+
+Runtime calls can also use an optional `RunCache` keyed by stable step input
+hashes. The cache stores raw adapter outputs, so callers can apply different
+redaction rules to cached outputs without changing cache keys.
