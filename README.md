@@ -56,6 +56,12 @@ Verify a saved replay:
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
+Inspect a replay trace:
+
+```sh
+cargo run -p vogon-cli -- trace fixtures/replays/support-triage.replay.json
+```
+
 Run local checks:
 
 ```sh
