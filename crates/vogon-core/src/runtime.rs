@@ -1,5 +1,5 @@
 use crate::{
-    RedactionSet, ReplayMismatch, Result, RunReport, RuntimeEvent, Step, StepResult,
+    RedactionSet, ReplayMismatch, Result, RunCache, RunReport, RuntimeEvent, Step, StepResult,
     VerificationReport, Workflow, stable_hash,
 };
 
@@ -21,14 +21,39 @@ where
     }
 
     pub fn run(&self, workflow: &Workflow) -> Result<RunReport> {
-        self.run_with_redactions_and_observer(workflow, &RedactionSet::empty(), |_| {})
+        self.run_uncached_with_redactions_and_observer(workflow, &RedactionSet::empty(), |_| {})
     }
 
     pub fn run_with_observer<F>(&self, workflow: &Workflow, mut observer: F) -> Result<RunReport>
     where
         F: FnMut(RuntimeEvent),
     {
-        self.run_with_redactions_and_observer(workflow, &RedactionSet::empty(), &mut observer)
+        self.run_uncached_with_redactions_and_observer(
+            workflow,
+            &RedactionSet::empty(),
+            &mut observer,
+        )
+    }
+
+    pub fn run_with_cache(&self, workflow: &Workflow, cache: &mut RunCache) -> Result<RunReport> {
+        self.run_with_cache_redactions_and_observer(workflow, cache, &RedactionSet::empty(), |_| {})
+    }
+
+    pub fn run_with_cache_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        cache: &mut RunCache,
+        mut observer: F,
+    ) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.run_with_cache_redactions_and_observer(
+            workflow,
+            cache,
+            &RedactionSet::empty(),
+            &mut observer,
+        )
     }
 
     pub fn run_with_redactions(
@@ -36,13 +61,60 @@ where
         workflow: &Workflow,
         redactions: &RedactionSet,
     ) -> Result<RunReport> {
-        self.run_with_redactions_and_observer(workflow, redactions, |_| {})
+        self.run_uncached_with_redactions_and_observer(workflow, redactions, |_| {})
+    }
+
+    pub fn run_with_cache_and_redactions(
+        &self,
+        workflow: &Workflow,
+        cache: &mut RunCache,
+        redactions: &RedactionSet,
+    ) -> Result<RunReport> {
+        self.run_with_cache_redactions_and_observer(workflow, cache, redactions, |_| {})
     }
 
     pub fn run_with_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,
         redactions: &RedactionSet,
+        observer: F,
+    ) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.run_uncached_with_redactions_and_observer(workflow, redactions, observer)
+    }
+
+    pub fn run_with_cache_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        cache: &mut RunCache,
+        redactions: &RedactionSet,
+        observer: F,
+    ) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.run_internal(workflow, redactions, Some(cache), observer)
+    }
+
+    fn run_uncached_with_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        redactions: &RedactionSet,
+        observer: F,
+    ) -> Result<RunReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.run_internal(workflow, redactions, None, observer)
+    }
+
+    fn run_internal<F>(
+        &self,
+        workflow: &Workflow,
+        redactions: &RedactionSet,
+        mut cache: Option<&mut RunCache>,
         mut observer: F,
     ) -> Result<RunReport>
     where
@@ -59,12 +131,26 @@ where
             });
 
             let input = step_input(step, &previous_output);
-            let output = self.adapter.complete(step, &input)?;
+            let input_hash = stable_hash(&input);
+            let output = match cache.as_deref_mut().and_then(|cache| {
+                cache
+                    .get_output(&input_hash)
+                    .map(std::borrow::ToOwned::to_owned)
+            }) {
+                Some(output) => output,
+                None => {
+                    let output = self.adapter.complete(step, &input)?;
+                    if let Some(cache) = cache.as_deref_mut() {
+                        cache.insert_output(input_hash.clone(), output.clone());
+                    }
+                    output
+                }
+            };
             let redacted_output = redactions.redact(&output);
 
             steps.push(StepResult {
                 step_id: step.id().clone(),
-                input_hash: stable_hash(&input),
+                input_hash,
                 output_hash: stable_hash(&redacted_output),
                 output: redacted_output,
             });
@@ -97,7 +183,12 @@ where
     }
 
     pub fn verify(&self, workflow: &Workflow, expected: &RunReport) -> Result<VerificationReport> {
-        self.verify_with_redactions_and_observer(workflow, expected, &RedactionSet::empty(), |_| {})
+        self.verify_uncached_with_redactions_and_observer(
+            workflow,
+            expected,
+            &RedactionSet::empty(),
+            |_| {},
+        )
     }
 
     pub fn verify_with_observer<F>(
@@ -109,7 +200,7 @@ where
     where
         F: FnMut(RuntimeEvent),
     {
-        self.verify_with_redactions_and_observer(
+        self.verify_uncached_with_redactions_and_observer(
             workflow,
             expected,
             &RedactionSet::empty(),
@@ -123,10 +214,74 @@ where
         expected: &RunReport,
         redactions: &RedactionSet,
     ) -> Result<VerificationReport> {
-        self.verify_with_redactions_and_observer(workflow, expected, redactions, |_| {})
+        self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, |_| {})
+    }
+
+    pub fn verify_with_cache(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        cache: &mut RunCache,
+    ) -> Result<VerificationReport> {
+        self.verify_with_cache_redactions_and_observer(
+            workflow,
+            expected,
+            cache,
+            &RedactionSet::empty(),
+            |_| {},
+        )
+    }
+
+    pub fn verify_with_cache_and_redactions(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        cache: &mut RunCache,
+        redactions: &RedactionSet,
+    ) -> Result<VerificationReport> {
+        self.verify_with_cache_redactions_and_observer(
+            workflow,
+            expected,
+            cache,
+            redactions,
+            |_| {},
+        )
     }
 
     pub fn verify_with_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        redactions: &RedactionSet,
+        observer: F,
+    ) -> Result<VerificationReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, observer)
+    }
+
+    pub fn verify_with_cache_redactions_and_observer<F>(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        cache: &mut RunCache,
+        redactions: &RedactionSet,
+        mut observer: F,
+    ) -> Result<VerificationReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
+        let actual = self.run_with_cache_redactions_and_observer(
+            workflow,
+            cache,
+            redactions,
+            &mut observer,
+        )?;
+        self.compare_reports(expected, actual, observer)
+    }
+
+    fn verify_uncached_with_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,
         expected: &RunReport,
@@ -136,7 +291,20 @@ where
     where
         F: FnMut(RuntimeEvent),
     {
-        let actual = self.run_with_redactions_and_observer(workflow, redactions, &mut observer)?;
+        let actual =
+            self.run_uncached_with_redactions_and_observer(workflow, redactions, &mut observer)?;
+        self.compare_reports(expected, actual, observer)
+    }
+
+    fn compare_reports<F>(
+        &self,
+        expected: &RunReport,
+        actual: RunReport,
+        mut observer: F,
+    ) -> Result<VerificationReport>
+    where
+        F: FnMut(RuntimeEvent),
+    {
         let mut mismatches = Vec::new();
 
         if expected.workflow_name != actual.workflow_name {
@@ -255,8 +423,11 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::{
-        RedactionRule, RedactionSet, Result, RuntimeEvent, Step, StepId, Workflow, stable_hash,
+        RedactionRule, RedactionSet, Result, RunCache, RuntimeEvent, Step, StepId, Workflow,
+        stable_hash,
     };
+
+    use std::{cell::Cell, rc::Rc};
 
     use super::{ModelAdapter, Runtime};
 
@@ -275,6 +446,24 @@ mod tests {
     impl ModelAdapter for SecretModel {
         fn complete(&self, _step: &Step, _input: &str) -> Result<String> {
             Ok("token=sk-test-123".to_owned())
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct CountingModel {
+        calls: Rc<Cell<usize>>,
+    }
+
+    impl CountingModel {
+        fn new(calls: Rc<Cell<usize>>) -> Self {
+            Self { calls }
+        }
+    }
+
+    impl ModelAdapter for CountingModel {
+        fn complete(&self, step: &Step, input: &str) -> Result<String> {
+            self.calls.set(self.calls.get() + 1);
+            Ok(format!("{}:{input}", step.id().as_str()))
         }
     }
 
@@ -421,5 +610,46 @@ mod tests {
             .unwrap();
 
         assert!(verification.is_match());
+    }
+
+    #[test]
+    fn run_with_cache_reuses_outputs_by_input_hash() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let calls = Rc::new(Cell::new(0));
+        let runtime = Runtime::new(CountingModel::new(Rc::clone(&calls)));
+        let mut cache = RunCache::new();
+
+        let first = runtime.run_with_cache(&workflow, &mut cache).unwrap();
+        let second = runtime.run_with_cache(&workflow, &mut cache).unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(calls.get(), 1);
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn run_with_cache_applies_current_redactions_to_cached_outputs() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let redactions =
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+        let mut cache = RunCache::new();
+        let runtime = Runtime::new(SecretModel);
+
+        let unredacted = runtime.run_with_cache(&workflow, &mut cache).unwrap();
+        let redacted = runtime
+            .run_with_cache_and_redactions(&workflow, &mut cache, &redactions)
+            .unwrap();
+
+        assert_eq!(unredacted.steps[0].output, "token=sk-test-123");
+        assert_eq!(redacted.steps[0].output, "token=[REDACTED:api_key]");
+        assert_eq!(cache.len(), 1);
     }
 }
