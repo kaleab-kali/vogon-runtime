@@ -62,6 +62,12 @@ Inspect a replay trace:
 cargo run -p vogon-cli -- trace fixtures/replays/support-triage.replay.json
 ```
 
+Export a machine-readable JSON Lines trace:
+
+```sh
+cargo run -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json
+```
+
 Run local checks:
 
 ```sh
