@@ -19,8 +19,10 @@ These instructions apply to the entire repository.
 - Do not use phase-based branch names, PR titles, or commit messages.
 - Keep commits focused and use concise imperative commit messages.
 - Use pull requests for changes to `main`.
-- Merge pull requests with regular merge commits. Do not squash merge.
-- Delete merged feature branches after the PR is merged.
+- Merge pull requests with regular merge commits only.
+- Do not squash merge.
+- Do not delete local or remote branches unless the user explicitly asks for
+  branch deletion.
 
 ## Commit Metadata
 
