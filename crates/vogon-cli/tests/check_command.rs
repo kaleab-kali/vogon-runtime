@@ -1,0 +1,72 @@
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
+
+fn support_triage_workflow() -> PathBuf {
+    repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("support-triage.toml")
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn write_invalid_workflow(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = "invalid"
+
+[[steps]]
+id = "duplicate"
+prompt = "First"
+
+[[steps]]
+id = "duplicate"
+prompt = "Second"
+"#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn check_command_accepts_valid_toml_workflow() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(support_triage_workflow())
+        .output()
+        .expect("check command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout)
+            .contains("Workflow valid: support-triage (2 steps)")
+    );
+}
+
+#[test]
+fn check_command_rejects_invalid_toml_workflow() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("invalid-workflow.toml");
+    write_invalid_workflow(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("duplicate step id `duplicate`"));
+}

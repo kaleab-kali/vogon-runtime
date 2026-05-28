@@ -14,6 +14,9 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Validate a workflow file without executing it.
+    Check { workflow_file: PathBuf },
+
     /// Run the built-in deterministic demo workflow.
     Demo,
 
@@ -53,6 +56,7 @@ enum Commands {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
+        Commands::Check { workflow_file } => commands::check::run(&workflow_file),
         Commands::Demo => commands::demo::run(),
         Commands::Run {
             output,
