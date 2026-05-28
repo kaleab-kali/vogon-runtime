@@ -15,5 +15,13 @@ assignees: ""
 ## Alternatives considered
 
 
-## Additional context
+## Runtime boundary
 
+- Does this belong in `vogon-core`, `vogon-adapters`, or `vogon-cli`?
+- Does it require provider-specific behavior?
+
+## Verification idea
+
+- Suggested unit, integration, fixture, or CLI smoke test:
+
+## Additional context
