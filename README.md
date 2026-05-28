@@ -36,8 +36,9 @@ with:
 - `fixtures` for example workflows and replay logs.
 - `docs` for architecture and replay format notes.
 
-The first implementation will use a deterministic fake model before adding real
-provider integrations.
+The current implementation uses a deterministic model adapter so workflows,
+replays, and verification can be developed without network access. Provider
+integrations are planned behind adapter boundaries.
 
 ## Quickstart
 
@@ -101,6 +102,7 @@ Run local checks:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo package --workspace --allow-dirty --no-verify
 ```
 
 ## Repository Layout
