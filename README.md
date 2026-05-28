@@ -1,5 +1,7 @@
 # Vogon Runtime
 
+[![CI](https://github.com/kaleab-kali/vogon-runtime/actions/workflows/ci.yml/badge.svg)](https://github.com/kaleab-kali/vogon-runtime/actions/workflows/ci.yml)
+
 Vogon Runtime is a Rust runtime for deterministic, replayable AI workflows.
 
 The project is built around a simple idea: an AI workflow should produce an

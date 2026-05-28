@@ -6,24 +6,32 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
-    name: Rust
+    name: Rust workspace
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Show Rust toolchain
+        run: rustup show
 
-      - name: Format
+      - name: Install Rust components
+        run: rustup component add rustfmt clippy
+
+      - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy
+      - name: Lint
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test
