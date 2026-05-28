@@ -53,6 +53,12 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+Validate a TOML workflow without executing it:
+
+```sh
+cargo run -p vogon-cli -- check fixtures/workflows/support-triage.toml
+```
+
 Write a replay file:
 
 ```sh
