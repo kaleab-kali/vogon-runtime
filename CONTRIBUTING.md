@@ -8,7 +8,12 @@ Thanks for helping improve Vogon Runtime.
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo package --workspace --allow-dirty --no-verify
 ```
+
+The package command validates the crate archives that would be prepared for
+publication. Use `--offline` when working without registry access after
+dependencies have already been fetched.
 
 ## Pull Requests
 
