@@ -19,6 +19,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Step result caching support in `vogon-core`.
 - Example workflow and replay fixtures for support triage and writing workflows.
 - GitHub Actions CI for formatting, linting, and tests.
+- Workspace crate package archive validation in CI.
 
 ### Documentation
 

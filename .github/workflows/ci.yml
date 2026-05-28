@@ -36,3 +36,6 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --all-features
+
+      - name: Package
+        run: cargo package --workspace --allow-dirty --no-verify

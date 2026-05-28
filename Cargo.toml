@@ -22,5 +22,5 @@ serde_json = "1.0"
 sha2 = "0.10"
 thiserror = "2.0"
 toml = "0.8"
-vogon-adapters = { path = "crates/vogon-adapters" }
-vogon-core = { path = "crates/vogon-core" }
+vogon-adapters = { version = "0.1.0", path = "crates/vogon-adapters" }
+vogon-core = { version = "0.1.0", path = "crates/vogon-core" }
