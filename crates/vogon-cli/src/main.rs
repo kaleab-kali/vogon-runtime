@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[command(name = "vogon")]
 #[command(about = "Deterministic, replayable AI workflow runtime.")]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
