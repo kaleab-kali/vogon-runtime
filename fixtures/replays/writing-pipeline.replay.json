@@ -1,0 +1,24 @@
+{
+  "workflow_name": "writing-pipeline",
+  "run_hash": "b4146508ef023b9d212004bd4f1d972f210735cd413f1d09a727a0ed2bbb5d72",
+  "steps": [
+    {
+      "step_id": "outline",
+      "input_hash": "50f6a39ade4199ae1f517e4de191b8d8512d6a5233bb377588c39a775f3f1b9d",
+      "output_hash": "fcbedd2e195185d8791d871c2b69647f6da25a35daf94b65135a8712fb655f6d",
+      "output": "outline:50f6a39ade4199ae1f517e4de191b8d8512d6a5233bb377588c39a775f3f1b9d"
+    },
+    {
+      "step_id": "draft",
+      "input_hash": "2e92838b50a17fbbdac39df4fd2006ae51e91198f3b0d20ebbc4edfce15d80a5",
+      "output_hash": "c5db46513f4f368a71ed310379bfb819bd52987e4e9e22fea765dc8ee487e000",
+      "output": "draft:2e92838b50a17fbbdac39df4fd2006ae51e91198f3b0d20ebbc4edfce15d80a5"
+    },
+    {
+      "step_id": "revise",
+      "input_hash": "d677fdd82423b0bc3016839c23a51645be2d909938471226371130c612d3bc2e",
+      "output_hash": "181380f12f46fcd4c268f230528457e9bbe464f73231f6c70cc8088bdb285acb",
+      "output": "revise:d677fdd82423b0bc3016839c23a51645be2d909938471226371130c612d3bc2e"
+    }
+  ]
+}
