@@ -69,6 +69,12 @@ Verify a saved replay:
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
+Verify a multi-step writing workflow fixture:
+
+```sh
+cargo run -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
+```
+
 Inspect a replay trace:
 
 ```sh
