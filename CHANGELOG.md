@@ -24,5 +24,5 @@ and this project follows semantic versioning once the first release is tagged.
 ### Documentation
 
 - Public README quickstart and project overview.
-- Architecture, determinism, and replay format notes.
+- Architecture, workflow format, determinism, and replay format notes.
 - Contributing, security, code of conduct, and license documents.
