@@ -34,7 +34,8 @@ with:
 - `vogon-adapters` for deterministic and provider-backed model adapters.
 - `vogon-cli` for running demos, workflows, verification, and traces.
 - `fixtures` for example workflows and replay logs.
-- `docs` for architecture and replay format notes.
+- `docs` for architecture, workflow format, determinism, and replay format
+  notes.
 
 The current implementation uses a deterministic model adapter so workflows,
 replays, and verification can be developed without network access. Provider
@@ -112,9 +113,16 @@ crates/
   vogon-core/      Workflow, runtime, replay, hashing, and errors.
   vogon-adapters/  Model adapter implementations and runtime examples.
   vogon-cli/       Command-line entrypoint.
-docs/              Architecture and replay format notes.
+docs/              Architecture, format, and determinism notes.
 fixtures/          Example workflows and replay logs.
 ```
+
+Useful documentation:
+
+- [Architecture](docs/architecture.md)
+- [Workflow format](docs/workflow-format.md)
+- [Determinism](docs/determinism.md)
+- [Replay format](docs/replay-format.md)
 
 ## Design Principles
 
