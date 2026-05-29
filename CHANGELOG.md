@@ -25,4 +25,5 @@ and this project follows semantic versioning once the first release is tagged.
 
 - Public README quickstart and project overview.
 - Architecture, workflow format, determinism, and replay format notes.
+- Crate-level Rustdoc examples for `vogon-core` and `vogon-adapters`.
 - Contributing, security, code of conduct, and license documents.
