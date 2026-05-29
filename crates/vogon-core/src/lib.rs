@@ -31,6 +31,8 @@
 //! assert_eq!(report.steps.len(), 1);
 //! ```
 
+#![deny(rustdoc::broken_intra_doc_links)]
+
 mod cache;
 mod error;
 mod events;
