@@ -13,3 +13,9 @@ public issue that describes the affected area without exploit details.
 
 Do not include secrets, API keys, private prompts, replay logs with sensitive
 inputs, or customer data in public reports.
+
+## Unsafe Code
+
+Workspace crates forbid unsafe Rust. Changes that require unsafe code should be
+discussed in an issue before implementation and must explain why a safe
+alternative is not sufficient.
