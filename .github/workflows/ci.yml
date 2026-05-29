@@ -40,6 +40,11 @@ jobs:
       - name: Build release artifacts
         run: cargo build --release --workspace --all-features
 
+      - name: Smoke test release CLI
+        run: |
+          ./target/release/vogon --version
+          ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+
       - name: Build docs
         run: cargo doc --workspace --all-features --no-deps
 
