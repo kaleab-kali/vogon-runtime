@@ -121,6 +121,7 @@ fixtures/          Example workflows and replay logs.
 Useful documentation:
 
 - [Architecture](docs/architecture.md)
+- [CLI reference](docs/cli.md)
 - [Workflow format](docs/workflow-format.md)
 - [Determinism](docs/determinism.md)
 - [Replay format](docs/replay-format.md)
