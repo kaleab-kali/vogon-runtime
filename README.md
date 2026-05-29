@@ -97,6 +97,12 @@ Export a machine-readable JSON Lines trace:
 cargo run -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json
 ```
 
+Redact known sensitive literals while inspecting traces:
+
+```sh
+cargo run -p vogon-cli -- trace --redact api_key=sk-test-123 fixtures/replays/support-triage.replay.json
+```
+
 Run local checks:
 
 ```sh

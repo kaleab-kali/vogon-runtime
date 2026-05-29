@@ -92,3 +92,9 @@ Emit newline-delimited JSON for tools and logs:
 ```sh
 cargo run -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json
 ```
+
+Redact a known literal value from trace output:
+
+```sh
+cargo run -p vogon-cli -- trace --redact api_key=sk-test-123 fixtures/replays/support-triage.replay.json
+```

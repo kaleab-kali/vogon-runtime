@@ -48,6 +48,10 @@ enum Commands {
 
     /// Print a trace for a replay file.
     Trace {
+        /// Redact a literal value from trace outputs. May be repeated.
+        #[arg(long = "redact", value_name = "LABEL=VALUE")]
+        redactions: Vec<String>,
+
         /// Emit newline-delimited JSON instead of human-readable text.
         #[arg(long)]
         jsonl: bool,
@@ -71,7 +75,11 @@ fn main() -> ExitCode {
             workflow_file,
             replay_file,
         } => commands::verify::run(&workflow_file, &replay_file, &redactions),
-        Commands::Trace { jsonl, replay_file } => commands::trace::run(&replay_file, jsonl),
+        Commands::Trace {
+            redactions,
+            jsonl,
+            replay_file,
+        } => commands::trace::run(&replay_file, jsonl, &redactions),
     };
 
     match result {
