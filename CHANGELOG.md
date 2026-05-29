@@ -23,6 +23,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Release CLI smoke testing in CI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Compile-time unsafe Rust prohibition across workspace crates.
+- Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
 

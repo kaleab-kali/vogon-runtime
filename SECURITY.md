@@ -14,6 +14,11 @@ public issue that describes the affected area without exploit details.
 Do not include secrets, API keys, private prompts, replay logs with sensitive
 inputs, or customer data in public reports.
 
+## Dependency Review
+
+Pull requests are checked with GitHub Dependency Review. Dependency changes that
+introduce high-or-critical known vulnerabilities should be fixed before merge.
+
 ## Unsafe Code
 
 Workspace crates forbid unsafe Rust. Changes that require unsafe code should be
