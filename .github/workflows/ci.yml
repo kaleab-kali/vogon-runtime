@@ -37,6 +37,9 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-features
 
+      - name: Build release artifacts
+        run: cargo build --release --workspace --all-features
+
       - name: Build docs
         run: cargo doc --workspace --all-features --no-deps
 
