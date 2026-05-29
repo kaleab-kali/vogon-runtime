@@ -47,6 +47,10 @@ impl Workflow {
             if !ids.insert(id) {
                 return Err(VogonError::DuplicateStepId(id.to_owned()));
             }
+
+            if step.prompt().trim().is_empty() {
+                return Err(VogonError::EmptyStepPrompt(id.to_owned()));
+            }
         }
 
         Ok(())
@@ -80,6 +84,19 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             VogonError::DuplicateStepId("classify".to_owned())
+        );
+    }
+
+    #[test]
+    fn workflow_rejects_empty_step_prompts() {
+        let result = Workflow::new(
+            "support",
+            vec![Step::new(StepId::new("classify").unwrap(), " ")],
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            VogonError::EmptyStepPrompt("classify".to_owned())
         );
     }
 }

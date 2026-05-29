@@ -13,6 +13,9 @@ pub enum VogonError {
     #[error("step id cannot be empty")]
     EmptyStepId,
 
+    #[error("step `{0}` prompt cannot be empty")]
+    EmptyStepPrompt(String),
+
     #[error("step id `{0}` contains unsupported characters")]
     InvalidStepId(String),
 

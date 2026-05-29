@@ -30,7 +30,7 @@ one step.
 Each step has:
 
 - `id`: a unique step identifier.
-- `prompt`: the prompt text for that step.
+- `prompt`: the non-empty prompt text for that step.
 
 Step identifiers may contain ASCII letters, ASCII digits, underscores, and
 hyphens. Spaces and other punctuation are rejected.
