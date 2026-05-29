@@ -34,6 +34,21 @@ prompt = "Second"
     .unwrap();
 }
 
+fn write_workflow_with_empty_prompt(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = "invalid"
+
+[[steps]]
+id = "empty_prompt"
+prompt = " "
+"#,
+    )
+    .unwrap();
+}
+
 #[test]
 fn check_command_accepts_valid_toml_workflow() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
@@ -69,4 +84,25 @@ fn check_command_rejects_invalid_toml_workflow() {
 
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("duplicate step id `duplicate`"));
+}
+
+#[test]
+fn check_command_rejects_empty_step_prompt() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("empty-prompt-workflow.toml");
+    write_workflow_with_empty_prompt(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("step `empty_prompt` prompt cannot be empty")
+    );
 }

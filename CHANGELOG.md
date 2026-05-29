@@ -16,6 +16,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Replay JSONL trace export for machine-readable diagnostics.
 - Literal replay redaction support for known sensitive values.
 - Replay file writing with `vogon run --output`.
+- Validation for blank workflow step prompts.
 - Step result caching support in `vogon-core`.
 - Example workflow and replay fixtures for support triage and writing workflows.
 - GitHub Actions CI for formatting, linting, tests, and docs.
