@@ -21,6 +21,7 @@
 //! assert_eq!(report.steps.len(), 1);
 //! ```
 
+#![forbid(unsafe_code)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
 mod fake;

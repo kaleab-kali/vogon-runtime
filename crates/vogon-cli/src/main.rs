@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod commands;
 
 use std::{path::PathBuf, process::ExitCode};
