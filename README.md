@@ -103,6 +103,7 @@ Run local checks:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo build --release --workspace --all-features
 cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify
 ```
