@@ -1,13 +1,20 @@
 use std::{fs, path::Path};
 
-use vogon_core::RunReport;
+use vogon_core::{RedactionSet, RunReport};
 
-pub fn run(replay_file: &Path, jsonl: bool) -> Result<(), Box<dyn std::error::Error>> {
+use crate::commands::redaction::parse_redactions;
+
+pub fn run(
+    replay_file: &Path,
+    jsonl: bool,
+    redaction_values: &[String],
+) -> Result<(), Box<dyn std::error::Error>> {
     let replay_text = fs::read_to_string(replay_file)?;
     let replay: RunReport = serde_json::from_str(&replay_text)?;
+    let redactions = parse_redactions(redaction_values)?;
 
     if jsonl {
-        print_jsonl_trace(&replay)?;
+        print_jsonl_trace(&replay, &redactions)?;
         return Ok(());
     }
 
@@ -20,13 +27,16 @@ pub fn run(replay_file: &Path, jsonl: bool) -> Result<(), Box<dyn std::error::Er
         println!("[{}] {}", index + 1, step.step_id.as_str());
         println!("input_hash: {}", step.input_hash);
         println!("output_hash: {}", step.output_hash);
-        println!("output: {}", step.output);
+        println!("output: {}", redactions.redact(&step.output));
     }
 
     Ok(())
 }
 
-fn print_jsonl_trace(replay: &RunReport) -> Result<(), serde_json::Error> {
+fn print_jsonl_trace(
+    replay: &RunReport,
+    redactions: &RedactionSet,
+) -> Result<(), serde_json::Error> {
     println!(
         "{}",
         serde_json::to_string(&serde_json::json!({
@@ -38,6 +48,7 @@ fn print_jsonl_trace(replay: &RunReport) -> Result<(), serde_json::Error> {
     );
 
     for (index, step) in replay.steps.iter().enumerate() {
+        let output = redactions.redact(&step.output);
         println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
@@ -46,7 +57,7 @@ fn print_jsonl_trace(replay: &RunReport) -> Result<(), serde_json::Error> {
                 "step_id": step.step_id.as_str(),
                 "input_hash": step.input_hash,
                 "output_hash": step.output_hash,
-                "output": step.output
+                "output": output
             }))?
         );
     }
