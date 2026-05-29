@@ -1,4 +1,8 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 #[test]
 fn verify_command_accepts_support_triage_replay() {
@@ -8,6 +12,29 @@ fn verify_command_accepts_support_triage_replay() {
 #[test]
 fn verify_command_accepts_writing_pipeline_replay() {
     assert_verify_succeeds("writing-pipeline");
+}
+
+#[test]
+fn verify_command_rejects_mismatched_replay() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("mismatched-support-triage.replay.json");
+    write_mismatched_replay("support-triage", &replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("\"mismatches\""));
+    assert!(stderr.contains("\"step_output\""));
+    assert!(stderr.contains("replay verification failed with"));
 }
 
 fn assert_verify_succeeds(name: &str) {
@@ -38,6 +65,14 @@ fn replay_path(name: &str) -> PathBuf {
         .join("fixtures")
         .join("replays")
         .join(format!("{name}.replay.json"))
+}
+
+fn write_mismatched_replay(name: &str, path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path(name)).unwrap()).unwrap();
+    replay["steps"][0]["output"] = serde_json::Value::String("drifted-output".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 
 fn repo_root() -> PathBuf {

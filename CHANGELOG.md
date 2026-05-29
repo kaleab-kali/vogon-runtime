@@ -36,4 +36,5 @@ and this project follows semantic versioning once the first release is tagged.
 - Architecture, workflow format, determinism, and replay format notes.
 - Crate-level Rustdoc examples for `vogon-core` and `vogon-adapters`.
 - Broken intra-doc link checks for public library crate docs.
+- CLI regression coverage for replay verification mismatches.
 - Contributing, security, code of conduct, and license documents.
