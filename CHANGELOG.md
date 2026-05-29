@@ -18,7 +18,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Replay file writing with `vogon run --output`.
 - Step result caching support in `vogon-core`.
 - Example workflow and replay fixtures for support triage and writing workflows.
-- GitHub Actions CI for formatting, linting, and tests.
+- GitHub Actions CI for formatting, linting, tests, and docs.
 - Workspace crate package archive validation in CI.
 
 ### Documentation
