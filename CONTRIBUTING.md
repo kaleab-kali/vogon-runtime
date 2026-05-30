@@ -26,6 +26,15 @@ dependencies have already been fetched.
 - Keep provider-specific code outside `vogon-core`.
 - Do not commit secrets, credentials, or real customer data.
 
+The `main` branch is protected. Pull requests must pass:
+
+- `Rust workspace`
+- `Dependency review`
+
+Maintainers merge accepted pull requests with regular merge commits. Squash
+merges are not used for this repository, and merged topic branches may remain
+available for auditability.
+
 ## Commit Style
 
 Use short imperative commit messages, for example:
