@@ -36,6 +36,11 @@ and this project follows semantic versioning once the first release is tagged.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
 - Runtime benchmark smoke target and CI check.
 
+### Changed
+
+- Release workflow artifact upload and download actions now use Node.js 24
+  action versions.
+
 ### Documentation
 
 - Public README quickstart and project overview.
