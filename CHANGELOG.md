@@ -29,6 +29,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Offline cargo install smoke testing for the CLI in CI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
+- Manual release workflow dry runs without publishing a GitHub release.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
