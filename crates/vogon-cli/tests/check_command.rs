@@ -49,6 +49,11 @@ prompt = " "
     .unwrap();
 }
 
+fn write_malformed_workflow(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "name = [").unwrap();
+}
+
 #[test]
 fn check_command_accepts_valid_toml_workflow() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
@@ -125,4 +130,25 @@ fn check_command_reports_missing_workflow_path() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("failed to read workflow file"));
     assert!(stderr.contains(&missing_workflow.display().to_string()));
+}
+
+#[test]
+fn check_command_reports_malformed_workflow_path() {
+    let malformed_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed-workflow.toml");
+    write_malformed_workflow(&malformed_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(&malformed_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse workflow file"));
+    assert!(stderr.contains(&malformed_workflow.display().to_string()));
 }
