@@ -60,6 +60,10 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
 - Creates a GitHub release for the tag and uploads both archives.
 
+The Release workflow can also be run manually from GitHub Actions to dry-run
+the Linux and Windows artifact builds from a branch. Manual runs upload the
+archives as workflow artifacts, but they do not create a GitHub release.
+
 ## Manual Publishing
 
 Crate publishing to crates.io is intentionally manual while the public API is
