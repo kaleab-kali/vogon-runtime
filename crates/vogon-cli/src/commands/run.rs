@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, io, path::Path, process};
 
 use vogon_adapters::DeterministicEchoModel;
 use vogon_core::Runtime;
@@ -25,11 +25,40 @@ pub fn run(
             fs::create_dir_all(parent)?;
         }
 
-        fs::write(output, replay_json)?;
+        write_replay_file(output, &replay_json)?;
         println!("Replay written: {}", output.display());
     } else {
         print!("{replay_json}");
     }
 
     Ok(())
+}
+
+fn write_replay_file(output: &Path, replay_json: &str) -> io::Result<()> {
+    let temp_output = temp_output_path(output)?;
+    fs::write(&temp_output, replay_json)?;
+
+    match fs::rename(&temp_output, output) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
+            fs::remove_file(output)?;
+            fs::rename(&temp_output, output)
+        }
+        Err(error) => {
+            let _ = fs::remove_file(&temp_output);
+            Err(error)
+        }
+    }
+}
+
+fn temp_output_path(output: &Path) -> io::Result<std::path::PathBuf> {
+    let file_name = output.file_name().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("output path `{}` has no file name", output.display()),
+        )
+    })?;
+    let temp_file_name = format!(".{}.{}.tmp", file_name.to_string_lossy(), process::id());
+
+    Ok(output.with_file_name(temp_file_name))
 }
