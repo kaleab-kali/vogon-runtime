@@ -40,7 +40,7 @@ jobs:
           tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon
 
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vogon-linux-x86_64
           path: vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
@@ -78,7 +78,7 @@ jobs:
           Compress-Archive -Path dist\vogon.exe -DestinationPath "vogon-${{ github.ref_name }}-windows-x86_64.zip" -Force
 
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vogon-windows-x86_64
           path: vogon-${{ github.ref_name }}-windows-x86_64.zip
@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: Download CLI artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: release-artifacts
 
