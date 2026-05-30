@@ -28,6 +28,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
+- Runtime benchmark smoke target and CI check.
 
 ### Documentation
 
@@ -38,5 +39,6 @@ and this project follows semantic versioning once the first release is tagged.
 - Broken intra-doc link checks for public library crate docs.
 - CLI regression coverage for replay verification mismatches.
 - CLI file-read errors include the affected workflow or replay path.
+- Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.

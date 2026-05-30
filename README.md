@@ -133,6 +133,7 @@ Useful documentation:
 - [Workflow format](docs/workflow-format.md)
 - [Determinism](docs/determinism.md)
 - [Replay format](docs/replay-format.md)
+- [Performance](docs/performance.md)
 - [Release process](docs/release.md)
 
 ## Design Principles
