@@ -25,6 +25,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Optimized release build validation in CI.
 - Release CLI smoke testing in CI.
 - Release CLI smoke testing against every committed replay fixture.
+- Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Compile-time unsafe Rust prohibition across workspace crates.
