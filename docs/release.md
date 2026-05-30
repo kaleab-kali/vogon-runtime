@@ -13,6 +13,7 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo build --release --workspace --all-features
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify
@@ -53,7 +54,7 @@ Use the real version number in place of `v0.1.0`.
 Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 
 - Builds `vogon-cli` in release mode with the committed lockfile.
-- Runs the optimized CLI against a replay fixture.
+- Runs the optimized CLI against every committed replay fixture.
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
 - Creates a GitHub release for the tag and uploads the archive.
 

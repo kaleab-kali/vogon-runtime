@@ -26,7 +26,11 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           ./target/release/vogon --version
-          ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+          for replay in fixtures/replays/*.replay.json; do
+            name="${replay##*/}"
+            name="${name%.replay.json}"
+            ./target/release/vogon verify "fixtures/workflows/${name}.toml" "$replay"
+          done
 
       - name: Package CLI artifact
         run: |
