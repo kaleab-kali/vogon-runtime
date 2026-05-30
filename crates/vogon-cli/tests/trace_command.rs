@@ -1,12 +1,20 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 fn support_triage_replay() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
+    repo_root()
         .join("fixtures")
         .join("replays")
         .join("support-triage.replay.json")
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
 }
 
 fn classification_output() -> &'static str {
@@ -108,4 +116,30 @@ fn trace_command_can_redact_jsonl_output() {
         .collect::<Vec<_>>();
 
     assert_eq!(lines[1]["output"], "[REDACTED:classification]");
+}
+
+#[test]
+fn trace_command_reports_malformed_replay_path() {
+    let malformed_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed-trace.replay.json");
+    write_malformed_replay(&malformed_replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("trace")
+        .arg(&malformed_replay)
+        .output()
+        .expect("trace command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains(&malformed_replay.display().to_string()));
+}
+
+fn write_malformed_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "{").unwrap();
 }

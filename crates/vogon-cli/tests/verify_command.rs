@@ -58,6 +58,28 @@ fn verify_command_reports_missing_replay_path() {
     assert!(stderr.contains(&missing_replay.display().to_string()));
 }
 
+#[test]
+fn verify_command_reports_malformed_replay_path() {
+    let malformed_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed.replay.json");
+    write_malformed_replay(&malformed_replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&malformed_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains(&malformed_replay.display().to_string()));
+}
+
 fn assert_verify_succeeds(name: &str) {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -94,6 +116,11 @@ fn write_mismatched_replay(name: &str, path: &Path) {
         serde_json::from_str(&fs::read_to_string(replay_path(name)).unwrap()).unwrap();
     replay["steps"][0]["output"] = serde_json::Value::String("drifted-output".to_owned());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_malformed_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "{").unwrap();
 }
 
 fn repo_root() -> PathBuf {

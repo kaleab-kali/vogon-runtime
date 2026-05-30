@@ -41,6 +41,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Crate-level Rustdoc examples for `vogon-core` and `vogon-adapters`.
 - Broken intra-doc link checks for public library crate docs.
 - CLI regression coverage for replay verification mismatches.
+- CLI regression coverage for malformed workflow and replay parse errors.
 - CLI file-read errors include the affected workflow or replay path.
 - Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
