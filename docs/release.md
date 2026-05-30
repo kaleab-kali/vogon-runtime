@@ -13,7 +13,7 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo build --release --workspace --all-features
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
-cargo install --path crates/vogon-cli --locked --root target/install-smoke --force
+cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify
 ```
@@ -25,7 +25,9 @@ Confirm that:
 - The GitHub Actions CI workflow has passed on `main`.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
-After the install smoke command, run the installed binary for your platform:
+After the install smoke command, run the installed binary for your platform.
+The install smoke uses `--offline` because earlier verification commands have
+already fetched and built the locked dependencies:
 
 ```sh
 target/install-smoke/bin/vogon --version
