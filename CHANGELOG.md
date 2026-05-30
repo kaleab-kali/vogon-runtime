@@ -23,6 +23,7 @@ and this project follows semantic versioning once the first release is tagged.
 - GitHub Actions CI for formatting, linting, tests, and docs.
 - Optimized release build validation in CI.
 - Release CLI smoke testing in CI.
+- Cargo install smoke testing for the CLI in CI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.

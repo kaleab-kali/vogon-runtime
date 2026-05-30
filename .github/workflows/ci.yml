@@ -48,6 +48,11 @@ jobs:
           ./target/release/vogon --version
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 
+      - name: Smoke test cargo install
+        run: |
+          cargo install --path crates/vogon-cli --locked --root target/install-smoke --force
+          target/install-smoke/bin/vogon --version
+
       - name: Build docs
         run: cargo doc --workspace --all-features --no-deps
 
