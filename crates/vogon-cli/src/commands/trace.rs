@@ -1,7 +1,8 @@
-use std::{fs, path::Path};
+use std::{io, path::Path};
 
 use vogon_core::{RedactionSet, RunReport};
 
+use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
 
 pub fn run(
@@ -9,8 +10,16 @@ pub fn run(
     jsonl: bool,
     redaction_values: &[String],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let replay_text = fs::read_to_string(replay_file)?;
-    let replay: RunReport = serde_json::from_str(&replay_text)?;
+    let replay_text = file_io::read_to_string(replay_file, "replay file")?;
+    let replay: RunReport = serde_json::from_str(&replay_text).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "failed to parse replay file `{}`: {error}",
+                replay_file.display()
+            ),
+        )
+    })?;
     let redactions = parse_redactions(redaction_values)?;
 
     if jsonl {
