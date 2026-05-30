@@ -53,10 +53,12 @@ Use the real version number in place of `v0.1.0`.
 
 Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 
-- Builds `vogon-cli` in release mode with the committed lockfile.
-- Runs the optimized CLI against every committed replay fixture.
+- Builds `vogon-cli` in release mode with the committed lockfile on Linux and
+  Windows.
+- Runs each optimized CLI artifact against every committed replay fixture.
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
-- Creates a GitHub release for the tag and uploads the archive.
+- Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
+- Creates a GitHub release for the tag and uploads both archives.
 
 ## Manual Publishing
 
