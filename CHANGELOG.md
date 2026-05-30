@@ -17,6 +17,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Literal replay redaction support for known sensitive values.
 - Trace output redaction for known sensitive values.
 - Replay file writing with `vogon run --output`.
+- Temporary-file replay writes for more reliable `vogon run --output` updates.
 - Validation for blank workflow step prompts.
 - Step result caching support in `vogon-core`.
 - Example workflow and replay fixtures for support triage and writing workflows.

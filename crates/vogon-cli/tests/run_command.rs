@@ -98,3 +98,32 @@ fn run_command_writes_replay_file() {
     assert_eq!(report["workflow_name"], "support-triage");
     assert_eq!(report["steps"].as_array().unwrap().len(), 2);
 }
+
+#[test]
+fn run_command_overwrites_existing_replay_file() {
+    let fixture = support_triage_workflow();
+    let output_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("existing-support-triage.replay.json");
+    fs::create_dir_all(output_file.parent().unwrap()).unwrap();
+    fs::write(&output_file, "old replay").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&output_file)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(output_file).unwrap()).unwrap();
+    assert_eq!(report["workflow_name"], "support-triage");
+}
