@@ -11,6 +11,7 @@ cargo test --workspace --all-features
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify
@@ -31,6 +32,7 @@ dependencies have already been fetched.
 The `main` branch is protected. Pull requests must pass:
 
 - `Rust workspace`
+- `Windows release smoke`
 - `Dependency review`
 
 Maintainers merge accepted pull requests with regular merge commits. Squash
