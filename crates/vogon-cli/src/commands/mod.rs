@@ -1,5 +1,6 @@
 pub mod check;
 pub mod demo;
+pub mod file_io;
 pub mod redaction;
 pub mod run;
 pub mod trace;

@@ -37,6 +37,27 @@ fn verify_command_rejects_mismatched_replay() {
     assert!(stderr.contains("replay verification failed with"));
 }
 
+#[test]
+fn verify_command_reports_missing_replay_path() {
+    let missing_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("missing.replay.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&missing_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to read replay file"));
+    assert!(stderr.contains(&missing_replay.display().to_string()));
+}
+
 fn assert_verify_succeeds(name: &str) {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")

@@ -106,3 +106,23 @@ fn check_command_rejects_empty_step_prompt() {
             .contains("step `empty_prompt` prompt cannot be empty")
     );
 }
+
+#[test]
+fn check_command_reports_missing_workflow_path() {
+    let missing_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("missing-workflow.toml");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(&missing_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to read workflow file"));
+    assert!(stderr.contains(&missing_workflow.display().to_string()));
+}
