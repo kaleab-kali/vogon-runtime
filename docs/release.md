@@ -58,11 +58,14 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Runs each optimized CLI artifact against every committed replay fixture.
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
-- Creates a GitHub release for the tag and uploads both archives.
+- Writes SHA-256 checksum files for each archive.
+- Creates a GitHub release for the tag and uploads both archives with their
+  checksum files.
 
 The Release workflow can also be run manually from GitHub Actions to dry-run
 the Linux and Windows artifact builds from a branch. Manual runs upload the
-archives as workflow artifacts, but they do not create a GitHub release.
+archives and checksum files as workflow artifacts, but they do not create a
+GitHub release.
 
 ## Manual Publishing
 
