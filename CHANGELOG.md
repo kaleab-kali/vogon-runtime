@@ -43,6 +43,7 @@ and this project follows semantic versioning once the first release is tagged.
   action versions.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
+- CI now treats Rustdoc warnings as errors.
 
 ### Documentation
 
