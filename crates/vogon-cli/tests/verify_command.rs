@@ -15,6 +15,51 @@ fn verify_command_accepts_writing_pipeline_replay() {
 }
 
 #[test]
+fn verify_command_accepts_redacted_replay() {
+    let redacted_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("redacted-support-triage.replay.json");
+    fs::create_dir_all(redacted_replay.parent().unwrap()).unwrap();
+
+    let run_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact")
+        .arg(format!("classification={}", classification_output()))
+        .arg("--output")
+        .arg(&redacted_replay)
+        .arg(workflow_path("support-triage"))
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        run_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&run_output.stderr)
+    );
+
+    let replay_text = fs::read_to_string(&redacted_replay).unwrap();
+    assert!(replay_text.contains("[REDACTED:classification]"));
+    assert!(!replay_text.contains(classification_output()));
+
+    let verify_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--redact")
+        .arg(format!("classification={}", classification_output()))
+        .arg(workflow_path("support-triage"))
+        .arg(&redacted_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(
+        verify_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&verify_output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&verify_output.stdout).contains("Replay verified"));
+}
+
+#[test]
 fn verify_command_rejects_mismatched_replay() {
     let replay = repo_root()
         .join("target")
@@ -108,6 +153,10 @@ fn replay_path(name: &str) -> PathBuf {
         .join("fixtures")
         .join("replays")
         .join(format!("{name}.replay.json"))
+}
+
+fn classification_output() -> &'static str {
+    "classify:25b99048d109fbed572129d473b8043dd72292d405951d7c0bb202a052a9a76d"
 }
 
 fn write_mismatched_replay(name: &str, path: &Path) {
