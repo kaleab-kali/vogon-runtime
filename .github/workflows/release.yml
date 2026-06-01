@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   linux-cli:
@@ -95,6 +95,8 @@ jobs:
     name: Publish GitHub release
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs:
       - linux-cli
       - windows-cli

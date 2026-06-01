@@ -41,6 +41,8 @@ and this project follows semantic versioning once the first release is tagged.
 
 - Release workflow artifact upload and download actions now use Node.js 24
   action versions.
+- Release workflow token permissions are read-only except for the tag
+  publishing job.
 
 ### Documentation
 
