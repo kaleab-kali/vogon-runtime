@@ -58,6 +58,8 @@ jobs:
           target/install-smoke/bin/vogon --version
 
       - name: Build docs
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --workspace --all-features --no-deps
 
       - name: Package
