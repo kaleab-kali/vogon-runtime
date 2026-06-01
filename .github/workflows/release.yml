@@ -38,12 +38,15 @@ jobs:
           mkdir -p dist
           cp target/release/vogon dist/vogon
           tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon
+          sha256sum "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" > "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v7
         with:
           name: vogon-linux-x86_64
-          path: vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
+          path: |
+            vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
+            vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           if-no-files-found: error
 
   windows-cli:
@@ -76,12 +79,16 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target\release\vogon.exe dist\vogon.exe
           Compress-Archive -Path dist\vogon.exe -DestinationPath "vogon-${{ github.ref_name }}-windows-x86_64.zip" -Force
+          $hash = Get-FileHash -Algorithm SHA256 "vogon-${{ github.ref_name }}-windows-x86_64.zip"
+          "$($hash.Hash.ToLowerInvariant())  vogon-${{ github.ref_name }}-windows-x86_64.zip" | Set-Content "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256" -NoNewline
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v7
         with:
           name: vogon-windows-x86_64
-          path: vogon-${{ github.ref_name }}-windows-x86_64.zip
+          path: |
+            vogon-${{ github.ref_name }}-windows-x86_64.zip
+            vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           if-no-files-found: error
 
   publish-release:
