@@ -61,6 +61,28 @@ fn verify_command_rejects_redacted_replay_without_matching_redaction() {
 }
 
 #[test]
+fn verify_command_masks_redacted_replay_mismatch_outputs() {
+    let redacted_replay =
+        write_redacted_support_triage_replay("wrong-redaction-redacted-support-triage.replay.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--redact")
+        .arg("classification=wrong-output")
+        .arg(workflow_path("support-triage"))
+        .arg(&redacted_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("\"step_output\""));
+    assert!(stderr.contains("[UNREPORTED: replay is redacted]"));
+    assert!(!stderr.contains(classification_output()));
+}
+
+#[test]
 fn verify_command_rejects_mismatched_replay() {
     let replay = repo_root()
         .join("target")

@@ -1,11 +1,13 @@
 use std::{collections::BTreeSet, io, path::Path};
 
 use vogon_adapters::DeterministicEchoModel;
-use vogon_core::{RedactionSet, RunReport, Runtime};
+use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationReport};
 
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
+
+const REDACTED_MISMATCH_OUTPUT: &str = "[UNREPORTED: replay is redacted]";
 
 pub fn run(
     workflow_file: &Path,
@@ -24,7 +26,9 @@ pub fn run(
         )
     })?;
     let redactions = parse_redactions(redaction_values)?;
-    let missing_redaction_labels = missing_replay_redaction_labels(&replay, &redactions);
+    let replay_redaction_labels = replay_redaction_labels(&replay);
+    let missing_redaction_labels =
+        missing_replay_redaction_labels(&replay_redaction_labels, &redactions);
     if !missing_redaction_labels.is_empty() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -51,30 +55,44 @@ pub fn run(
         return Ok(());
     }
 
-    eprintln!("{}", serde_json::to_string_pretty(&verification)?);
+    let mismatch_count = verification.mismatches.len();
+    let printable_verification = if replay_redaction_labels.is_empty() {
+        verification
+    } else {
+        mask_redacted_step_outputs(verification)
+    };
+
+    eprintln!("{}", serde_json::to_string_pretty(&printable_verification)?);
     Err(io::Error::other(format!(
-        "replay verification failed with {} mismatch(es)",
-        verification.mismatches.len()
+        "replay verification failed with {mismatch_count} mismatch(es)"
     ))
     .into())
 }
 
-fn missing_replay_redaction_labels(replay: &RunReport, redactions: &RedactionSet) -> Vec<String> {
+fn missing_replay_redaction_labels(
+    replay_labels: &BTreeSet<String>,
+    redactions: &RedactionSet,
+) -> Vec<String> {
     let configured_labels = redactions
         .rules()
         .iter()
         .map(|rule| rule.label.as_str())
         .collect::<BTreeSet<_>>();
 
+    replay_labels
+        .iter()
+        .filter(|label| !configured_labels.contains(label.as_str()))
+        .cloned()
+        .collect()
+}
+
+fn replay_redaction_labels(replay: &RunReport) -> BTreeSet<String> {
     let mut replay_labels = BTreeSet::new();
     for step in &replay.steps {
         collect_redaction_labels(&step.output, &mut replay_labels);
     }
 
     replay_labels
-        .into_iter()
-        .filter(|label| !configured_labels.contains(label.as_str()))
-        .collect()
 }
 
 fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) {
@@ -93,5 +111,29 @@ fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) {
         }
 
         remaining = &after_prefix[end + 1..];
+    }
+}
+
+fn mask_redacted_step_outputs(report: VerificationReport) -> VerificationReport {
+    VerificationReport {
+        workflow_name: report.workflow_name,
+        mismatches: report
+            .mismatches
+            .into_iter()
+            .map(mask_redacted_step_output)
+            .collect(),
+    }
+}
+
+fn mask_redacted_step_output(mismatch: ReplayMismatch) -> ReplayMismatch {
+    match mismatch {
+        ReplayMismatch::StepOutput {
+            step_id, expected, ..
+        } => ReplayMismatch::StepOutput {
+            step_id,
+            expected,
+            actual: REDACTED_MISMATCH_OUTPUT.to_owned(),
+        },
+        other => other,
     }
 }
