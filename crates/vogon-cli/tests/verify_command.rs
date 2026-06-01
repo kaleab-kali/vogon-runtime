@@ -16,27 +16,8 @@ fn verify_command_accepts_writing_pipeline_replay() {
 
 #[test]
 fn verify_command_accepts_redacted_replay() {
-    let redacted_replay = repo_root()
-        .join("target")
-        .join("vogon-tests")
-        .join("redacted-support-triage.replay.json");
-    fs::create_dir_all(redacted_replay.parent().unwrap()).unwrap();
-
-    let run_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
-        .arg("run")
-        .arg("--redact")
-        .arg(format!("classification={}", classification_output()))
-        .arg("--output")
-        .arg(&redacted_replay)
-        .arg(workflow_path("support-triage"))
-        .output()
-        .expect("run command should execute");
-
-    assert!(
-        run_output.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&run_output.stderr)
-    );
+    let redacted_replay =
+        write_redacted_support_triage_replay("redacted-support-triage.replay.json");
 
     let replay_text = fs::read_to_string(&redacted_replay).unwrap();
     assert!(replay_text.contains("[REDACTED:classification]"));
@@ -57,6 +38,26 @@ fn verify_command_accepts_redacted_replay() {
         String::from_utf8_lossy(&verify_output.stderr)
     );
     assert!(String::from_utf8_lossy(&verify_output.stdout).contains("Replay verified"));
+}
+
+#[test]
+fn verify_command_rejects_redacted_replay_without_matching_redaction() {
+    let redacted_replay =
+        write_redacted_support_triage_replay("unconfigured-redacted-support-triage.replay.json");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&redacted_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("without matching --redact label(s): classification"));
+    assert!(!stderr.contains("\"mismatches\""));
+    assert!(!stderr.contains(classification_output()));
 }
 
 #[test]
@@ -157,6 +158,32 @@ fn replay_path(name: &str) -> PathBuf {
 
 fn classification_output() -> &'static str {
     "classify:25b99048d109fbed572129d473b8043dd72292d405951d7c0bb202a052a9a76d"
+}
+
+fn write_redacted_support_triage_replay(file_name: &str) -> PathBuf {
+    let redacted_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join(file_name);
+    fs::create_dir_all(redacted_replay.parent().unwrap()).unwrap();
+
+    let run_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact")
+        .arg(format!("classification={}", classification_output()))
+        .arg("--output")
+        .arg(&redacted_replay)
+        .arg(workflow_path("support-triage"))
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        run_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&run_output.stderr)
+    );
+
+    redacted_replay
 }
 
 fn write_mismatched_replay(name: &str, path: &Path) {
