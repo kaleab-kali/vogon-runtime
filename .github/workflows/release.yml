@@ -51,7 +51,7 @@ jobs:
 
   windows-cli:
     name: Windows CLI artifact
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
       - name: Checkout
