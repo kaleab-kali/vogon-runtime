@@ -44,6 +44,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
 - CI now treats Rustdoc warnings as errors.
+- Windows CI and release jobs now use the explicit `windows-2025` runner label.
 
 ### Documentation
 

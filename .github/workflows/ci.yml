@@ -67,7 +67,7 @@ jobs:
 
   windows-release-smoke:
     name: Windows release smoke
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
       - name: Checkout
