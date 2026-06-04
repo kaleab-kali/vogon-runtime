@@ -26,7 +26,7 @@ pub fn run(
         )
     })?;
     let redactions = parse_redactions(redaction_values)?;
-    let replay_redaction_labels = replay_redaction_labels(&replay);
+    let replay_redaction_labels = replay_redaction_labels(&replay)?;
     let missing_redaction_labels =
         missing_replay_redaction_labels(&replay_redaction_labels, &redactions);
     if !missing_redaction_labels.is_empty() {
@@ -86,32 +86,49 @@ fn missing_replay_redaction_labels(
         .collect()
 }
 
-fn replay_redaction_labels(replay: &RunReport) -> BTreeSet<String> {
+fn replay_redaction_labels(replay: &RunReport) -> io::Result<BTreeSet<String>> {
     let mut replay_labels = BTreeSet::new();
     for step in &replay.steps {
-        collect_redaction_labels(&step.output, &mut replay_labels);
+        collect_redaction_labels(&step.output, &mut replay_labels).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "replay step `{}` contains malformed redaction marker: {error}",
+                    step.step_id.as_str()
+                ),
+            )
+        })?;
     }
 
-    replay_labels
+    Ok(replay_labels)
 }
 
-fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) {
+fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) -> io::Result<()> {
     const MARKER_PREFIX: &str = "[REDACTED:";
 
     let mut remaining = output;
     while let Some(start) = remaining.find(MARKER_PREFIX) {
         let after_prefix = &remaining[start + MARKER_PREFIX.len()..];
         let Some(end) = after_prefix.find(']') else {
-            break;
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "missing closing `]`",
+            ));
         };
 
         let label = &after_prefix[..end];
-        if !label.is_empty() {
-            labels.insert(label.to_owned());
+        if label.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "empty redaction label",
+            ));
         }
+        labels.insert(label.to_owned());
 
         remaining = &after_prefix[end + 1..];
     }
+
+    Ok(())
 }
 
 fn mask_redacted_step_outputs(report: VerificationReport) -> VerificationReport {
