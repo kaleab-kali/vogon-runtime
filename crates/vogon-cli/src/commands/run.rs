@@ -18,17 +18,39 @@ pub fn run(
     let replay_json = format!("{}\n", serde_json::to_string_pretty(&report)?);
 
     if let Some(output) = output {
-        if let Some(parent) = output
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            fs::create_dir_all(parent)?;
-        }
+        create_output_parent(output)?;
 
-        write_replay_file(output, &replay_json)?;
+        write_replay_file(output, &replay_json).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "failed to write replay output `{}`: {error}",
+                    output.display()
+                ),
+            )
+        })?;
         println!("Replay written: {}", output.display());
     } else {
         print!("{replay_json}");
+    }
+
+    Ok(())
+}
+
+fn create_output_parent(output: &Path) -> io::Result<()> {
+    if let Some(parent) = output
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "failed to create replay output directory `{}`: {error}",
+                    parent.display()
+                ),
+            )
+        })?;
     }
 
     Ok(())
