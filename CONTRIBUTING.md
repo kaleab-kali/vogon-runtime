@@ -8,6 +8,7 @@ Thanks for helping improve Vogon Runtime.
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
@@ -34,6 +35,7 @@ The `main` branch is protected. Pull requests must pass:
 - `Rust workspace`
 - `Windows release smoke`
 - `Dependency review`
+- `Minimum supported Rust`
 
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain
