@@ -21,6 +21,14 @@ fn remove_file_if_exists(path: &Path) {
     }
 }
 
+fn remove_path_if_exists(path: &Path) {
+    if path.is_dir() {
+        fs::remove_dir_all(path).unwrap();
+    } else if path.exists() {
+        fs::remove_file(path).unwrap();
+    }
+}
+
 #[test]
 fn run_command_executes_toml_workflow() {
     let fixture = support_triage_workflow();
@@ -126,4 +134,37 @@ fn run_command_overwrites_existing_replay_file() {
     let report: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(output_file).unwrap()).unwrap();
     assert_eq!(report["workflow_name"], "support-triage");
+}
+
+#[test]
+fn run_command_reports_output_parent_errors() {
+    let fixture = support_triage_workflow();
+    let blocked_parent = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("not-a-directory");
+    remove_path_if_exists(&blocked_parent);
+    fs::create_dir_all(blocked_parent.parent().unwrap()).unwrap();
+    fs::write(&blocked_parent, "blocks output directory creation").unwrap();
+
+    let output_file = blocked_parent.join("support-triage.replay.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&output_file)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("failed to create replay output directory"),
+        "stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains(&blocked_parent.display().to_string()),
+        "stderr: {stderr}"
+    );
 }
