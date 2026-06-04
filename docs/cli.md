@@ -81,6 +81,8 @@ execution unless each marker label has a matching `--redact` rule. If
 verification still mismatches, actual step output values are masked in the
 structured mismatch JSON for redacted replays.
 
+Malformed redaction markers are also rejected before workflow execution.
+
 Successful verification exits with status `0`. Mismatches are printed as
 structured JSON and the command exits with a non-zero status.
 

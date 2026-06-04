@@ -52,6 +52,8 @@ and this project follows semantic versioning once the first release is tagged.
   runner label.
 - `vogon run --output` errors now include the affected replay output path or
   parent directory.
+- `vogon verify` now rejects malformed redaction markers before executing a
+  workflow.
 
 ### Documentation
 

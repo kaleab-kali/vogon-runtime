@@ -34,3 +34,6 @@ markers, `vogon verify` requires matching `--redact <label>=<literal>` rules
 before it executes the workflow. If verification fails after redaction rules are
 provided, mismatch JSON masks actual step output values so a bad redaction
 literal does not print the original output.
+
+Malformed redaction markers, such as markers without a closing `]` or without a
+label, are rejected before verification executes the workflow.
