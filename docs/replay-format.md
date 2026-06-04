@@ -28,3 +28,9 @@ regex-specific behavior in `vogon-core`.
 When redaction is applied, the replay stores the redacted output and hashes the
 redacted output. Verification must use the same redaction rules to compare
 against a redacted replay.
+
+Redacted outputs use `[REDACTED:<label>]` markers. When a replay contains these
+markers, `vogon verify` requires matching `--redact <label>=<literal>` rules
+before it executes the workflow. If verification fails after redaction rules are
+provided, mismatch JSON masks actual step output values so a bad redaction
+literal does not print the original output.
