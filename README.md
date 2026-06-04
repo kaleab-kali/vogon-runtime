@@ -163,13 +163,21 @@ Useful documentation:
 
 ## Roadmap
 
-- Scaffold the Rust workspace and CLI.
-- Implement ordered workflow execution.
-- Add deterministic replay log generation.
-- Add replay verification with structured mismatch errors.
-- Add fixtures and examples that can be run by new contributors.
-- Add observability events and trace export.
+Already available:
+
+- Rust workspace and CLI.
+- Ordered workflow execution.
+- Deterministic replay log generation.
+- Replay verification with structured mismatch errors.
+- Contributor-ready fixtures and examples.
+- Human-readable and JSON Lines replay trace output.
+
+Planned:
+
 - Add provider-backed adapters behind feature flags.
+- Add workflow graph support after the linear runtime API is stable.
+- Add runtime retry, timeout, and provider configuration policies.
+- Add richer observability events for hosted runtime deployments.
 
 ## License
 
