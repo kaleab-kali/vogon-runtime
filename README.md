@@ -41,6 +41,11 @@ The current implementation uses a deterministic model adapter so workflows,
 replays, and verification can be developed without network access. Provider
 integrations are planned behind adapter boundaries.
 
+## Requirements
+
+- Rust 1.85.0 or newer.
+- Cargo with access to the committed `Cargo.lock` dependencies.
+
 ## Quickstart
 
 Run the deterministic demo workflow:
