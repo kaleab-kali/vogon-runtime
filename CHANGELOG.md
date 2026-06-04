@@ -67,6 +67,7 @@ and this project follows semantic versioning once the first release is tagged.
   replay format documentation.
 - Contributor and release verification checklists include MSRV and benchmark
   checks.
+- README requirements list the minimum supported Rust version.
 - Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.
