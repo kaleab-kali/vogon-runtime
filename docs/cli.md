@@ -76,6 +76,11 @@ created:
 cargo run -p vogon-cli -- verify --redact api_key=sk-test-123 fixtures/workflows/support-triage.toml target/support-triage.replay.json
 ```
 
+If a replay contains redaction markers, `vogon verify` rejects it before
+execution unless each marker label has a matching `--redact` rule. If
+verification still mismatches, actual step output values are masked in the
+structured mismatch JSON for redacted replays.
+
 Successful verification exits with status `0`. Mismatches are printed as
 structured JSON and the command exits with a non-zero status.
 
