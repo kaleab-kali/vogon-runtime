@@ -80,3 +80,5 @@ and this project follows semantic versioning once the first release is tagged.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.
 - Crate package metadata includes discovery keywords and crates.io categories.
+- Blank public issues are disabled so reports use the guided issue templates or
+  private vulnerability reporting.
