@@ -65,6 +65,20 @@ jobs:
       - name: Package
         run: cargo package --workspace --allow-dirty --no-verify
 
+  msrv:
+    name: Minimum supported Rust
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust 1.85.0
+        run: rustup toolchain install 1.85.0 --profile minimal
+
+      - name: Test with Rust 1.85.0
+        run: cargo +1.85.0 test --workspace --all-features --locked
+
   windows-release-smoke:
     name: Windows release smoke
     runs-on: windows-2025-vs2026
