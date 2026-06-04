@@ -36,15 +36,19 @@ and this project follows semantic versioning once the first release is tagged.
 - Workspace crate package archive validation in CI.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
 - Runtime benchmark smoke target and CI check.
+- CLI verification safety checks for redacted replay labels.
 
 ### Changed
 
+- Redacted replay mismatch reports now mask actual step output values.
 - Release workflow artifact upload and download actions now use Node.js 24
   action versions.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
 - CI now treats Rustdoc warnings as errors.
-- Windows CI and release jobs now use the explicit `windows-2025` runner label.
+- Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
+- Windows CI and release jobs now use the explicit `windows-2025-vs2026`
+  runner label.
 
 ### Documentation
 
@@ -55,8 +59,11 @@ and this project follows semantic versioning once the first release is tagged.
 - Broken intra-doc link checks for public library crate docs.
 - CLI regression coverage for replay verification mismatches.
 - CLI regression coverage for verifying redacted replay files.
+- CLI regression coverage for redacted replay safety failures.
 - CLI regression coverage for malformed workflow and replay parse errors.
 - CLI file-read errors include the affected workflow or replay path.
+- Redacted replay verification safety notes in README, CLI reference, and
+  replay format documentation.
 - Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.
