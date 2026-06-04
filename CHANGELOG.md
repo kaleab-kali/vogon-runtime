@@ -71,6 +71,7 @@ and this project follows semantic versioning once the first release is tagged.
 - README local verification commands match the enforced CI and release checks.
 - README roadmap now distinguishes shipped runtime capabilities from planned
   provider and deployment work.
+- Release documentation explains how to verify downloaded archive checksums.
 - Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.

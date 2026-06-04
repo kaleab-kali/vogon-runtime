@@ -69,6 +69,31 @@ the Linux and Windows artifact builds from a branch. Manual runs upload the
 archives and checksum files as workflow artifacts, but they do not create a
 GitHub release.
 
+## Verifying Release Downloads
+
+Each release archive is published with a `.sha256` file. Download the archive
+and its matching checksum file before extracting the binary.
+
+On Linux:
+
+```sh
+sha256sum -c vogon-v0.1.0-linux-x86_64.tar.gz.sha256
+tar -xzf vogon-v0.1.0-linux-x86_64.tar.gz
+./vogon --version
+```
+
+On Windows PowerShell:
+
+```powershell
+$expected = (Get-Content .\vogon-v0.1.0-windows-x86_64.zip.sha256).Split()[0]
+$actual = (Get-FileHash -Algorithm SHA256 .\vogon-v0.1.0-windows-x86_64.zip).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw "Checksum mismatch" }
+Expand-Archive .\vogon-v0.1.0-windows-x86_64.zip -DestinationPath .\vogon-release -Force
+.\vogon-release\vogon.exe --version
+```
+
+Use the real version number in place of `v0.1.0`.
+
 ## Manual Publishing
 
 Crate publishing to crates.io is intentionally manual while the public API is
