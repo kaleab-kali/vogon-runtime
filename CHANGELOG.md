@@ -82,3 +82,5 @@ and this project follows semantic versioning once the first release is tagged.
 - Crate package metadata includes discovery keywords and crates.io categories.
 - Blank public issues are disabled so reports use the guided issue templates or
   private vulnerability reporting.
+- Contributor, pull request, and release verification docs use the offline
+  package validation command.
