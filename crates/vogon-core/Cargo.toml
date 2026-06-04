@@ -10,6 +10,8 @@ documentation.workspace = true
 authors.workspace = true
 description = "Core deterministic workflow runtime for Vogon Runtime."
 readme = "../../README.md"
+keywords = ["ai", "workflow", "replay", "runtime"]
+categories = ["development-tools"]
 
 [dependencies]
 serde.workspace = true

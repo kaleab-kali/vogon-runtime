@@ -10,6 +10,8 @@ documentation.workspace = true
 authors.workspace = true
 description = "Model adapters for Vogon Runtime."
 readme = "../../README.md"
+keywords = ["ai", "model-adapters", "workflow", "runtime"]
+categories = ["development-tools"]
 
 [dependencies]
 vogon-core.workspace = true

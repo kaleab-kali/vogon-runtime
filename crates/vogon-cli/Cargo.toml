@@ -10,6 +10,8 @@ documentation.workspace = true
 authors.workspace = true
 description = "Command-line interface for Vogon Runtime."
 readme = "../../README.md"
+keywords = ["ai", "workflow", "replay", "cli"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "vogon"
