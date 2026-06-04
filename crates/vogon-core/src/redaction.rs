@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 
 use crate::{Result, VogonError};
 
@@ -46,7 +47,9 @@ pub struct RedactionSet {
 }
 
 impl RedactionSet {
-    pub fn new(rules: Vec<RedactionRule>) -> Self {
+    pub fn new(mut rules: Vec<RedactionRule>) -> Self {
+        rules.sort_by_key(|rule| Reverse(rule.literal.len()));
+
         Self { rules }
     }
 
@@ -80,6 +83,19 @@ mod tests {
     fn redaction_set_replaces_known_literals() {
         let redactions =
             RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+
+        assert_eq!(
+            redactions.redact("token=sk-test-123"),
+            "token=[REDACTED:api_key]"
+        );
+    }
+
+    #[test]
+    fn redaction_set_prefers_longest_overlapping_literals() {
+        let redactions = RedactionSet::new(vec![
+            RedactionRule::new("prefix", "sk-test").unwrap(),
+            RedactionRule::new("api_key", "sk-test-123").unwrap(),
+        ]);
 
         assert_eq!(
             redactions.redact("token=sk-test-123"),
