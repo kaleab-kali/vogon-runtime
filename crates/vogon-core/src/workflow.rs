@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::{Result, Step, VogonError};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Workflow {
     pub name: String,
@@ -53,6 +53,29 @@ impl Workflow {
         }
 
         Ok(())
+    }
+}
+
+impl<'de> Deserialize<'de> for Workflow {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct WorkflowFields {
+            name: String,
+            steps: Vec<Step>,
+        }
+
+        let fields = WorkflowFields::deserialize(deserializer)?;
+        let workflow = Workflow {
+            name: fields.name,
+            steps: fields.steps,
+        };
+        workflow.validate().map_err(de::Error::custom)?;
+
+        Ok(workflow)
     }
 }
 
@@ -141,6 +164,41 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             VogonError::EmptyStepPrompt("classify".to_owned())
+        );
+    }
+
+    #[test]
+    fn workflow_deserialization_rejects_duplicate_step_ids() {
+        let result = serde_json::from_str::<Workflow>(
+            r#"{
+                "name": "support",
+                "steps": [
+                    { "id": "classify", "prompt": "Classify" },
+                    { "id": "classify", "prompt": "Classify again" }
+                ]
+            }"#,
+        );
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            VogonError::DuplicateStepId("classify".to_owned()).to_string()
+        );
+    }
+
+    #[test]
+    fn workflow_deserialization_rejects_empty_step_prompts() {
+        let result = serde_json::from_str::<Workflow>(
+            r#"{
+                "name": "support",
+                "steps": [
+                    { "id": "classify", "prompt": " " }
+                ]
+            }"#,
+        );
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            VogonError::EmptyStepPrompt("classify".to_owned()).to_string()
         );
     }
 }
