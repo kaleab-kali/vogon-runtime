@@ -63,6 +63,12 @@ jobs:
         run: |
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           target/install-smoke/bin/vogon --version
+          target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
+          for replay in fixtures/replays/*.replay.json; do
+            name="${replay##*/}"
+            name="${name%.replay.json}"
+            target/install-smoke/bin/vogon verify "fixtures/workflows/${name}.toml" "$replay"
+          done
 
       - name: Build docs
         env:

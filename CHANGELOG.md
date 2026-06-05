@@ -33,6 +33,8 @@ and this project follows semantic versioning once the first release is tagged.
   JSON fields.
 - Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
+- Offline cargo install smoke testing now verifies installed CLI workflow and
+  replay behavior.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Manual release workflow dry runs without publishing a GitHub release.
