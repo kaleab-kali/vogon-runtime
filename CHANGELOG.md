@@ -68,6 +68,8 @@ and this project follows semantic versioning once the first release is tagged.
   contributors.
 - `vogon run --output` errors now include the affected replay output path or
   parent directory.
+- `vogon run --output` now rejects directory output paths with an explicit
+  error.
 - `vogon verify` now rejects malformed redaction markers before executing a
   workflow.
 - `vogon trace` now rejects malformed redaction markers before printing replay

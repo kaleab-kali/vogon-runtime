@@ -196,3 +196,32 @@ fn run_command_reports_output_parent_errors() {
         "stderr: {stderr}"
     );
 }
+
+#[test]
+fn run_command_rejects_directory_output_path() {
+    let fixture = support_triage_workflow();
+    let output_dir = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("directory-output.replay.json");
+    remove_path_if_exists(&output_dir);
+    fs::create_dir_all(&output_dir).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&output_dir)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("replay output path"));
+    assert!(stderr.contains("is a directory"));
+    assert!(
+        stderr.contains(&output_dir.display().to_string()),
+        "stderr: {stderr}"
+    );
+}
