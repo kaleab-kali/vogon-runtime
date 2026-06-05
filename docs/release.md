@@ -19,6 +19,10 @@ cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-tri
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
+target/install-smoke/bin/vogon --version
+target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
+target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
@@ -32,15 +36,20 @@ Confirm that:
   `Cargo.lock`.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
-After the install smoke command, run the installed binary for your platform.
-The install smoke uses `--offline` because earlier verification commands have
-already fetched and built the locked dependencies:
+After the install smoke command, run the installed binary for your platform
+against the same workflow and replay fixtures. The install smoke uses
+`--offline` because earlier verification commands have already fetched and
+built the locked dependencies:
 
 ```sh
 target/install-smoke/bin/vogon --version
+target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
+target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 ```
 
-On Windows, use `target\install-smoke\bin\vogon.exe --version`.
+On Windows, use `target\install-smoke\bin\vogon.exe` for the installed binary
+commands.
 
 ## Tagging
 

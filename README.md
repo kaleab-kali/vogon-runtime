@@ -141,6 +141,10 @@ cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-tri
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
+target/install-smoke/bin/vogon --version
+target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
+target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
