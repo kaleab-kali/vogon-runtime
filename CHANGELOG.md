@@ -50,6 +50,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
 - Windows CI and release jobs now use the explicit `windows-2025-vs2026`
   runner label.
+- CI package validation now uses the offline package command documented for
+  contributors.
 - `vogon run --output` errors now include the affected replay output path or
   parent directory.
 - `vogon verify` now rejects malformed redaction markers before executing a
