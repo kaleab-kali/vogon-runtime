@@ -19,6 +19,7 @@ pub fn run(
 
     if let Some(output) = output {
         create_output_parent(output)?;
+        reject_directory_output(output)?;
 
         write_replay_file(output, &replay_json).map_err(|error| {
             io::Error::new(
@@ -32,6 +33,17 @@ pub fn run(
         println!("Replay written: {}", output.display());
     } else {
         print!("{replay_json}");
+    }
+
+    Ok(())
+}
+
+fn reject_directory_output(output: &Path) -> io::Result<()> {
+    if output.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("replay output path `{}` is a directory", output.display()),
+        ));
     }
 
     Ok(())
