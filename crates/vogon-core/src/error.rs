@@ -34,6 +34,9 @@ pub enum VogonError {
     #[error("redaction literal cannot be empty")]
     EmptyRedactionLiteral,
 
+    #[error("duplicate redaction label `{0}`")]
+    DuplicateRedactionLabel(String),
+
     #[error("redaction label `{0}` contains unsupported characters")]
     InvalidRedactionLabel(String),
 

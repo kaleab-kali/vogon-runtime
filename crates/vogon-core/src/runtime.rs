@@ -580,7 +580,7 @@ mod tests {
         )
         .unwrap();
         let redactions =
-            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]).unwrap();
 
         let report = Runtime::new(SecretModel)
             .run_with_redactions(&workflow, &redactions)
@@ -602,7 +602,7 @@ mod tests {
         .unwrap();
         let runtime = Runtime::new(SecretModel);
         let redactions =
-            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]).unwrap();
         let replay = runtime.run_with_redactions(&workflow, &redactions).unwrap();
 
         let verification = runtime
@@ -639,7 +639,7 @@ mod tests {
         )
         .unwrap();
         let redactions =
-            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]);
+            RedactionSet::new(vec![RedactionRule::new("api_key", "sk-test-123").unwrap()]).unwrap();
         let mut cache = RunCache::new();
         let runtime = Runtime::new(SecretModel);
 
