@@ -101,3 +101,5 @@ and this project follows semantic versioning once the first release is tagged.
   package validation command.
 - README project status now clearly separates shipped deterministic adapters
   from planned provider integrations.
+- Pull request template replay verification now includes every committed replay
+  fixture.
