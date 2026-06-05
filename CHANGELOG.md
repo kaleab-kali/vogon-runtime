@@ -99,3 +99,5 @@ and this project follows semantic versioning once the first release is tagged.
   private vulnerability reporting.
 - Contributor, pull request, and release verification docs use the offline
   package validation command.
+- README project status now clearly separates shipped deterministic adapters
+  from planned provider integrations.
