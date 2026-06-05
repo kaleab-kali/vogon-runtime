@@ -60,6 +60,8 @@ cargo run -p vogon-cli -- run --redact api_key=sk-test-123 fixtures/workflows/su
 ```
 
 Redaction values use `LABEL=VALUE` syntax and may be repeated.
+Labels may contain ASCII letters, ASCII digits, `_`, and `-`; leading or
+trailing whitespace is rejected.
 When redaction values overlap, Vogon applies the longest values first.
 
 ## `vogon verify`

@@ -41,6 +41,23 @@ fn verify_command_accepts_redacted_replay() {
 }
 
 #[test]
+fn verify_command_rejects_whitespace_redaction_labels() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--redact")
+        .arg(format!(" classification ={}", classification_output()))
+        .arg(workflow_path("support-triage"))
+        .arg(replay_path("support-triage"))
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("redaction label ` classification ` contains unsupported characters"));
+}
+
+#[test]
 fn verify_command_rejects_redacted_replay_without_matching_redaction() {
     let redacted_replay =
         write_redacted_support_triage_replay("unconfigured-redacted-support-triage.replay.json");
