@@ -13,27 +13,28 @@ impl RedactionRule {
     pub fn new(label: impl Into<String>, literal: impl Into<String>) -> Result<Self> {
         let label = label.into();
         let literal = literal.into();
-        let label = label.trim();
+        let trimmed_label = label.trim();
 
-        if label.is_empty() {
+        if trimmed_label.is_empty() {
             return Err(VogonError::EmptyRedactionLabel);
+        }
+
+        if label != trimmed_label {
+            return Err(VogonError::InvalidRedactionLabel(label));
         }
 
         if !label
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
         {
-            return Err(VogonError::InvalidRedactionLabel(label.to_owned()));
+            return Err(VogonError::InvalidRedactionLabel(label));
         }
 
         if literal.is_empty() {
             return Err(VogonError::EmptyRedactionLiteral);
         }
 
-        Ok(Self {
-            label: label.to_owned(),
-            literal,
-        })
+        Ok(Self { label, literal })
     }
 
     pub fn replacement(&self) -> String {
@@ -77,6 +78,16 @@ mod tests {
         let result = RedactionRule::new("api_key", "");
 
         assert_eq!(result.unwrap_err(), VogonError::EmptyRedactionLiteral);
+    }
+
+    #[test]
+    fn redaction_rule_rejects_whitespace_labels() {
+        let result = RedactionRule::new(" api_key ", "sk-test-123");
+
+        assert_eq!(
+            result.unwrap_err(),
+            VogonError::InvalidRedactionLabel(" api_key ".to_owned())
+        );
     }
 
     #[test]

@@ -37,5 +37,9 @@ before it executes the workflow. If verification fails after redaction rules are
 provided, mismatch JSON masks actual step output values so a bad redaction
 literal does not print the original output.
 
+Redaction labels may contain ASCII letters, ASCII digits, `_`, and `-`.
+Leading or trailing whitespace is rejected instead of normalized so marker
+labels remain exact.
+
 Malformed redaction markers, such as markers without a closing `]` or without a
 label, are rejected before verification executes the workflow.

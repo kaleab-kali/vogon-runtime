@@ -59,6 +59,8 @@ and this project follows semantic versioning once the first release is tagged.
   workflow.
 - Redaction now applies longer overlapping literals before shorter ones to
   avoid partial secret exposure.
+- Redaction labels with leading or trailing whitespace are now rejected instead
+  of silently normalized.
 - Workflow step IDs with leading or trailing whitespace are now rejected instead
   of silently normalized.
 - Workflow TOML parsing now rejects unknown top-level and step fields.
