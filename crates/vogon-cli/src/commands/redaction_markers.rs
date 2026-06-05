@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, io};
 
-use vogon_core::RunReport;
+use vogon_core::{RedactionRule, RunReport};
 
 pub fn validate_redaction_markers(replay: &RunReport) -> io::Result<()> {
     replay_redaction_labels(replay).map(|_| ())
@@ -43,10 +43,23 @@ fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) -> io::
                 "empty redaction label",
             ));
         }
+
+        validate_redaction_label(label)?;
         labels.insert(label.to_owned());
 
         remaining = &after_prefix[end + 1..];
     }
 
     Ok(())
+}
+
+fn validate_redaction_label(label: &str) -> io::Result<()> {
+    RedactionRule::new(label, "marker-validation")
+        .map(|_| ())
+        .map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("invalid redaction label `{label}`: {error}"),
+            )
+        })
 }
