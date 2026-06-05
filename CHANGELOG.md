@@ -59,6 +59,8 @@ and this project follows semantic versioning once the first release is tagged.
   workflow.
 - Redaction now applies longer overlapping literals before shorter ones to
   avoid partial secret exposure.
+- Workflow step IDs with leading or trailing whitespace are now rejected instead
+  of silently normalized.
 
 ### Documentation
 

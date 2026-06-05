@@ -49,6 +49,21 @@ prompt = " "
     .unwrap();
 }
 
+fn write_workflow_with_whitespace_step_id(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = "invalid"
+
+[[steps]]
+id = " classify "
+prompt = "Classify"
+"#,
+    )
+    .unwrap();
+}
+
 fn write_malformed_workflow(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "name = [").unwrap();
@@ -110,6 +125,24 @@ fn check_command_rejects_empty_step_prompt() {
         String::from_utf8_lossy(&output.stderr)
             .contains("step `empty_prompt` prompt cannot be empty")
     );
+}
+
+#[test]
+fn check_command_rejects_whitespace_padded_step_ids() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("whitespace-step-id-workflow.toml");
+    write_workflow_with_whitespace_step_id(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unsupported characters"));
 }
 
 #[test]

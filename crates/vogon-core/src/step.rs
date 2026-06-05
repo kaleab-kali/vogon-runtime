@@ -15,6 +15,10 @@ impl StepId {
             return Err(VogonError::EmptyStepId);
         }
 
+        if value != trimmed {
+            return Err(VogonError::InvalidStepId(value));
+        }
+
         if !trimmed
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
@@ -47,6 +51,13 @@ mod tests {
     #[test]
     fn step_id_deserialization_validates_input() {
         let result = serde_json::from_str::<StepId>(r#""bad id""#);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn step_id_rejects_surrounding_whitespace() {
+        let result = StepId::new(" classify ");
 
         assert!(result.is_err());
     }
