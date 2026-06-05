@@ -37,6 +37,7 @@ and this project follows semantic versioning once the first release is tagged.
   replay behavior.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
+- Release archives now include `README.md` and `LICENSE`.
 - Manual release workflow dry runs without publishing a GitHub release.
 - SHA-256 checksum files for release archives.
 - Release jobs now smoke test packaged archives after extraction.

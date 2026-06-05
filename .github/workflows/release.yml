@@ -48,7 +48,8 @@ jobs:
         run: |
           mkdir -p dist
           cp target/release/vogon dist/vogon
-          tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon
+          cp README.md LICENSE dist/
+          tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon README.md LICENSE
           sha256sum "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" > "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
 
       - name: Smoke test packaged archive
@@ -56,6 +57,8 @@ jobs:
           mkdir -p archive-smoke
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
           ./archive-smoke/vogon --version
+          test -f archive-smoke/README.md
+          test -f archive-smoke/LICENSE
 
       - name: Attest CLI archive
         uses: actions/attest@v4
@@ -117,7 +120,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target\release\vogon.exe dist\vogon.exe
-          Compress-Archive -Path dist\vogon.exe -DestinationPath "vogon-${{ github.ref_name }}-windows-x86_64.zip" -Force
+          Copy-Item README.md, LICENSE dist\
+          Compress-Archive -Path dist\vogon.exe, dist\README.md, dist\LICENSE -DestinationPath "vogon-${{ github.ref_name }}-windows-x86_64.zip" -Force
           $hash = Get-FileHash -Algorithm SHA256 "vogon-${{ github.ref_name }}-windows-x86_64.zip"
           "$($hash.Hash.ToLowerInvariant())  vogon-${{ github.ref_name }}-windows-x86_64.zip" | Set-Content "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256" -NoNewline
 
@@ -125,6 +129,12 @@ jobs:
         run: |
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
           .\archive-smoke\vogon.exe --version
+          if (-not (Test-Path archive-smoke\README.md)) {
+            throw "Packaged archive is missing README.md"
+          }
+          if (-not (Test-Path archive-smoke\LICENSE)) {
+            throw "Packaged archive is missing LICENSE"
+          }
 
       - name: Attest CLI archive
         uses: actions/attest@v4
