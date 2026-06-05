@@ -14,6 +14,7 @@ and this project follows semantic versioning once the first release is tagged.
 - TOML workflow loading for CLI runs and validation.
 - CLI commands for `demo`, `check`, `run`, `verify`, and `trace`.
 - Replay JSONL trace export for machine-readable diagnostics.
+- JSON workflow validation summaries with `vogon check --json`.
 - Literal replay redaction support for known sensitive values.
 - Trace output redaction for known sensitive values.
 - Replay file writing with `vogon run --output`.

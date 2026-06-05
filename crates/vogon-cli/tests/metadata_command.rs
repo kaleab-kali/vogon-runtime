@@ -60,6 +60,33 @@ fn run_help_documents_replay_options() {
 }
 
 #[test]
+fn check_help_documents_json_option() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg("--help")
+        .output()
+        .expect("check help should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for expected in [
+        "Validate a workflow file without executing it",
+        "--json",
+        "<WORKFLOW_FILE>",
+    ] {
+        assert!(
+            stdout.contains(expected),
+            "stdout should contain `{expected}`:\n{stdout}"
+        );
+    }
+}
+
+#[test]
 fn version_flag_prints_package_version() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("--version")
