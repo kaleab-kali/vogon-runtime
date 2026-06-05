@@ -19,9 +19,10 @@ prompt = "Draft a concise customer response based on the classification."
 
 ### `name`
 
-The workflow name is required and must not be empty. Leading or trailing
-whitespace is rejected. Replay verification compares the workflow name in the
-replay file against the workflow being run.
+The workflow name is required and must not be empty. It may contain ASCII
+letters, ASCII digits, underscores, and hyphens. Leading or trailing whitespace,
+spaces, and other punctuation are rejected. Replay verification compares the
+workflow name in the replay file against the workflow being run.
 
 ### `steps`
 

@@ -10,6 +10,9 @@ pub enum VogonError {
     #[error("workflow name `{0}` must not have leading or trailing whitespace")]
     InvalidWorkflowName(String),
 
+    #[error("workflow name `{0}` contains unsupported characters")]
+    InvalidWorkflowNameCharacters(String),
+
     #[error("workflow must contain at least one step")]
     EmptyWorkflow,
 
