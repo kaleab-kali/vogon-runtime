@@ -31,7 +31,8 @@ Vogon Runtime is pre-release. The current codebase is a small Rust workspace
 with:
 
 - `vogon-core` for workflow, runtime, replay, hashing, and error types.
-- `vogon-adapters` for deterministic and provider-backed model adapters.
+- `vogon-adapters` for deterministic model adapters and future provider
+  integrations.
 - `vogon-cli` for running demos, workflows, verification, and traces.
 - `fixtures` for example workflows and replay logs.
 - `docs` for architecture, workflow format, determinism, and replay format
