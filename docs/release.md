@@ -84,7 +84,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 The Release workflow can also be run manually from GitHub Actions to dry-run
 the Linux and Windows artifact builds from a branch. Manual runs upload the
 archives and checksum files as workflow artifacts, but they do not create a
-GitHub release.
+GitHub release. Manual runs also download the uploaded archives and verify their
+checksum files so artifact download behavior is covered before tag publishing.
 
 ## Verifying Release Downloads
 
