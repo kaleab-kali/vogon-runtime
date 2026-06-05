@@ -16,6 +16,7 @@
 - [ ] `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps`
 - [ ] `cargo package --workspace --allow-dirty --no-verify --offline`
 - [ ] Relevant CLI smoke test:
+- [ ] RustSec advisory audit passed or is not affected by this change.
 
 ## Checklist
 

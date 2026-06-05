@@ -19,6 +19,11 @@ inputs, or customer data in public reports.
 Pull requests are checked with GitHub Dependency Review. Dependency changes that
 introduce high-or-critical known vulnerabilities should be fixed before merge.
 
+The committed `Cargo.lock` is also audited against RustSec advisories on
+dependency changes and on a weekly schedule. The audit can be run manually
+before releases. New actionable advisories should be fixed or explicitly
+documented before merge.
+
 ## Unsafe Code
 
 Workspace crates forbid unsafe Rust. Changes that require unsafe code should be
