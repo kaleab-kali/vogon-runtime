@@ -32,8 +32,12 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           ./target/release/vogon --version
-          ./target/release/vogon check --json fixtures/workflows/support-triage.toml
-          ./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+          check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
+          echo "$check_json"
+          printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
+          verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
+          echo "$verify_json"
+          printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -89,8 +93,18 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           .\target\release\vogon.exe --version
-          .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml
-          .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json
+          $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
+          $checkJson
+          $check = $checkJson | ConvertFrom-Json
+          if ($check.workflow_name -ne 'support-triage' -or $check.step_count -ne 2) {
+            throw "Unexpected check JSON output: $checkJson"
+          }
+          $verifyJson = (& .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json) -join "`n"
+          $verifyJson
+          $verify = $verifyJson | ConvertFrom-Json
+          if ($verify.workflow_name -ne 'support-triage' -or -not $verify.is_match -or $verify.mismatches.Count -ne 0) {
+            throw "Unexpected verify JSON output: $verifyJson"
+          }
           Get-ChildItem fixtures\replays\*.replay.json | ForEach-Object {
             $name = $_.Name -replace '\.replay\.json$', ''
             .\target\release\vogon.exe verify "fixtures\workflows\$name.toml" $_.FullName

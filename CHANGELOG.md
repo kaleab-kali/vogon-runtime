@@ -29,6 +29,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Release CLI smoke testing in CI.
 - Release CLI smoke testing against every committed replay fixture.
 - Release CLI smoke testing for machine-readable `check` and `verify` output.
+- Release CLI smoke testing now asserts machine-readable `check` and `verify`
+  JSON fields.
 - Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
