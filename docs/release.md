@@ -14,6 +14,8 @@ cargo test --workspace --all-features
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
+cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml
+cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
@@ -59,6 +61,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 
 - Builds `vogon-cli` in release mode with the committed lockfile on Linux and
   Windows.
+- Runs machine-readable `check` and `verify` smoke tests against each optimized
+  CLI artifact.
 - Runs each optimized CLI artifact against every committed replay fixture.
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
