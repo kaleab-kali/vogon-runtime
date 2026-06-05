@@ -106,6 +106,26 @@ fn run_command_prefers_longest_overlapping_redaction_literals() {
 }
 
 #[test]
+fn run_command_rejects_duplicate_redaction_labels() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact")
+        .arg("classification=first")
+        .arg("--redact")
+        .arg("classification=second")
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("redaction label `classification` is configured more than once"));
+}
+
+#[test]
 fn run_command_writes_replay_file() {
     let fixture = support_triage_workflow();
     let output_file = repo_root()

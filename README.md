@@ -101,7 +101,7 @@ cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml f
 When verifying redacted replays, pass the same `--redact LABEL=VALUE` rules used
 to create the replay. Vogon rejects redacted replays with missing redaction
 labels before execution and masks actual step outputs in redacted mismatch
-reports.
+reports. Redaction labels must be unique within one command.
 
 Verify a multi-step writing workflow fixture:
 
