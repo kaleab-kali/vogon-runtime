@@ -31,6 +31,8 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           ./target/release/vogon --version
+          ./target/release/vogon check --json fixtures/workflows/support-triage.toml
+          ./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -85,6 +87,8 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           .\target\release\vogon.exe --version
+          .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml
+          .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json
           Get-ChildItem fixtures\replays\*.replay.json | ForEach-Object {
             $name = $_.Name -replace '\.replay\.json$', ''
             .\target\release\vogon.exe verify "fixtures\workflows\$name.toml" $_.FullName
