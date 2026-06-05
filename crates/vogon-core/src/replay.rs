@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::StepId;
+use crate::{StepId, workflow::validate_workflow_name};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,6 +16,7 @@ pub struct StepResult {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunReport {
+    #[serde(deserialize_with = "deserialize_workflow_name")]
     pub workflow_name: String,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     pub run_hash: String,
@@ -92,6 +93,15 @@ impl ReplayMismatch {
     }
 }
 
+fn deserialize_workflow_name<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    validate_workflow_name(&value).map_err(de::Error::custom)?;
+    Ok(value)
+}
+
 fn deserialize_sha256_hex<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -117,6 +127,24 @@ fn is_sha256_hex(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::RunReport;
+
+    #[test]
+    fn run_report_deserialization_rejects_malformed_workflow_names() {
+        let result = serde_json::from_str::<RunReport>(
+            r#"{
+                "workflow_name": "support triage",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": []
+            }"#,
+        );
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("workflow name `support triage` contains unsupported characters")
+        );
+    }
 
     #[test]
     fn run_report_deserialization_rejects_malformed_run_hashes() {

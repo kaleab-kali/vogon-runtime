@@ -30,21 +30,7 @@ impl Workflow {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if self.name.trim().is_empty() {
-            return Err(VogonError::EmptyWorkflowName);
-        }
-
-        if self.name != self.name.trim() {
-            return Err(VogonError::InvalidWorkflowName(self.name.clone()));
-        }
-
-        if !self
-            .name
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
-        {
-            return Err(VogonError::InvalidWorkflowNameCharacters(self.name.clone()));
-        }
+        validate_workflow_name(&self.name)?;
 
         if self.steps.is_empty() {
             return Err(VogonError::EmptyWorkflow);
@@ -68,6 +54,25 @@ impl Workflow {
 
         Ok(())
     }
+}
+
+pub(crate) fn validate_workflow_name(name: &str) -> Result<()> {
+    if name.trim().is_empty() {
+        return Err(VogonError::EmptyWorkflowName);
+    }
+
+    if name != name.trim() {
+        return Err(VogonError::InvalidWorkflowName(name.to_owned()));
+    }
+
+    if !name
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+    {
+        return Err(VogonError::InvalidWorkflowNameCharacters(name.to_owned()));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
