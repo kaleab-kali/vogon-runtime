@@ -57,6 +57,8 @@ and this project follows semantic versioning once the first release is tagged.
   parent directory.
 - `vogon verify` now rejects malformed redaction markers before executing a
   workflow.
+- `vogon trace` now rejects malformed redaction markers before printing replay
+  output.
 - Redaction now applies longer overlapping literals before shorter ones to
   avoid partial secret exposure.
 - Redaction labels with leading or trailing whitespace are now rejected instead

@@ -4,6 +4,7 @@ use vogon_core::{RedactionSet, RunReport};
 
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
+use crate::commands::redaction_markers::validate_redaction_markers;
 
 pub fn run(
     replay_file: &Path,
@@ -20,6 +21,7 @@ pub fn run(
             ),
         )
     })?;
+    validate_redaction_markers(&replay)?;
     let redactions = parse_redactions(redaction_values)?;
 
     if jsonl {

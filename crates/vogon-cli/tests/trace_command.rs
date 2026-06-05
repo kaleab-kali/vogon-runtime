@@ -181,6 +181,27 @@ fn trace_command_rejects_malformed_replay_hashes() {
     assert!(stderr.contains("must be 64 lowercase hexadecimal characters"));
 }
 
+#[test]
+fn trace_command_rejects_malformed_redaction_markers() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed-trace-redaction-marker.replay.json");
+    write_malformed_redaction_marker_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("trace")
+        .arg(&replay)
+        .output()
+        .expect("trace command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("malformed redaction marker"));
+    assert!(stderr.contains("missing closing `]`"));
+}
+
 fn write_malformed_replay(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "{").unwrap();
@@ -199,5 +220,13 @@ fn write_malformed_hash_replay(path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(support_triage_replay()).unwrap()).unwrap();
     replay["steps"][0]["input_hash"] = serde_json::Value::String("not-a-sha256-hash".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_malformed_redaction_marker_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(support_triage_replay()).unwrap()).unwrap();
+    replay["steps"][0]["output"] = serde_json::Value::String("[REDACTED:classification".to_owned());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }

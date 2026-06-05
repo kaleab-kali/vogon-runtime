@@ -108,3 +108,5 @@ Redact a known literal value from trace output:
 ```sh
 cargo run -p vogon-cli -- trace --redact api_key=sk-test-123 fixtures/replays/support-triage.replay.json
 ```
+
+Malformed redaction markers are rejected before trace output is printed.

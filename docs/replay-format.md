@@ -44,4 +44,5 @@ Leading or trailing whitespace is rejected instead of normalized so marker
 labels remain exact.
 
 Malformed redaction markers, such as markers without a closing `]` or without a
-label, are rejected before verification executes the workflow.
+label, are rejected by replay commands before verification executes the workflow
+or trace output is printed.
