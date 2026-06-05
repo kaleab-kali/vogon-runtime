@@ -64,6 +64,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Workflow step IDs with leading or trailing whitespace are now rejected instead
   of silently normalized.
 - Workflow TOML parsing now rejects unknown top-level and step fields.
+- Replay JSON parsing now rejects unknown top-level and step fields.
 
 ### Documentation
 

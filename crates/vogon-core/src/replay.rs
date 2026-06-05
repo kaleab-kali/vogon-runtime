@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::StepId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StepResult {
     pub step_id: StepId,
     pub input_hash: String,
@@ -11,6 +12,7 @@ pub struct StepResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunReport {
     pub workflow_name: String,
     pub run_hash: String,
@@ -55,6 +57,7 @@ pub enum ReplayMismatch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VerificationReport {
     pub workflow_name: String,
     pub mismatches: Vec<ReplayMismatch>,
