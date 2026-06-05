@@ -20,6 +20,7 @@ pub struct RunReport {
     pub workflow_name: String,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     pub run_hash: String,
+    #[serde(deserialize_with = "deserialize_non_empty_steps")]
     pub steps: Vec<StepResult>,
 }
 
@@ -117,6 +118,21 @@ where
     }
 }
 
+fn deserialize_non_empty_steps<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<StepResult>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let steps = Vec::<StepResult>::deserialize(deserializer)?;
+
+    if steps.is_empty() {
+        Err(de::Error::custom("replay must contain at least one step"))
+    } else {
+        Ok(steps)
+    }
+}
+
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64
         && value
@@ -128,13 +144,27 @@ fn is_sha256_hex(value: &str) -> bool {
 mod tests {
     use crate::RunReport;
 
+    fn valid_step_json() -> &'static str {
+        r#"{
+            "step_id": "classify",
+            "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "output": "done"
+        }"#
+    }
+
     #[test]
     fn run_report_deserialization_rejects_malformed_workflow_names() {
         let result = serde_json::from_str::<RunReport>(
             r#"{
                 "workflow_name": "support triage",
                 "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-                "steps": []
+                "steps": [{
+                    "step_id": "classify",
+                    "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "output": "done"
+                }]
             }"#,
         );
 
@@ -148,13 +178,14 @@ mod tests {
 
     #[test]
     fn run_report_deserialization_rejects_malformed_run_hashes() {
-        let result = serde_json::from_str::<RunReport>(
-            r#"{
+        let result = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
                 "workflow_name": "demo",
                 "run_hash": "not-a-sha256-hash",
-                "steps": []
-            }"#,
-        );
+                "steps": [{}]
+            }}"#,
+            valid_step_json()
+        ));
 
         assert!(
             result
@@ -182,5 +213,23 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains(
             "hash `ABC0000000000000000000000000000000000000000000000000000000000000` must be 64 lowercase hexadecimal characters"
         ));
+    }
+
+    #[test]
+    fn run_report_deserialization_rejects_empty_steps() {
+        let result = serde_json::from_str::<RunReport>(
+            r#"{
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": []
+            }"#,
+        );
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("replay must contain at least one step")
+        );
     }
 }

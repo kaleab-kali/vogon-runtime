@@ -277,6 +277,28 @@ fn verify_command_rejects_malformed_replay_workflow_names() {
     assert!(stderr.contains("workflow name `support triage` contains unsupported characters"));
 }
 
+#[test]
+fn verify_command_rejects_empty_replay_steps() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("empty-steps.replay.json");
+    write_empty_steps_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains("replay must contain at least one step"));
+}
+
 fn assert_verify_succeeds(name: &str) {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -388,6 +410,14 @@ fn write_malformed_workflow_name_replay(path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
     replay["workflow_name"] = serde_json::Value::String("support triage".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_empty_steps_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["steps"] = serde_json::Value::Array(Vec::new());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 
