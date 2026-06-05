@@ -45,7 +45,8 @@ literal does not print the original output.
 
 Redaction labels may contain ASCII letters, ASCII digits, `_`, and `-`.
 Leading or trailing whitespace is rejected instead of normalized so marker
-labels remain exact. CLI redaction labels must be unique within one command.
+labels remain exact. CLI redaction labels must be unique within one command,
+and `vogon-core` redaction sets reject duplicate labels for library callers.
 Replay commands reject markers with unsupported labels before verification
 executes or trace output is printed.
 

@@ -133,7 +133,7 @@ fn trace_command_rejects_duplicate_redaction_labels() {
     assert!(!output.status.success());
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("redaction label `classification` is configured more than once"));
+    assert!(stderr.contains("duplicate redaction label `classification`"));
 }
 
 #[test]
