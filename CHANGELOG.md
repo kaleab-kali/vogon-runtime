@@ -112,6 +112,8 @@ and this project follows semantic versioning once the first release is tagged.
   checks.
 - Contributor and release verification checklists include machine-readable CLI
   smoke checks.
+- Contributor and release verification checklists include installed CLI workflow
+  and replay smoke checks.
 - README requirements list the minimum supported Rust version.
 - README local verification commands match the enforced CI and release checks.
 - README roadmap now distinguishes shipped runtime capabilities from planned
