@@ -23,7 +23,7 @@ fields must be 64-character lowercase hexadecimal SHA-256 digests.
 `workflow_name` uses the same portable identifier rule as workflow files: ASCII
 letters, ASCII digits, underscores, and hyphens only.
 `steps` must contain at least one step result because Vogon does not produce
-empty workflow replays.
+empty workflow replays. Step IDs inside a replay must be unique.
 
 ## Redaction
 

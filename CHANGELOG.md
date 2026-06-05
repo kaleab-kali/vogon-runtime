@@ -84,6 +84,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Replay JSON parsing now rejects unknown top-level and step fields.
 - Replay JSON parsing now rejects malformed workflow names.
 - Replay JSON parsing now rejects empty step lists.
+- Replay JSON parsing now rejects duplicate step IDs.
 - Replay JSON parsing now rejects malformed hash fields.
 
 ### Documentation
