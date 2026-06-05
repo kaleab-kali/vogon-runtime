@@ -34,6 +34,10 @@ impl Workflow {
             return Err(VogonError::EmptyWorkflowName);
         }
 
+        if self.name != self.name.trim() {
+            return Err(VogonError::InvalidWorkflowName(self.name.clone()));
+        }
+
         if self.steps.is_empty() {
             return Err(VogonError::EmptyWorkflow);
         }
@@ -70,6 +74,19 @@ mod tests {
         );
 
         assert_eq!(result.unwrap_err(), VogonError::EmptyWorkflowName);
+    }
+
+    #[test]
+    fn workflow_rejects_whitespace_padded_names() {
+        let result = Workflow::new(
+            " support ",
+            vec![Step::new(StepId::new("classify").unwrap(), "Classify")],
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            VogonError::InvalidWorkflowName(" support ".to_owned())
+        );
     }
 
     #[test]

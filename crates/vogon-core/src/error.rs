@@ -7,6 +7,9 @@ pub enum VogonError {
     #[error("workflow name cannot be empty")]
     EmptyWorkflowName,
 
+    #[error("workflow name `{0}` must not have leading or trailing whitespace")]
+    InvalidWorkflowName(String),
+
     #[error("workflow must contain at least one step")]
     EmptyWorkflow,
 
