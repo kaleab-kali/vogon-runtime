@@ -33,6 +33,7 @@ fn verify_command_can_emit_json_match_report() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["is_match"], true);
     assert_eq!(report["mismatches"].as_array().unwrap().len(), 0);
 }
 
@@ -189,6 +190,7 @@ fn verify_command_can_emit_json_mismatch_report() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["is_match"], false);
     assert!(!report["mismatches"].as_array().unwrap().is_empty());
 
     let stderr = String::from_utf8_lossy(&output.stderr);

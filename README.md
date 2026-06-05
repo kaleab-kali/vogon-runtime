@@ -91,7 +91,8 @@ Verify a saved replay:
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
-Emit a machine-readable verification report:
+Emit a machine-readable verification report with `workflow_name`, `is_match`,
+and `mismatches` fields:
 
 ```sh
 cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json

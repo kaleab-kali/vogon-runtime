@@ -16,6 +16,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Replay JSONL trace export for machine-readable diagnostics.
 - JSON workflow validation summaries with `vogon check --json`.
 - JSON replay verification reports with `vogon verify --json`.
+- `vogon verify --json` reports now include an explicit `is_match` field.
 - Literal replay redaction support for known sensitive values.
 - Trace output redaction for known sensitive values.
 - Replay file writing with `vogon run --output`.
