@@ -1,5 +1,6 @@
 use std::{collections::BTreeSet, io, path::Path};
 
+use serde_json::json;
 use vogon_adapters::DeterministicEchoModel;
 use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationReport};
 
@@ -56,7 +57,10 @@ pub fn run(
     };
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&printable_verification)?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json_verification_report(&printable_verification))?
+        );
 
         if printable_verification.is_match() {
             return Ok(());
@@ -82,6 +86,14 @@ pub fn run(
         "replay verification failed with {mismatch_count} mismatch(es)"
     ))
     .into())
+}
+
+fn json_verification_report(report: &VerificationReport) -> serde_json::Value {
+    json!({
+        "workflow_name": report.workflow_name,
+        "is_match": report.is_match(),
+        "mismatches": report.mismatches,
+    })
 }
 
 fn missing_replay_redaction_labels(
