@@ -26,6 +26,8 @@ Confirm that:
 - `CHANGELOG.md` describes the release.
 - `Cargo.lock` is committed.
 - The GitHub Actions CI workflow has passed on `main`.
+- The Security Audit workflow has a recent successful run for the committed
+  `Cargo.lock`.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
 After the install smoke command, run the installed binary for your platform.

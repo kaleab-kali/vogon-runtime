@@ -36,6 +36,8 @@ The `main` branch is protected. Pull requests must pass:
 - `Windows release smoke`
 - `Dependency review`
 - `Minimum supported Rust`
+- `RustSec advisory audit` when Rust dependency files or the audit workflow
+  change
 
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain

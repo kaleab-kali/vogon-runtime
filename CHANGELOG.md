@@ -35,6 +35,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
+- RustSec advisory auditing for committed Rust dependencies.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
 - Runtime benchmark smoke target and CI check.
 - CLI verification safety checks for redacted replay labels.
@@ -103,3 +104,4 @@ and this project follows semantic versioning once the first release is tagged.
   from planned provider integrations.
 - Pull request template replay verification now includes every committed replay
   fixture.
+- Security policy and contributor docs now describe RustSec advisory auditing.
