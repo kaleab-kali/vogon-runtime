@@ -69,6 +69,38 @@ fn write_malformed_workflow(path: &Path) {
     fs::write(path, "name = [").unwrap();
 }
 
+fn write_workflow_with_unknown_top_level_field(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = "invalid"
+unexpected = true
+
+[[steps]]
+id = "classify"
+prompt = "Classify"
+"#,
+    )
+    .unwrap();
+}
+
+fn write_workflow_with_unknown_step_field(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = "invalid"
+
+[[steps]]
+id = "classify"
+prompt = "Classify"
+temperature = 0.7
+"#,
+    )
+    .unwrap();
+}
+
 #[test]
 fn check_command_accepts_valid_toml_workflow() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
@@ -184,4 +216,46 @@ fn check_command_reports_malformed_workflow_path() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("failed to parse workflow file"));
     assert!(stderr.contains(&malformed_workflow.display().to_string()));
+}
+
+#[test]
+fn check_command_rejects_unknown_top_level_fields() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unknown-top-level-field-workflow.toml");
+    write_workflow_with_unknown_top_level_field(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(&invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse workflow file"));
+    assert!(stderr.contains("unexpected"));
+}
+
+#[test]
+fn check_command_rejects_unknown_step_fields() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unknown-step-field-workflow.toml");
+    write_workflow_with_unknown_step_field(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(&invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse workflow file"));
+    assert!(stderr.contains("temperature"));
 }

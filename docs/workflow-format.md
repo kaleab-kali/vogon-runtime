@@ -35,6 +35,9 @@ Each step has:
 Step identifiers may contain ASCII letters, ASCII digits, underscores, and
 hyphens. Spaces and other punctuation are rejected.
 
+Unknown top-level workflow fields and unknown step fields are rejected. This
+keeps workflow files explicit and catches misspelled keys before execution.
+
 ## Step Inputs
 
 The first step receives its prompt as input. Each later step receives its prompt
