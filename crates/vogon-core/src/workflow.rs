@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Result, Step, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Workflow {
     pub name: String,
     pub steps: Vec<Step>,
