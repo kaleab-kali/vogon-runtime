@@ -41,6 +41,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Manual release workflow dry runs without publishing a GitHub release.
 - SHA-256 checksum files for release archives.
 - Release jobs now smoke test packaged archives after extraction.
+- Manual release workflow dry runs now download uploaded archives and verify
+  their checksum files without publishing a GitHub release.
 - Release jobs now smoke test machine-readable `check` and `verify` output.
 - Release jobs now generate provenance attestations for packaged archives.
 - Compile-time unsafe Rust prohibition across workspace crates.

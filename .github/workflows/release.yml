@@ -150,6 +150,36 @@ jobs:
             vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           if-no-files-found: error
 
+  release-artifact-smoke:
+    name: Release artifact download smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs:
+      - linux-cli
+      - windows-cli
+
+    steps:
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-artifacts
+
+      - name: Verify downloaded artifact checksums
+        run: |
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-linux-x86_64.tar.gz"
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
+          test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip"
+          test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
+          (
+            cd release-artifacts/vogon-linux-x86_64
+            sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
+          )
+          (
+            cd release-artifacts/vogon-windows-x86_64
+            sha256sum -c "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
+          )
+
   publish-release:
     name: Publish GitHub release
     if: github.ref_type == 'tag'
