@@ -233,6 +233,28 @@ fn verify_command_rejects_unknown_step_replay_fields() {
     assert!(stderr.contains("unknown field `unexpected`"));
 }
 
+#[test]
+fn verify_command_rejects_malformed_replay_hashes() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed-hash.replay.json");
+    write_malformed_hash_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains("must be 64 lowercase hexadecimal characters"));
+}
+
 fn assert_verify_succeeds(name: &str) {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -328,6 +350,14 @@ fn write_unknown_step_replay(path: &Path) {
         serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
     replay["steps"][0]["unexpected"] =
         serde_json::Value::String("ignored-before-strict-parsing".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_malformed_hash_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["run_hash"] = serde_json::Value::String("not-a-sha256-hash".to_owned());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 

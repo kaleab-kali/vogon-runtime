@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::StepId;
 
@@ -6,7 +6,9 @@ use crate::StepId;
 #[serde(deny_unknown_fields)]
 pub struct StepResult {
     pub step_id: StepId,
+    #[serde(deserialize_with = "deserialize_sha256_hex")]
     pub input_hash: String,
+    #[serde(deserialize_with = "deserialize_sha256_hex")]
     pub output_hash: String,
     pub output: String,
 }
@@ -15,6 +17,7 @@ pub struct StepResult {
 #[serde(deny_unknown_fields)]
 pub struct RunReport {
     pub workflow_name: String,
+    #[serde(deserialize_with = "deserialize_sha256_hex")]
     pub run_hash: String,
     pub steps: Vec<StepResult>,
 }
@@ -86,5 +89,70 @@ impl ReplayMismatch {
                 step_id: actual, ..
             } => Some(actual),
         }
+    }
+}
+
+fn deserialize_sha256_hex<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+
+    if is_sha256_hex(&value) {
+        Ok(value)
+    } else {
+        Err(de::Error::custom(format!(
+            "hash `{value}` must be 64 lowercase hexadecimal characters"
+        )))
+    }
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .chars()
+            .all(|character| character.is_ascii_hexdigit() && !character.is_ascii_uppercase())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::RunReport;
+
+    #[test]
+    fn run_report_deserialization_rejects_malformed_run_hashes() {
+        let result = serde_json::from_str::<RunReport>(
+            r#"{
+                "workflow_name": "demo",
+                "run_hash": "not-a-sha256-hash",
+                "steps": []
+            }"#,
+        );
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("hash `not-a-sha256-hash` must be 64 lowercase hexadecimal characters")
+        );
+    }
+
+    #[test]
+    fn run_report_deserialization_rejects_malformed_step_hashes() {
+        let result = serde_json::from_str::<RunReport>(
+            r#"{
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{
+                    "step_id": "draft",
+                    "input_hash": "ABC0000000000000000000000000000000000000000000000000000000000000",
+                    "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "output": "done"
+                }]
+            }"#,
+        );
+
+        assert!(result.unwrap_err().to_string().contains(
+            "hash `ABC0000000000000000000000000000000000000000000000000000000000000` must be 64 lowercase hexadecimal characters"
+        ));
     }
 }
