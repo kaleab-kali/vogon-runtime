@@ -31,6 +31,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Manual release workflow dry runs without publishing a GitHub release.
 - SHA-256 checksum files for release archives.
+- Release jobs now smoke test packaged archives after extraction.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
