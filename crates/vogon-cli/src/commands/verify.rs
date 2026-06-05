@@ -14,6 +14,7 @@ pub fn run(
     workflow_file: &Path,
     replay_file: &Path,
     redaction_values: &[String],
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let workflow = read_toml_workflow(workflow_file)?;
     let replay_text = file_io::read_to_string(replay_file, "replay file")?;
@@ -47,7 +48,27 @@ pub fn run(
         &redactions,
     )?;
 
-    if verification.is_match() {
+    let mismatch_count = verification.mismatches.len();
+    let printable_verification = if replay_redaction_labels.is_empty() {
+        verification
+    } else {
+        mask_redacted_step_outputs(verification)
+    };
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&printable_verification)?);
+
+        if printable_verification.is_match() {
+            return Ok(());
+        }
+
+        return Err(io::Error::other(format!(
+            "replay verification failed with {mismatch_count} mismatch(es)"
+        ))
+        .into());
+    }
+
+    if printable_verification.is_match() {
         println!(
             "Replay verified: {} ({} steps)",
             replay.workflow_name,
@@ -55,13 +76,6 @@ pub fn run(
         );
         return Ok(());
     }
-
-    let mismatch_count = verification.mismatches.len();
-    let printable_verification = if replay_redaction_labels.is_empty() {
-        verification
-    } else {
-        mask_redacted_step_outputs(verification)
-    };
 
     eprintln!("{}", serde_json::to_string_pretty(&printable_verification)?);
     Err(io::Error::other(format!(

@@ -95,6 +95,12 @@ Malformed redaction markers are also rejected before workflow execution.
 Successful verification exits with status `0`. Mismatches are printed as
 structured JSON and the command exits with a non-zero status.
 
+Emit the verification report as JSON for both matches and mismatches:
+
+```sh
+cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+```
+
 ## `vogon trace`
 
 Prints a human-readable replay trace.

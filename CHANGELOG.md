@@ -15,6 +15,7 @@ and this project follows semantic versioning once the first release is tagged.
 - CLI commands for `demo`, `check`, `run`, `verify`, and `trace`.
 - Replay JSONL trace export for machine-readable diagnostics.
 - JSON workflow validation summaries with `vogon check --json`.
+- JSON replay verification reports with `vogon verify --json`.
 - Literal replay redaction support for known sensitive values.
 - Trace output redaction for known sensitive values.
 - Replay file writing with `vogon run --output`.

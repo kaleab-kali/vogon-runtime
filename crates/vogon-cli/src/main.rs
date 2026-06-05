@@ -48,6 +48,10 @@ enum Commands {
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
 
+        /// Emit machine-readable JSON instead of human-readable text.
+        #[arg(long)]
+        json: bool,
+
         workflow_file: PathBuf,
         replay_file: PathBuf,
     },
@@ -81,9 +85,10 @@ fn main() -> ExitCode {
         } => commands::run::run(&workflow_file, &redactions, output.as_deref()),
         Commands::Verify {
             redactions,
+            json,
             workflow_file,
             replay_file,
-        } => commands::verify::run(&workflow_file, &replay_file, &redactions),
+        } => commands::verify::run(&workflow_file, &replay_file, &redactions, json),
         Commands::Trace {
             redactions,
             jsonl,
