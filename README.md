@@ -67,6 +67,12 @@ Validate a TOML workflow without executing it:
 cargo run -p vogon-cli -- check fixtures/workflows/support-triage.toml
 ```
 
+Emit a machine-readable workflow validation summary:
+
+```sh
+cargo run -p vogon-cli -- check --json fixtures/workflows/support-triage.toml
+```
+
 Write a replay file:
 
 ```sh

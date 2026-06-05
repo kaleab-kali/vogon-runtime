@@ -151,6 +151,27 @@ fn check_command_accepts_valid_toml_workflow() {
 }
 
 #[test]
+fn check_command_can_emit_json_summary() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg("--json")
+        .arg(support_triage_workflow())
+        .output()
+        .expect("check command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(summary["workflow_name"], "support-triage");
+    assert_eq!(summary["step_count"], 2);
+}
+
+#[test]
 fn check_command_rejects_invalid_toml_workflow() {
     let invalid_workflow = repo_root()
         .join("target")

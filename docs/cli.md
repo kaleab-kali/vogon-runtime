@@ -39,6 +39,12 @@ cargo run -p vogon-cli -- check fixtures/workflows/support-triage.toml
 
 Use this before committing new workflow fixtures or before writing a replay.
 
+Emit a machine-readable validation summary:
+
+```sh
+cargo run -p vogon-cli -- check --json fixtures/workflows/support-triage.toml
+```
+
 ## `vogon run`
 
 Runs a TOML workflow and prints a replay JSON document to stdout.
