@@ -119,6 +119,24 @@ fn trace_command_can_redact_jsonl_output() {
 }
 
 #[test]
+fn trace_command_rejects_duplicate_redaction_labels() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("trace")
+        .arg("--redact")
+        .arg("classification=first")
+        .arg("--redact")
+        .arg("classification=second")
+        .arg(support_triage_replay())
+        .output()
+        .expect("trace command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("redaction label `classification` is configured more than once"));
+}
+
+#[test]
 fn trace_command_reports_malformed_replay_path() {
     let malformed_replay = repo_root()
         .join("target")

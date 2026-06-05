@@ -105,6 +105,8 @@ and this project follows semantic versioning once the first release is tagged.
 - CLI regression coverage for verifying redacted replay files.
 - CLI regression coverage for redacted replay safety failures.
 - CLI regression coverage for malformed workflow and replay parse errors.
+- CLI regression coverage for duplicate redaction labels across `run`, `verify`,
+  and `trace`.
 - CLI file-read errors include the affected workflow or replay path.
 - Redacted replay verification safety notes in README, CLI reference, and
   replay format documentation.
@@ -112,6 +114,8 @@ and this project follows semantic versioning once the first release is tagged.
   checks.
 - Contributor and release verification checklists include machine-readable CLI
   smoke checks.
+- Contributor and release verification checklists include installed CLI workflow
+  and replay smoke checks.
 - README requirements list the minimum supported Rust version.
 - README local verification commands match the enforced CI and release checks.
 - README roadmap now distinguishes shipped runtime capabilities from planned
