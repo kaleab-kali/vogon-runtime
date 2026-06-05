@@ -13,6 +13,10 @@ jobs:
   linux-cli:
     name: Linux CLI artifact
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -46,6 +50,11 @@ jobs:
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
           ./archive-smoke/vogon --version
 
+      - name: Attest CLI archive
+        uses: actions/attest@v4
+        with:
+          subject-path: vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
+
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v7
         with:
@@ -58,6 +67,10 @@ jobs:
   windows-cli:
     name: Windows CLI artifact
     runs-on: windows-2025-vs2026
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -92,6 +105,11 @@ jobs:
         run: |
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
           .\archive-smoke\vogon.exe --version
+
+      - name: Attest CLI archive
+        uses: actions/attest@v4
+        with:
+          subject-path: vogon-${{ github.ref_name }}-windows-x86_64.zip
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v7

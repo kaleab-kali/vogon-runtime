@@ -63,6 +63,7 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
 - Writes SHA-256 checksum files for each archive.
+- Generates GitHub artifact attestations for each release archive.
 - Creates a GitHub release for the tag and uploads both archives with their
   checksum files.
 
@@ -95,6 +96,19 @@ Expand-Archive .\vogon-v0.1.0-windows-x86_64.zip -DestinationPath .\vogon-releas
 ```
 
 Use the real version number in place of `v0.1.0`.
+
+If the release was built by GitHub Actions, verify the archive provenance with
+GitHub CLI:
+
+```sh
+gh attestation verify vogon-v0.1.0-linux-x86_64.tar.gz -R kaleab-kali/vogon-runtime
+```
+
+On Windows PowerShell:
+
+```powershell
+gh attestation verify .\vogon-v0.1.0-windows-x86_64.zip -R kaleab-kali/vogon-runtime
+```
 
 ## Manual Publishing
 
