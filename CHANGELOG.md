@@ -74,6 +74,8 @@ and this project follows semantic versioning once the first release is tagged.
   workflow.
 - `vogon trace` now rejects malformed redaction markers before printing replay
   output.
+- Replay commands now reject redaction markers with unsupported labels before
+  verification or trace output.
 - Redaction now applies longer overlapping literals before shorter ones to
   avoid partial secret exposure.
 - Redaction labels with leading or trailing whitespace are now rejected instead

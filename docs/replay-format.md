@@ -45,7 +45,8 @@ literal does not print the original output.
 
 Redaction labels may contain ASCII letters, ASCII digits, `_`, and `-`.
 Leading or trailing whitespace is rejected instead of normalized so marker
-labels remain exact.
+labels remain exact. Replay commands reject markers with unsupported labels
+before verification executes or trace output is printed.
 
 Malformed redaction markers, such as markers without a closing `]` or without a
 label, are rejected by replay commands before verification executes the workflow

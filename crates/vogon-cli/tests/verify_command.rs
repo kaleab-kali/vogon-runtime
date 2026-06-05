@@ -125,6 +125,29 @@ fn verify_command_rejects_malformed_redaction_marker_before_execution() {
 }
 
 #[test]
+fn verify_command_rejects_malformed_redaction_marker_labels() {
+    let malformed_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed-redaction-marker-label.replay.json");
+    write_malformed_redaction_marker_label_replay(&malformed_replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&malformed_replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("malformed redaction marker"));
+    assert!(stderr.contains("invalid redaction label `bad label`"));
+    assert!(!stderr.contains("\"mismatches\""));
+}
+
+#[test]
 fn verify_command_masks_redacted_replay_mismatch_outputs() {
     let redacted_replay =
         write_redacted_support_triage_replay("wrong-redaction-redacted-support-triage.replay.json");
@@ -445,6 +468,14 @@ fn write_malformed_redaction_marker_replay(path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
     replay["steps"][0]["output"] = serde_json::Value::String("[REDACTED:classification".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_malformed_redaction_marker_label_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["steps"][0]["output"] = serde_json::Value::String("[REDACTED:bad label]".to_owned());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 
