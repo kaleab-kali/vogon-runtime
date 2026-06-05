@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::{StepId, workflow::validate_workflow_name};
@@ -127,10 +129,20 @@ where
     let steps = Vec::<StepResult>::deserialize(deserializer)?;
 
     if steps.is_empty() {
-        Err(de::Error::custom("replay must contain at least one step"))
-    } else {
-        Ok(steps)
+        return Err(de::Error::custom("replay must contain at least one step"));
     }
+
+    let mut step_ids = HashSet::new();
+    for step in &steps {
+        let step_id = step.step_id.as_str();
+        if !step_ids.insert(step_id) {
+            return Err(de::Error::custom(format!(
+                "replay contains duplicate step id `{step_id}`"
+            )));
+        }
+    }
+
+    Ok(steps)
 }
 
 fn is_sha256_hex(value: &str) -> bool {
@@ -230,6 +242,37 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("replay must contain at least one step")
+        );
+    }
+
+    #[test]
+    fn run_report_deserialization_rejects_duplicate_step_ids() {
+        let result = serde_json::from_str::<RunReport>(
+            r#"{
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [
+                    {
+                        "step_id": "draft",
+                        "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "output": "first"
+                    },
+                    {
+                        "step_id": "draft",
+                        "input_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                        "output_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+                        "output": "second"
+                    }
+                ]
+            }"#,
+        );
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("replay contains duplicate step id `draft`")
         );
     }
 }
