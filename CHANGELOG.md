@@ -61,6 +61,7 @@ and this project follows semantic versioning once the first release is tagged.
   avoid partial secret exposure.
 - Redaction labels with leading or trailing whitespace are now rejected instead
   of silently normalized.
+- Workflow names with leading or trailing whitespace are now rejected.
 - Workflow step IDs with leading or trailing whitespace are now rejected instead
   of silently normalized.
 - Workflow TOML parsing now rejects unknown top-level and step fields.

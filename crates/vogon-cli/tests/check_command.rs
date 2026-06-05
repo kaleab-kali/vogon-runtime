@@ -64,6 +64,21 @@ prompt = "Classify"
     .unwrap();
 }
 
+fn write_workflow_with_whitespace_name(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        r#"
+name = " support "
+
+[[steps]]
+id = "classify"
+prompt = "Classify"
+"#,
+    )
+    .unwrap();
+}
+
 fn write_malformed_workflow(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "name = [").unwrap();
@@ -175,6 +190,27 @@ fn check_command_rejects_whitespace_padded_step_ids() {
 
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unsupported characters"));
+}
+
+#[test]
+fn check_command_rejects_whitespace_padded_workflow_names() {
+    let invalid_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("whitespace-workflow-name.toml");
+    write_workflow_with_whitespace_name(&invalid_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(invalid_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("workflow name ` support ` must not have leading or trailing whitespace")
+    );
 }
 
 #[test]
