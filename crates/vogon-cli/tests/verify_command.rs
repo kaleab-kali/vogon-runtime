@@ -189,6 +189,50 @@ fn verify_command_reports_malformed_replay_path() {
     assert!(stderr.contains(&malformed_replay.display().to_string()));
 }
 
+#[test]
+fn verify_command_rejects_unknown_top_level_replay_fields() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unknown-top-level-field.replay.json");
+    write_unknown_top_level_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains("unknown field `unexpected`"));
+}
+
+#[test]
+fn verify_command_rejects_unknown_step_replay_fields() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unknown-step-field.replay.json");
+    write_unknown_step_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains("unknown field `unexpected`"));
+}
+
 fn assert_verify_succeeds(name: &str) {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -268,6 +312,23 @@ fn write_malformed_redaction_marker_replay(path: &Path) {
 fn write_malformed_replay(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "{").unwrap();
+}
+
+fn write_unknown_top_level_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["unexpected"] = serde_json::Value::String("ignored-before-strict-parsing".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_unknown_step_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["steps"][0]["unexpected"] =
+        serde_json::Value::String("ignored-before-strict-parsing".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 
 fn repo_root() -> PathBuf {

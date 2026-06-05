@@ -18,6 +18,7 @@ The first replay format is JSON.
 ```
 
 The schema will stay small until the runtime has stable verification semantics.
+Unknown top-level replay fields and unknown step fields are rejected.
 
 ## Redaction
 
