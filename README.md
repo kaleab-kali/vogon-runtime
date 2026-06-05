@@ -91,6 +91,12 @@ Verify a saved replay:
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
+Emit a machine-readable verification report:
+
+```sh
+cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+```
+
 When verifying redacted replays, pass the same `--redact LABEL=VALUE` rules used
 to create the replay. Vogon rejects redacted replays with missing redaction
 labels before execution and masks actual step outputs in redacted mismatch

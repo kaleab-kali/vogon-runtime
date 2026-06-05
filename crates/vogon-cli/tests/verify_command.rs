@@ -15,6 +15,28 @@ fn verify_command_accepts_writing_pipeline_replay() {
 }
 
 #[test]
+fn verify_command_can_emit_json_match_report() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--json")
+        .arg(workflow_path("support-triage"))
+        .arg(replay_path("support-triage"))
+        .output()
+        .expect("verify command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["mismatches"].as_array().unwrap().len(), 0);
+}
+
+#[test]
 fn verify_command_accepts_redacted_replay() {
     let redacted_replay =
         write_redacted_support_triage_replay("redacted-support-triage.replay.json");
@@ -143,6 +165,33 @@ fn verify_command_rejects_mismatched_replay() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("\"mismatches\""));
     assert!(stderr.contains("\"step_output\""));
+    assert!(stderr.contains("replay verification failed with"));
+}
+
+#[test]
+fn verify_command_can_emit_json_mismatch_report() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("json-mismatched-support-triage.replay.json");
+    write_mismatched_replay("support-triage", &replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--json")
+        .arg(workflow_path("support-triage"))
+        .arg(replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(report["workflow_name"], "support-triage");
+    assert!(!report["mismatches"].as_array().unwrap().is_empty());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("replay verification failed with"));
 }
 
