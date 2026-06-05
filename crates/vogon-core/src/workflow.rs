@@ -38,6 +38,14 @@ impl Workflow {
             return Err(VogonError::InvalidWorkflowName(self.name.clone()));
         }
 
+        if !self
+            .name
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+        {
+            return Err(VogonError::InvalidWorkflowNameCharacters(self.name.clone()));
+        }
+
         if self.steps.is_empty() {
             return Err(VogonError::EmptyWorkflow);
         }
@@ -86,6 +94,19 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             VogonError::InvalidWorkflowName(" support ".to_owned())
+        );
+    }
+
+    #[test]
+    fn workflow_rejects_names_with_unsupported_characters() {
+        let result = Workflow::new(
+            "support triage",
+            vec![Step::new(StepId::new("classify").unwrap(), "Classify")],
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            VogonError::InvalidWorkflowNameCharacters("support triage".to_owned())
         );
     }
 
