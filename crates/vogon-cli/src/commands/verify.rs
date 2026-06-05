@@ -5,6 +5,7 @@ use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationR
 
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
+use crate::commands::redaction_markers::replay_redaction_labels;
 use crate::commands::workflow_file::read_toml_workflow;
 
 const REDACTED_MISMATCH_OUTPUT: &str = "[UNREPORTED: replay is redacted]";
@@ -84,51 +85,6 @@ fn missing_replay_redaction_labels(
         .filter(|label| !configured_labels.contains(label.as_str()))
         .cloned()
         .collect()
-}
-
-fn replay_redaction_labels(replay: &RunReport) -> io::Result<BTreeSet<String>> {
-    let mut replay_labels = BTreeSet::new();
-    for step in &replay.steps {
-        collect_redaction_labels(&step.output, &mut replay_labels).map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                format!(
-                    "replay step `{}` contains malformed redaction marker: {error}",
-                    step.step_id.as_str()
-                ),
-            )
-        })?;
-    }
-
-    Ok(replay_labels)
-}
-
-fn collect_redaction_labels(output: &str, labels: &mut BTreeSet<String>) -> io::Result<()> {
-    const MARKER_PREFIX: &str = "[REDACTED:";
-
-    let mut remaining = output;
-    while let Some(start) = remaining.find(MARKER_PREFIX) {
-        let after_prefix = &remaining[start + MARKER_PREFIX.len()..];
-        let Some(end) = after_prefix.find(']') else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "missing closing `]`",
-            ));
-        };
-
-        let label = &after_prefix[..end];
-        if label.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "empty redaction label",
-            ));
-        }
-        labels.insert(label.to_owned());
-
-        remaining = &after_prefix[end + 1..];
-    }
-
-    Ok(())
 }
 
 fn mask_redacted_step_outputs(report: VerificationReport) -> VerificationReport {
