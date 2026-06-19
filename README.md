@@ -67,6 +67,12 @@ Run a workflow with the Gemini API instead of the deterministic adapter:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini fixtures/workflows/support-triage.toml
 ```
 
+Gemini requests use a 30 second timeout by default. Override it when needed:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-timeout-seconds 60 fixtures/workflows/support-triage.toml
+```
+
 Validate a TOML workflow without executing it:
 
 ```sh
@@ -204,7 +210,7 @@ Planned:
 
 - Add more provider-backed adapters behind feature flags.
 - Add workflow graph support after the linear runtime API is stable.
-- Add runtime retry, timeout, and provider configuration policies.
+- Add runtime retry and richer provider configuration policies.
 - Add richer observability events for hosted runtime deployments.
 
 ## License

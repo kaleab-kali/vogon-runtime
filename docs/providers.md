@@ -37,6 +37,14 @@ Use `--gemini-model` to select another Gemini model:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-model gemini-3.1-flash-lite fixtures/workflows/support-triage.toml
 ```
 
+Gemini requests use a 30 second timeout by default. Use a nonzero
+`--gemini-timeout-seconds` value to adjust the bound for slower or stricter
+environments:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-timeout-seconds 60 fixtures/workflows/support-triage.toml
+```
+
 Do not commit API keys or real replay outputs containing private prompts or
 customer data. Use redaction rules when writing replays from real provider
 runs.
@@ -74,6 +82,7 @@ New provider adapters should:
 - Keep deterministic execution as the default test and fixture path.
 - Avoid printing or logging API keys.
 - Return provider failures as `VogonError::Adapter` with actionable context.
+- Bound network calls with explicit timeouts.
 - Include unit tests that do not require network access or credentials.
 - Add an explicit CLI opt-in instead of changing deterministic defaults.
 - Document required environment variables, model selection, and replay redaction

@@ -1,6 +1,10 @@
+#[cfg(feature = "gemini")]
+use std::time::Duration;
 use std::{fs, io, path::Path, process};
 
 use clap::ValueEnum;
+#[cfg(feature = "gemini")]
+pub use vogon_adapters::DEFAULT_GEMINI_TIMEOUT_SECONDS;
 use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 use vogon_adapters::GeminiModel;
@@ -8,6 +12,9 @@ use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
+
+#[cfg(not(feature = "gemini"))]
+pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 
 pub fn run(
     workflow_file: &Path,
@@ -51,6 +58,7 @@ pub enum ModelProvider {
 pub struct RunModelConfig<'a> {
     pub provider: ModelProvider,
     pub gemini_model: &'a str,
+    pub gemini_timeout_seconds: u64,
 }
 
 fn run_with_model(
@@ -62,7 +70,12 @@ fn run_with_model(
         ModelProvider::Deterministic => {
             run_with_adapter(DeterministicEchoModel, workflow, redactions)
         }
-        ModelProvider::Gemini => run_with_gemini(workflow, redactions, model_config.gemini_model),
+        ModelProvider::Gemini => run_with_gemini(
+            workflow,
+            redactions,
+            model_config.gemini_model,
+            model_config.gemini_timeout_seconds,
+        ),
     }
 }
 
@@ -82,8 +95,13 @@ fn run_with_gemini(
     workflow: &vogon_core::Workflow,
     redactions: &RedactionSet,
     model: &str,
+    timeout_seconds: u64,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
-    run_with_adapter(GeminiModel::from_env(model)?, workflow, redactions)
+    run_with_adapter(
+        GeminiModel::from_env_with_timeout(model, Duration::from_secs(timeout_seconds))?,
+        workflow,
+        redactions,
+    )
 }
 
 #[cfg(not(feature = "gemini"))]
@@ -91,6 +109,7 @@ fn run_with_gemini(
     _workflow: &vogon_core::Workflow,
     _redactions: &RedactionSet,
     _model: &str,
+    _timeout_seconds: u64,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

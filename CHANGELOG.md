@@ -36,6 +36,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Offline cargo install smoke testing now verifies installed CLI workflow and
   replay behavior.
 - Gemini API adapter support for opt-in real provider-backed workflow runs.
+- Gemini API requests are bounded by a configurable `vogon run
+  --gemini-timeout-seconds` timeout.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.
