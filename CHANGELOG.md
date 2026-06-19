@@ -125,6 +125,8 @@ and this project follows semantic versioning once the first release is tagged.
 - README roadmap now distinguishes shipped runtime capabilities from planned
   provider and deployment work.
 - Release documentation explains how to verify downloaded archive checksums.
+- Provider adapter documentation records the Gemini integration, deterministic
+  test path, and future free or low-cost provider candidates.
 - Performance benchmarking guide.
 - Contributing, security, code of conduct, and license documents.
 - Public contributor guidance for protected `main` checks and merge commits.
