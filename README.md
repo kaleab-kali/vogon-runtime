@@ -39,8 +39,8 @@ with:
   notes.
 
 The current implementation uses a deterministic model adapter so workflows,
-replays, and verification can be developed without network access. Provider
-integrations are planned behind adapter boundaries.
+replays, and verification can be developed without network access. The CLI can
+also run workflows with the Gemini API when `GEMINI_API_KEY` is set.
 
 ## Requirements
 
@@ -59,6 +59,12 @@ Run a TOML workflow file:
 
 ```sh
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
+```
+
+Run a workflow with the Gemini API instead of the deterministic adapter:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini fixtures/workflows/support-triage.toml
 ```
 
 Validate a TOML workflow without executing it:
@@ -187,6 +193,7 @@ Already available:
 
 - Rust workspace and CLI.
 - Ordered workflow execution.
+- Opt-in Gemini API execution for real provider-backed runs.
 - Deterministic replay log generation.
 - Replay verification with structured mismatch errors.
 - Contributor-ready fixtures and examples.
@@ -194,7 +201,7 @@ Already available:
 
 Planned:
 
-- Add provider-backed adapters behind feature flags.
+- Add more provider-backed adapters behind feature flags.
 - Add workflow graph support after the linear runtime API is stable.
 - Add runtime retry, timeout, and provider configuration policies.
 - Add richer observability events for hosted runtime deployments.

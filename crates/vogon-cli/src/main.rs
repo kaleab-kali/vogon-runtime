@@ -6,6 +6,8 @@ use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand};
 
+use commands::run::{ModelProvider, RunModelConfig};
+
 #[derive(Debug, Parser)]
 #[command(name = "vogon")]
 #[command(about = "Deterministic, replayable AI workflow runtime.")]
@@ -31,6 +33,14 @@ enum Commands {
 
     /// Run a workflow file.
     Run {
+        /// Model provider to use for workflow execution.
+        #[arg(long, value_enum, default_value_t = ModelProvider::Deterministic)]
+        provider: ModelProvider,
+
+        /// Gemini model name when `--provider gemini` is selected.
+        #[arg(long, default_value = "gemini-3.1-flash-lite")]
+        gemini_model: String,
+
         /// Redact a literal value from replay outputs. May be repeated.
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
@@ -79,10 +89,20 @@ fn main() -> ExitCode {
         } => commands::check::run(&workflow_file, json),
         Commands::Demo => commands::demo::run(),
         Commands::Run {
+            provider,
+            gemini_model,
             output,
             redactions,
             workflow_file,
-        } => commands::run::run(&workflow_file, &redactions, output.as_deref()),
+        } => commands::run::run(
+            &workflow_file,
+            &redactions,
+            output.as_deref(),
+            RunModelConfig {
+                provider,
+                gemini_model: &gemini_model,
+            },
+        ),
         Commands::Verify {
             redactions,
             json,

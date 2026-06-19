@@ -126,6 +126,25 @@ fn run_command_rejects_duplicate_redaction_labels() {
 }
 
 #[test]
+fn run_command_reports_missing_gemini_api_key() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("gemini")
+        .arg(fixture)
+        .env_remove("GEMINI_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("GEMINI_API_KEY must be set"));
+}
+
+#[test]
 fn run_command_writes_replay_file() {
     let fixture = support_triage_workflow();
     let output_file = repo_root()

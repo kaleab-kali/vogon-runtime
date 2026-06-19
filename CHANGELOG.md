@@ -35,6 +35,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Offline cargo install smoke testing for the CLI in CI.
 - Offline cargo install smoke testing now verifies installed CLI workflow and
   replay behavior.
+- Gemini API adapter support for opt-in real provider-backed workflow runs.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.

@@ -53,6 +53,20 @@ Runs a TOML workflow and prints a replay JSON document to stdout.
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+By default, `vogon run` uses the deterministic adapter so tests and fixture
+replays do not require network access. To run against the Gemini API, set
+`GEMINI_API_KEY` and select the Gemini provider:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini fixtures/workflows/support-triage.toml
+```
+
+Use `--gemini-model` to override the default Gemini model:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-model gemini-3.1-flash-lite fixtures/workflows/support-triage.toml
+```
+
 Write the replay JSON to a file:
 
 ```sh

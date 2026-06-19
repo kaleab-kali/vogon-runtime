@@ -4,7 +4,9 @@
 //! implementations that can be plugged into `vogon-core`.
 //!
 //! The current crate exposes [`DeterministicEchoModel`], a deterministic adapter
-//! intended for local development, tests, examples, and replay fixtures.
+//! intended for local development, tests, examples, and replay fixtures. With
+//! the default `gemini` feature, it also exposes [`GeminiModel`] for real
+//! Gemini API calls.
 //!
 //! ```
 //! use vogon_adapters::DeterministicEchoModel;
@@ -25,5 +27,9 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
 mod fake;
+#[cfg(feature = "gemini")]
+mod gemini;
 
 pub use fake::DeterministicEchoModel;
+#[cfg(feature = "gemini")]
+pub use gemini::{DEFAULT_GEMINI_MODEL, GeminiModel};
