@@ -1,0 +1,59 @@
+name: Live Gemini Smoke
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      GEMINI_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-gemini:
+    name: Live Gemini provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run Gemini workflow smoke
+        run: |
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "GEMINI_API_KEY is required for the live Gemini smoke workflow." >&2
+            exit 1
+          fi
+
+          ./target/release/vogon run \
+            --provider gemini \
+            --gemini-timeout-seconds 60 \
+            --redact gemini_api_key="$GEMINI_API_KEY" \
+            --output target/live-gemini-smoke.replay.json \
+            fixtures/workflows/support-triage.toml
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          replay = json.loads(Path("target/live-gemini-smoke.replay.json").read_text())
+          assert replay["workflow_name"] == "support-triage"
+          assert len(replay["steps"]) == 2
+          for step in replay["steps"]:
+              assert step["output"]
+              assert "[REDACTED:gemini_api_key]" not in step["output"]
+          PY

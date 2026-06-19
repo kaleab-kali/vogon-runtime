@@ -49,6 +49,18 @@ Do not commit API keys or real replay outputs containing private prompts or
 customer data. Use redaction rules when writing replays from real provider
 runs.
 
+### Live Provider Smoke Testing
+
+The `Live Gemini Smoke` GitHub Actions workflow runs a real Gemini-backed
+workflow only when `GEMINI_API_KEY` is available as a repository or environment
+secret. It is manual by default so pull request CI stays deterministic and does
+not depend on provider availability, account quota, or network behavior.
+
+Run it from GitHub Actions after changing Gemini adapter behavior, provider
+configuration, release packaging, or deployment settings that affect real
+provider calls. The workflow writes its replay to `target/`, checks the replay
+shape, and does not upload the replay as an artifact.
+
 Official references:
 
 - Gemini API pricing: <https://ai.google.dev/gemini-api/docs/pricing>
