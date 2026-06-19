@@ -29,6 +29,20 @@ The package command validates the crate archives that would be prepared for
 publication. Use `--offline` when working without registry access after
 dependencies have already been fetched.
 
+### Windows target file locks
+
+On Windows, local antivirus or indexers can briefly hold files in `target` while
+Cargo is rebuilding. If a check fails with `os error 32` while removing an
+object file, rerun the same command with a single build job:
+
+```powershell
+$env:CARGO_BUILD_JOBS='1'
+cargo test --workspace --all-features
+```
+
+Use the same environment variable for `cargo build` or other Cargo commands
+that hit the same file-lock error.
+
 ## Pull Requests
 
 - Keep changes focused and reviewable.
