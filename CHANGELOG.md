@@ -38,6 +38,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Gemini API adapter support for opt-in real provider-backed workflow runs.
 - Gemini API requests are bounded by a configurable `vogon run
   --gemini-timeout-seconds` timeout.
+- Gemini API HTTP error bodies are capped before being returned in adapter
+  errors.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.
