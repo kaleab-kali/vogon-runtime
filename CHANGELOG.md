@@ -54,6 +54,7 @@ and this project follows semantic versioning once the first release is tagged.
   their checksum files without publishing a GitHub release.
 - Release jobs now smoke test machine-readable `check` and `verify` output.
 - Release jobs now generate provenance attestations for packaged archives.
+- Release jobs now publish locked Cargo dependency metadata with a checksum.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - Workspace crate package archive validation in CI.
