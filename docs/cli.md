@@ -81,6 +81,25 @@ twice by default. Use `--gemini-max-retries` to change the retry count:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
 ```
 
+To run against an OpenAI-compatible chat-completions endpoint, set
+`OPENAI_COMPATIBLE_API_KEY` and select the OpenAI-compatible provider:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible fixtures/workflows/support-triage.toml
+```
+
+The default base URL is `https://router.huggingface.co/v1`, and the default
+model is `openai/gpt-oss-120b:fastest`. Override them for OpenRouter or another
+compatible service:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://openrouter.ai/api/v1 --openai-compatible-model openai/gpt-5.2 fixtures/workflows/support-triage.toml
+```
+
+OpenAI-compatible requests use a 30 second timeout and two retries by default.
+Use `--openai-compatible-timeout-seconds` and
+`--openai-compatible-max-retries` to adjust those bounds.
+
 Write the replay JSON to a file:
 
 ```sh

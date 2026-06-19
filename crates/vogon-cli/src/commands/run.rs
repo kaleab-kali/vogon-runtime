@@ -1,4 +1,4 @@
-#[cfg(feature = "gemini")]
+#[cfg(any(feature = "gemini", feature = "openai-compatible"))]
 use std::time::Duration;
 use std::{fs, io, path::Path, process};
 
@@ -6,8 +6,15 @@ use clap::ValueEnum;
 use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 use vogon_adapters::GeminiModel;
+#[cfg(feature = "openai-compatible")]
+use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "gemini")]
 pub use vogon_adapters::{DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS};
+#[cfg(feature = "openai-compatible")]
+pub use vogon_adapters::{
+    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
+};
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
 use crate::commands::redaction::parse_redactions;
@@ -17,6 +24,14 @@ use crate::commands::workflow_file::read_toml_workflow;
 pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
 #[cfg(not(feature = "gemini"))]
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENAI_COMPATIBLE_BASE_URL: &str = "https://router.huggingface.co/v1";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES: u32 = 2;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENAI_COMPATIBLE_MODEL: &str = "openai/gpt-oss-120b:fastest";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS: u64 = 30;
 
 pub fn run(
     workflow_file: &Path,
@@ -54,6 +69,8 @@ pub fn run(
 pub enum ModelProvider {
     Deterministic,
     Gemini,
+    #[value(name = "openai-compatible")]
+    OpenAiCompatible,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -62,6 +79,10 @@ pub struct RunModelConfig<'a> {
     pub gemini_model: &'a str,
     pub gemini_timeout_seconds: u64,
     pub gemini_max_retries: u32,
+    pub openai_compatible_base_url: &'a str,
+    pub openai_compatible_model: &'a str,
+    pub openai_compatible_timeout_seconds: u64,
+    pub openai_compatible_max_retries: u32,
 }
 
 fn run_with_model(
@@ -79,6 +100,14 @@ fn run_with_model(
             model_config.gemini_model,
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
+        ),
+        ModelProvider::OpenAiCompatible => run_with_openai_compatible(
+            workflow,
+            redactions,
+            model_config.openai_compatible_base_url,
+            model_config.openai_compatible_model,
+            model_config.openai_compatible_timeout_seconds,
+            model_config.openai_compatible_max_retries,
         ),
     }
 }
@@ -124,6 +153,43 @@ fn run_with_gemini(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Gemini provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn run_with_openai_compatible(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    base_url: &str,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    run_with_adapter(
+        OpenAiCompatibleModel::from_env_with_base_url_model_timeout_and_retries(
+            base_url,
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        redactions,
+    )
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn run_with_openai_compatible(
+    _workflow: &vogon_core::Workflow,
+    _redactions: &RedactionSet,
+    _base_url: &str,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "OpenAI-compatible provider support is not enabled in this build",
     )
     .into())
 }

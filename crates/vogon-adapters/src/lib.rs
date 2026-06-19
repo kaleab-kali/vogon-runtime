@@ -5,8 +5,8 @@
 //!
 //! The current crate exposes [`DeterministicEchoModel`], a deterministic adapter
 //! intended for local development, tests, examples, and replay fixtures. With
-//! the default `gemini` feature, it also exposes [`GeminiModel`] for real
-//! Gemini API calls.
+//! default features enabled, it also exposes [`GeminiModel`] and
+//! [`OpenAiCompatibleModel`] for real provider-backed API calls.
 //!
 //! ```
 //! use vogon_adapters::DeterministicEchoModel;
@@ -30,9 +30,17 @@
 mod fake;
 #[cfg(feature = "gemini")]
 mod gemini;
+#[cfg(feature = "openai-compatible")]
+mod openai_compatible;
 
 pub use fake::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 pub use gemini::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_TIMEOUT_SECONDS, GeminiModel,
+};
+#[cfg(feature = "openai-compatible")]
+pub use openai_compatible::{
+    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
+    OpenAiCompatibleModel,
 };

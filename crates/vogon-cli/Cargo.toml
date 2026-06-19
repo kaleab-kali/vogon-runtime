@@ -14,8 +14,9 @@ keywords = ["ai", "workflow", "replay", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
 [features]
-default = ["gemini"]
+default = ["gemini", "openai-compatible"]
 gemini = ["vogon-adapters/gemini"]
+openai-compatible = ["vogon-adapters/openai-compatible"]
 
 [[bin]]
 name = "vogon"

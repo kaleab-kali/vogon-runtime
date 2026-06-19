@@ -14,8 +14,9 @@ keywords = ["ai", "model-adapters", "workflow", "runtime"]
 categories = ["development-tools"]
 
 [features]
-default = ["gemini"]
+default = ["gemini", "openai-compatible"]
 gemini = ["dep:serde", "dep:serde_json", "dep:ureq"]
+openai-compatible = ["dep:serde", "dep:serde_json", "dep:ureq"]
 
 [dependencies]
 serde = { workspace = true, optional = true }

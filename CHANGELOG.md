@@ -42,6 +42,8 @@ and this project follows semantic versioning once the first release is tagged.
   --gemini-max-retries` count.
 - Gemini API HTTP error bodies are capped before being returned in adapter
   errors.
+- OpenAI-compatible chat-completions adapter for provider-backed workflow runs
+  against configurable compatible endpoints.
 - Manual live Gemini provider smoke workflow for maintainers with
   `GEMINI_API_KEY` configured in GitHub Actions.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
