@@ -14,6 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CARGO_NET_RETRY: 10
+
 jobs:
   live-gemini:
     name: Live Gemini provider

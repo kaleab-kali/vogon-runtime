@@ -74,6 +74,8 @@ and this project follows semantic versioning once the first release is tagged.
 - CI now treats Rustdoc warnings as errors.
 - CI now checks the CLI with default features disabled to preserve the
   deterministic-only build path.
+- Cargo-based GitHub Actions workflows now increase Cargo registry retry
+  attempts to reduce transient dependency fetch failures.
 - Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
 - Windows CI and release jobs now use the explicit `windows-2025-vs2026`
   runner label.
