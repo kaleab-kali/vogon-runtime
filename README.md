@@ -170,6 +170,7 @@ Useful documentation:
 
 - [Architecture](docs/architecture.md)
 - [CLI reference](docs/cli.md)
+- [Provider adapters](docs/providers.md)
 - [Workflow format](docs/workflow-format.md)
 - [Determinism](docs/determinism.md)
 - [Replay format](docs/replay-format.md)
