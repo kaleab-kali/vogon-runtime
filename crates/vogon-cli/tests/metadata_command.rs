@@ -51,6 +51,7 @@ fn run_help_documents_replay_options() {
         "<WORKFLOW_FILE>",
         "--provider <PROVIDER>",
         "--gemini-model <GEMINI_MODEL>",
+        "--gemini-timeout-seconds <GEMINI_TIMEOUT_SECONDS>",
         "--redact <LABEL=VALUE>",
         "--output <FILE>",
     ] {

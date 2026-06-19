@@ -32,4 +32,4 @@ mod gemini;
 
 pub use fake::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
-pub use gemini::{DEFAULT_GEMINI_MODEL, GeminiModel};
+pub use gemini::{DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_TIMEOUT_SECONDS, GeminiModel};

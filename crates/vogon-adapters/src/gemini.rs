@@ -1,9 +1,10 @@
-use std::{env, fmt};
+use std::{env, fmt, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, Step, VogonError};
 
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
+pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com";
 
@@ -21,21 +22,38 @@ impl GeminiModel {
     }
 
     pub fn with_model(api_key: impl Into<String>, model: impl Into<String>) -> Result<Self> {
-        Self::with_base_url(api_key, model, GEMINI_API_BASE)
+        Self::with_model_and_timeout(
+            api_key,
+            model,
+            Duration::from_secs(DEFAULT_GEMINI_TIMEOUT_SECONDS),
+        )
+    }
+
+    pub fn with_model_and_timeout(
+        api_key: impl Into<String>,
+        model: impl Into<String>,
+        timeout: Duration,
+    ) -> Result<Self> {
+        Self::with_base_url(api_key, model, GEMINI_API_BASE, timeout)
     }
 
     pub fn from_env(model: impl Into<String>) -> Result<Self> {
+        Self::from_env_with_timeout(model, Duration::from_secs(DEFAULT_GEMINI_TIMEOUT_SECONDS))
+    }
+
+    pub fn from_env_with_timeout(model: impl Into<String>, timeout: Duration) -> Result<Self> {
         let api_key = env::var("GEMINI_API_KEY").map_err(|_| {
             VogonError::Adapter("GEMINI_API_KEY must be set for the Gemini adapter".to_owned())
         })?;
 
-        Self::with_model(api_key, model)
+        Self::with_model_and_timeout(api_key, model, timeout)
     }
 
     fn with_base_url(
         api_key: impl Into<String>,
         model: impl Into<String>,
         api_base: impl Into<String>,
+        timeout: Duration,
     ) -> Result<Self> {
         let api_key = api_key.into();
         let model = model.into();
@@ -53,11 +71,17 @@ impl GeminiModel {
             ));
         }
 
+        if timeout.is_zero() {
+            return Err(VogonError::Adapter(
+                "Gemini request timeout must be greater than zero".to_owned(),
+            ));
+        }
+
         Ok(Self {
             api_key,
             model,
             api_base,
-            agent: ureq::Agent::new(),
+            agent: ureq::AgentBuilder::new().timeout(timeout).build(),
         })
     }
 
@@ -177,6 +201,8 @@ fn adapter_error(error: impl std::error::Error) -> VogonError {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::{GeminiModel, GenerateContentResponse, extract_text};
 
     #[test]
@@ -192,6 +218,17 @@ mod tests {
     #[test]
     fn gemini_model_rejects_empty_api_keys() {
         let result = GeminiModel::new(" ");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn gemini_model_rejects_zero_timeout() {
+        let result = GeminiModel::with_model_and_timeout(
+            "secret-key",
+            "gemini-3.1-flash-lite",
+            Duration::ZERO,
+        );
 
         assert!(result.is_err());
     }

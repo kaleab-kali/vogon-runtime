@@ -67,6 +67,13 @@ Use `--gemini-model` to override the default Gemini model:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-model gemini-3.1-flash-lite fixtures/workflows/support-triage.toml
 ```
 
+Gemini requests use a 30 second timeout by default. Use
+`--gemini-timeout-seconds` to choose a larger or smaller nonzero timeout:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-timeout-seconds 60 fixtures/workflows/support-triage.toml
+```
+
 Write the replay JSON to a file:
 
 ```sh

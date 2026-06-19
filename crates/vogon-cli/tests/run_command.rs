@@ -145,6 +145,27 @@ fn run_command_reports_missing_gemini_api_key() {
 }
 
 #[test]
+fn run_command_rejects_zero_gemini_timeout() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("gemini")
+        .arg("--gemini-timeout-seconds")
+        .arg("0")
+        .arg(fixture)
+        .env_remove("GEMINI_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("invalid value"));
+}
+
+#[test]
 fn run_command_writes_replay_file() {
     let fixture = support_triage_workflow();
     let output_file = repo_root()
