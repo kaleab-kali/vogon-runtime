@@ -38,6 +38,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Gemini API adapter support for opt-in real provider-backed workflow runs.
 - Gemini API requests are bounded by a configurable `vogon run
   --gemini-timeout-seconds` timeout.
+- Gemini API transient failures are retried by a configurable `vogon run
+  --gemini-max-retries` count.
 - Gemini API HTTP error bodies are capped before being returned in adapter
   errors.
 - Manual live Gemini provider smoke workflow for maintainers with

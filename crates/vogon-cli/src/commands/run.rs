@@ -3,16 +3,18 @@ use std::time::Duration;
 use std::{fs, io, path::Path, process};
 
 use clap::ValueEnum;
-#[cfg(feature = "gemini")]
-pub use vogon_adapters::DEFAULT_GEMINI_TIMEOUT_SECONDS;
 use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 use vogon_adapters::GeminiModel;
+#[cfg(feature = "gemini")]
+pub use vogon_adapters::{DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS};
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
 
+#[cfg(not(feature = "gemini"))]
+pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
 #[cfg(not(feature = "gemini"))]
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 
@@ -59,6 +61,7 @@ pub struct RunModelConfig<'a> {
     pub provider: ModelProvider,
     pub gemini_model: &'a str,
     pub gemini_timeout_seconds: u64,
+    pub gemini_max_retries: u32,
 }
 
 fn run_with_model(
@@ -75,6 +78,7 @@ fn run_with_model(
             redactions,
             model_config.gemini_model,
             model_config.gemini_timeout_seconds,
+            model_config.gemini_max_retries,
         ),
     }
 }
@@ -96,9 +100,14 @@ fn run_with_gemini(
     redactions: &RedactionSet,
     model: &str,
     timeout_seconds: u64,
+    max_retries: u32,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
-        GeminiModel::from_env_with_timeout(model, Duration::from_secs(timeout_seconds))?,
+        GeminiModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
         workflow,
         redactions,
     )
@@ -110,6 +119,7 @@ fn run_with_gemini(
     _redactions: &RedactionSet,
     _model: &str,
     _timeout_seconds: u64,
+    _max_retries: u32,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

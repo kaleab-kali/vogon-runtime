@@ -74,6 +74,13 @@ Gemini requests use a 30 second timeout by default. Use
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-timeout-seconds 60 fixtures/workflows/support-triage.toml
 ```
 
+Transient Gemini transport failures and retryable HTTP responses are retried
+twice by default. Use `--gemini-max-retries` to change the retry count:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
+```
+
 Write the replay JSON to a file:
 
 ```sh

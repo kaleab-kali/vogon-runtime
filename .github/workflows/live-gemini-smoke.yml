@@ -42,6 +42,7 @@ jobs:
           ./target/release/vogon run \
             --provider gemini \
             --gemini-timeout-seconds 60 \
+            --gemini-max-retries 2 \
             --redact gemini_api_key="$GEMINI_API_KEY" \
             --output target/live-gemini-smoke.replay.json \
             fixtures/workflows/support-triage.toml

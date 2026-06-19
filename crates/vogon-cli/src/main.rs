@@ -6,7 +6,9 @@ use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand};
 
-use commands::run::{DEFAULT_GEMINI_TIMEOUT_SECONDS, ModelProvider, RunModelConfig};
+use commands::run::{
+    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, ModelProvider, RunModelConfig,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "vogon")]
@@ -44,6 +46,10 @@ enum Commands {
         /// Gemini request timeout in seconds when `--provider gemini` is selected.
         #[arg(long, default_value_t = DEFAULT_GEMINI_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
         gemini_timeout_seconds: u64,
+
+        /// Gemini retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES)]
+        gemini_max_retries: u32,
 
         /// Redact a literal value from replay outputs. May be repeated.
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
@@ -96,6 +102,7 @@ fn main() -> ExitCode {
             provider,
             gemini_model,
             gemini_timeout_seconds,
+            gemini_max_retries,
             output,
             redactions,
             workflow_file,
@@ -107,6 +114,7 @@ fn main() -> ExitCode {
                 provider,
                 gemini_model: &gemini_model,
                 gemini_timeout_seconds,
+                gemini_max_retries,
             },
         ),
         Commands::Verify {
