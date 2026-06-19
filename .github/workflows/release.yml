@@ -55,6 +55,11 @@ jobs:
           tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon README.md LICENSE
           sha256sum "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" > "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
 
+      - name: Write dependency metadata
+        run: |
+          cargo metadata --locked --format-version 1 > "vogon-${{ github.ref_name }}-cargo-metadata.json"
+          sha256sum "vogon-${{ github.ref_name }}-cargo-metadata.json" > "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
+
       - name: Smoke test packaged archive
         run: |
           mkdir -p archive-smoke
@@ -75,6 +80,8 @@ jobs:
           path: |
             vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
             vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
+            vogon-${{ github.ref_name }}-cargo-metadata.json
+            vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
           if-no-files-found: error
 
   windows-cli:
@@ -172,11 +179,15 @@ jobs:
         run: |
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-linux-x86_64.tar.gz"
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-metadata.json"
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
           (
             cd release-artifacts/vogon-linux-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
+            sha256sum -c "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
+            python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-metadata.json')); assert data['packages']; assert data['resolve']['nodes']"
           )
           (
             cd release-artifacts/vogon-windows-x86_64
