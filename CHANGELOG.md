@@ -73,6 +73,7 @@ and this project follows semantic versioning once the first release is tagged.
   publishing job.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
+- Library crates now deny missing public Rust documentation.
 - CI now checks the CLI with default features disabled to preserve the
   deterministic-only build path.
 - Cargo-based GitHub Actions workflows now increase Cargo registry retry

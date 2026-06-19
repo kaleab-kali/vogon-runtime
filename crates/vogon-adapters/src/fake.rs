@@ -1,6 +1,7 @@
 use vogon_core::{ModelAdapter, Result, Step, stable_hash};
 
 #[derive(Debug, Default, Clone, Copy)]
+/// Deterministic adapter that echoes the step id and a stable hash of the input.
 pub struct DeterministicEchoModel;
 
 impl ModelAdapter for DeterministicEchoModel {

@@ -6,12 +6,16 @@ use crate::{Result, Step, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
+/// Ordered collection of workflow steps.
 pub struct Workflow {
+    /// Stable workflow name.
     pub name: String,
+    /// Ordered workflow steps.
     pub steps: Vec<Step>,
 }
 
 impl Workflow {
+    /// Creates and validates a workflow.
     pub fn new(name: impl Into<String>, steps: Vec<Step>) -> Result<Self> {
         let workflow = Self {
             name: name.into(),
@@ -21,14 +25,17 @@ impl Workflow {
         Ok(workflow)
     }
 
+    /// Returns the workflow name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Returns the workflow steps in execution order.
     pub fn steps(&self) -> &[Step] {
         &self.steps
     }
 
+    /// Validates workflow name, step count, duplicate step ids, and prompts.
     pub fn validate(&self) -> Result<()> {
         validate_workflow_name(&self.name)?;
 

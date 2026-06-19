@@ -4,9 +4,11 @@ use crate::{Result, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
+/// Validated workflow step identifier.
 pub struct StepId(String);
 
 impl StepId {
+    /// Creates a step identifier from an ASCII slug.
     pub fn new(value: impl Into<String>) -> Result<Self> {
         let value = value.into();
         let trimmed = value.trim();
@@ -29,6 +31,7 @@ impl StepId {
         Ok(Self(trimmed.to_owned()))
     }
 
+    /// Returns the step identifier as a string slice.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -65,12 +68,16 @@ mod tests {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// One prompt in an ordered workflow.
 pub struct Step {
+    /// Stable identifier for this step.
     pub id: StepId,
+    /// Prompt sent to the model adapter for this step.
     pub prompt: String,
 }
 
 impl Step {
+    /// Creates a step from a validated identifier and prompt text.
     pub fn new(id: StepId, prompt: impl Into<String>) -> Self {
         Self {
             id,
@@ -78,10 +85,12 @@ impl Step {
         }
     }
 
+    /// Returns this step's identifier.
     pub fn id(&self) -> &StepId {
         &self.id
     }
 
+    /// Returns this step's prompt text.
     pub fn prompt(&self) -> &str {
         &self.prompt
     }

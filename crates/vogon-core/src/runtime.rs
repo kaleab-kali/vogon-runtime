@@ -3,11 +3,14 @@ use crate::{
     VerificationReport, Workflow, stable_hash,
 };
 
+/// Adapter trait implemented by model providers.
 pub trait ModelAdapter {
+    /// Completes one workflow step from the step metadata and assembled input.
     fn complete(&self, step: &Step, input: &str) -> Result<String>;
 }
 
 #[derive(Debug, Clone)]
+/// Workflow runtime backed by a model adapter.
 pub struct Runtime<A> {
     adapter: A,
 }
@@ -16,14 +19,17 @@ impl<A> Runtime<A>
 where
     A: ModelAdapter,
 {
+    /// Creates a runtime from a model adapter.
     pub fn new(adapter: A) -> Self {
         Self { adapter }
     }
 
+    /// Runs a workflow without cache, redactions, or event observation.
     pub fn run(&self, workflow: &Workflow) -> Result<RunReport> {
         self.run_uncached_with_redactions_and_observer(workflow, &RedactionSet::empty(), |_| {})
     }
 
+    /// Runs a workflow and emits runtime events to an observer.
     pub fn run_with_observer<F>(&self, workflow: &Workflow, mut observer: F) -> Result<RunReport>
     where
         F: FnMut(RuntimeEvent),
@@ -35,10 +41,12 @@ where
         )
     }
 
+    /// Runs a workflow with a cache keyed by stable step input hashes.
     pub fn run_with_cache(&self, workflow: &Workflow, cache: &mut RunCache) -> Result<RunReport> {
         self.run_with_cache_redactions_and_observer(workflow, cache, &RedactionSet::empty(), |_| {})
     }
 
+    /// Runs a workflow with cache and event observation.
     pub fn run_with_cache_and_observer<F>(
         &self,
         workflow: &Workflow,
@@ -56,6 +64,7 @@ where
         )
     }
 
+    /// Runs a workflow and redacts matching literals from recorded outputs.
     pub fn run_with_redactions(
         &self,
         workflow: &Workflow,
@@ -64,6 +73,7 @@ where
         self.run_uncached_with_redactions_and_observer(workflow, redactions, |_| {})
     }
 
+    /// Runs a workflow with both cache and output redactions.
     pub fn run_with_cache_and_redactions(
         &self,
         workflow: &Workflow,
@@ -73,6 +83,7 @@ where
         self.run_with_cache_redactions_and_observer(workflow, cache, redactions, |_| {})
     }
 
+    /// Runs a workflow with redactions and event observation.
     pub fn run_with_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,
@@ -85,6 +96,7 @@ where
         self.run_uncached_with_redactions_and_observer(workflow, redactions, observer)
     }
 
+    /// Runs a workflow with cache, redactions, and event observation.
     pub fn run_with_cache_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,
@@ -182,6 +194,7 @@ where
         })
     }
 
+    /// Verifies a workflow against an expected replay without cache or redactions.
     pub fn verify(&self, workflow: &Workflow, expected: &RunReport) -> Result<VerificationReport> {
         self.verify_uncached_with_redactions_and_observer(
             workflow,
@@ -191,6 +204,7 @@ where
         )
     }
 
+    /// Verifies a workflow and emits runtime events to an observer.
     pub fn verify_with_observer<F>(
         &self,
         workflow: &Workflow,
@@ -208,6 +222,7 @@ where
         )
     }
 
+    /// Verifies a workflow against a replay while applying output redactions.
     pub fn verify_with_redactions(
         &self,
         workflow: &Workflow,
@@ -217,6 +232,7 @@ where
         self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, |_| {})
     }
 
+    /// Verifies a workflow using a cache keyed by stable step input hashes.
     pub fn verify_with_cache(
         &self,
         workflow: &Workflow,
@@ -232,6 +248,7 @@ where
         )
     }
 
+    /// Verifies a workflow using both cache and output redactions.
     pub fn verify_with_cache_and_redactions(
         &self,
         workflow: &Workflow,
@@ -248,6 +265,7 @@ where
         )
     }
 
+    /// Verifies a workflow with redactions and event observation.
     pub fn verify_with_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,
@@ -261,6 +279,7 @@ where
         self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, observer)
     }
 
+    /// Verifies a workflow with cache, redactions, and event observation.
     pub fn verify_with_cache_redactions_and_observer<F>(
         &self,
         workflow: &Workflow,

@@ -6,77 +6,117 @@ use crate::{StepId, workflow::validate_workflow_name};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Recorded output and hashes for one workflow step.
 pub struct StepResult {
+    /// Identifier of the workflow step that produced this result.
     pub step_id: StepId,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
+    /// Stable hash of the prompt input sent to the adapter.
     pub input_hash: String,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
+    /// Stable hash of the recorded output after redaction.
     pub output_hash: String,
+    /// Recorded step output, redacted when redactions were configured.
     pub output: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Deterministic replay report produced by a workflow run.
 pub struct RunReport {
     #[serde(deserialize_with = "deserialize_workflow_name")]
+    /// Workflow name associated with this run.
     pub workflow_name: String,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
+    /// Stable hash of the ordered step identifiers and step hashes.
     pub run_hash: String,
     #[serde(deserialize_with = "deserialize_non_empty_steps")]
+    /// Ordered step results recorded during the run.
     pub steps: Vec<StepResult>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+/// Difference between an expected replay and an actual workflow run.
 pub enum ReplayMismatch {
+    /// The expected and actual workflow names differ.
     WorkflowName {
+        /// Workflow name from the expected replay.
         expected: String,
+        /// Workflow name from the actual run.
         actual: String,
     },
+    /// The expected and actual run hashes differ.
     RunHash {
+        /// Run hash from the expected replay.
         expected: String,
+        /// Run hash from the actual run.
         actual: String,
     },
+    /// The expected and actual step counts differ.
     StepCount {
+        /// Number of steps in the expected replay.
         expected: usize,
+        /// Number of steps in the actual run.
         actual: usize,
     },
+    /// Step identifiers differ at a shared index.
     StepId {
+        /// Zero-based step index where the mismatch was found.
         index: usize,
+        /// Step identifier from the expected replay.
         expected: StepId,
+        /// Step identifier from the actual run.
         actual: StepId,
     },
+    /// Input hashes differ for a step.
     StepInputHash {
+        /// Step identifier from the actual run.
         step_id: StepId,
+        /// Input hash from the expected replay.
         expected: String,
+        /// Input hash from the actual run.
         actual: String,
     },
+    /// Output hashes differ for a step.
     StepOutputHash {
+        /// Step identifier from the actual run.
         step_id: StepId,
+        /// Output hash from the expected replay.
         expected: String,
+        /// Output hash from the actual run.
         actual: String,
     },
+    /// Output text differs for a step.
     StepOutput {
+        /// Step identifier from the actual run.
         step_id: StepId,
+        /// Output text from the expected replay.
         expected: String,
+        /// Output text from the actual run.
         actual: String,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Verification result for comparing a workflow run to an expected replay.
 pub struct VerificationReport {
+    /// Workflow name from the actual run.
     pub workflow_name: String,
+    /// Mismatches found while comparing the expected and actual reports.
     pub mismatches: Vec<ReplayMismatch>,
 }
 
 impl VerificationReport {
+    /// Returns true when no replay mismatches were found.
     pub fn is_match(&self) -> bool {
         self.mismatches.is_empty()
     }
 }
 
 impl ReplayMismatch {
+    /// Returns the step id associated with a mismatch, when one exists.
     pub fn step_id(&self) -> Option<&StepId> {
         match self {
             ReplayMismatch::WorkflowName { .. }
