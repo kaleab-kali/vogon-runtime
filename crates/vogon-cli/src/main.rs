@@ -7,7 +7,9 @@ use std::{path::PathBuf, process::ExitCode};
 use clap::{Parser, Subcommand};
 
 use commands::run::{
-    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, ModelProvider, RunModelConfig,
+    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
+    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, ModelProvider, RunModelConfig,
 };
 
 #[derive(Debug, Parser)]
@@ -50,6 +52,22 @@ enum Commands {
         /// Gemini retry count for transient provider errors.
         #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES)]
         gemini_max_retries: u32,
+
+        /// OpenAI-compatible base URL when `--provider openai-compatible` is selected.
+        #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
+        openai_compatible_base_url: String,
+
+        /// OpenAI-compatible model name when `--provider openai-compatible` is selected.
+        #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_MODEL)]
+        openai_compatible_model: String,
+
+        /// OpenAI-compatible request timeout in seconds.
+        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        openai_compatible_timeout_seconds: u64,
+
+        /// OpenAI-compatible retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES)]
+        openai_compatible_max_retries: u32,
 
         /// Redact a literal value from replay outputs. May be repeated.
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
@@ -103,6 +121,10 @@ fn main() -> ExitCode {
             gemini_model,
             gemini_timeout_seconds,
             gemini_max_retries,
+            openai_compatible_base_url,
+            openai_compatible_model,
+            openai_compatible_timeout_seconds,
+            openai_compatible_max_retries,
             output,
             redactions,
             workflow_file,
@@ -115,6 +137,10 @@ fn main() -> ExitCode {
                 gemini_model: &gemini_model,
                 gemini_timeout_seconds,
                 gemini_max_retries,
+                openai_compatible_base_url: &openai_compatible_base_url,
+                openai_compatible_model: &openai_compatible_model,
+                openai_compatible_timeout_seconds,
+                openai_compatible_max_retries,
             },
         ),
         Commands::Verify {

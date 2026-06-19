@@ -53,6 +53,10 @@ fn run_help_documents_replay_options() {
         "--gemini-model <GEMINI_MODEL>",
         "--gemini-timeout-seconds <GEMINI_TIMEOUT_SECONDS>",
         "--gemini-max-retries <GEMINI_MAX_RETRIES>",
+        "--openai-compatible-base-url <OPENAI_COMPATIBLE_BASE_URL>",
+        "--openai-compatible-model <OPENAI_COMPATIBLE_MODEL>",
+        "--openai-compatible-timeout-seconds <OPENAI_COMPATIBLE_TIMEOUT_SECONDS>",
+        "--openai-compatible-max-retries <OPENAI_COMPATIBLE_MAX_RETRIES>",
         "--redact <LABEL=VALUE>",
         "--output <FILE>",
     ] {

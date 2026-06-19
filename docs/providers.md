@@ -57,6 +57,36 @@ Do not commit API keys or real replay outputs containing private prompts or
 customer data. Use redaction rules when writing replays from real provider
 runs.
 
+### OpenAI-Compatible
+
+The OpenAI-compatible adapter uses the `/chat/completions` request and response
+shape supported by providers such as Hugging Face Inference Providers and
+OpenRouter. Default CLI builds include the adapter, but it is only used when
+explicitly selected:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible fixtures/workflows/support-triage.toml
+```
+
+The default base URL is `https://router.huggingface.co/v1`, and the default
+model is `openai/gpt-oss-120b:fastest`, matching Hugging Face's documented
+OpenAI-compatible chat-completions router. Use `--openai-compatible-base-url`
+and `--openai-compatible-model` to target OpenRouter or another compatible
+service:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://openrouter.ai/api/v1 --openai-compatible-model openai/gpt-5.2 fixtures/workflows/support-triage.toml
+```
+
+For Hugging Face, set `OPENAI_COMPATIBLE_API_KEY` to a token with permission to
+make Inference Providers calls. For OpenRouter, set it to an OpenRouter API key.
+Do not commit real provider replays containing private prompts or outputs.
+
+OpenAI-compatible requests use a 30 second timeout and retry retryable
+transport/HTTP failures twice by default. Use
+`--openai-compatible-timeout-seconds` and
+`--openai-compatible-max-retries` to adjust those bounds.
+
 ### Live Provider Smoke Testing
 
 The `Live Gemini Smoke` GitHub Actions workflow runs a real Gemini-backed
@@ -84,7 +114,7 @@ implementing or recommending one.
 | --- | --- | --- |
 | Hugging Face Inference Providers | Broad model catalog and documented free credits for experimentation. | Good candidate for open-model workflows; provider and model routing need explicit configuration. |
 | GroqCloud | Fast hosted inference and documented developer rate limits. | Good candidate for low-latency text workflows; free-tier availability should be checked before adding a default. |
-| OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Good candidate for a generic OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
+| OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Supported through the OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
 
 Official references:
 

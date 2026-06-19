@@ -67,6 +67,21 @@ Run a workflow with the Gemini API instead of the deterministic adapter:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini fixtures/workflows/support-triage.toml
 ```
 
+Run a workflow with an OpenAI-compatible chat-completions endpoint:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible fixtures/workflows/support-triage.toml
+```
+
+The default OpenAI-compatible base URL is Hugging Face Inference Providers'
+OpenAI-compatible router, and the default model is
+`openai/gpt-oss-120b:fastest`. Override both for OpenRouter or another
+compatible service:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://openrouter.ai/api/v1 --openai-compatible-model openai/gpt-5.2 fixtures/workflows/support-triage.toml
+```
+
 Gemini requests use a 30 second timeout by default. Override it when needed:
 
 ```sh
