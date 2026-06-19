@@ -38,6 +38,9 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-features
 
+      - name: Check deterministic-only CLI build
+        run: cargo check -p vogon-cli --no-default-features
+
       - name: Benchmark smoke
         run: cargo bench -p vogon-core --bench runtime -- --iterations 100
 
