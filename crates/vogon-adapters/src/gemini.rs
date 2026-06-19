@@ -3,14 +3,18 @@ use std::{env, fmt, time::Duration};
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, Step, VogonError};
 
+/// Default Gemini model used by [`GeminiModel`].
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
+/// Default Gemini request timeout in seconds.
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
+/// Default number of retry attempts for retryable Gemini failures.
 pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com";
 const MAX_GEMINI_ERROR_BODY_CHARS: usize = 2048;
 
 #[derive(Clone)]
+/// Gemini API model adapter.
 pub struct GeminiModel {
     api_key: String,
     model: String,
@@ -20,10 +24,12 @@ pub struct GeminiModel {
 }
 
 impl GeminiModel {
+    /// Creates a Gemini adapter using the default model, timeout, and retry count.
     pub fn new(api_key: impl Into<String>) -> Result<Self> {
         Self::with_model(api_key, DEFAULT_GEMINI_MODEL)
     }
 
+    /// Creates a Gemini adapter using a specific model and default timeout.
     pub fn with_model(api_key: impl Into<String>, model: impl Into<String>) -> Result<Self> {
         Self::with_model_and_timeout(
             api_key,
@@ -32,6 +38,7 @@ impl GeminiModel {
         )
     }
 
+    /// Creates a Gemini adapter using a specific model and request timeout.
     pub fn with_model_and_timeout(
         api_key: impl Into<String>,
         model: impl Into<String>,
@@ -40,6 +47,7 @@ impl GeminiModel {
         Self::with_model_timeout_and_retries(api_key, model, timeout, DEFAULT_GEMINI_MAX_RETRIES)
     }
 
+    /// Creates a Gemini adapter using a specific model, timeout, and retry count.
     pub fn with_model_timeout_and_retries(
         api_key: impl Into<String>,
         model: impl Into<String>,
@@ -49,14 +57,17 @@ impl GeminiModel {
         Self::with_base_url(api_key, model, GEMINI_API_BASE, timeout, max_retries)
     }
 
+    /// Creates a Gemini adapter from the `GEMINI_API_KEY` environment variable.
     pub fn from_env(model: impl Into<String>) -> Result<Self> {
         Self::from_env_with_timeout(model, Duration::from_secs(DEFAULT_GEMINI_TIMEOUT_SECONDS))
     }
 
+    /// Creates a Gemini adapter from the environment with a custom timeout.
     pub fn from_env_with_timeout(model: impl Into<String>, timeout: Duration) -> Result<Self> {
         Self::from_env_with_timeout_and_retries(model, timeout, DEFAULT_GEMINI_MAX_RETRIES)
     }
 
+    /// Creates a Gemini adapter from the environment with a custom timeout and retry count.
     pub fn from_env_with_timeout_and_retries(
         model: impl Into<String>,
         timeout: Duration,
@@ -334,7 +345,7 @@ mod tests {
 
     #[test]
     fn long_error_bodies_are_truncated_on_char_boundaries() {
-        let body = format!("{}tail", "é".repeat(MAX_GEMINI_ERROR_BODY_CHARS + 1));
+        let body = format!("{}tail", "\u{00E9}".repeat(MAX_GEMINI_ERROR_BODY_CHARS + 1));
 
         let truncated = truncate_error_body(body);
 

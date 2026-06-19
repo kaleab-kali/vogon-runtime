@@ -4,12 +4,16 @@ use std::{cmp::Reverse, collections::BTreeSet};
 use crate::{Result, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// A literal value that should be replaced in run and verification output.
 pub struct RedactionRule {
+    /// Stable label used inside the replacement marker.
     pub label: String,
+    /// Exact literal value to redact.
     pub literal: String,
 }
 
 impl RedactionRule {
+    /// Creates a redaction rule after validating its label and literal.
     pub fn new(label: impl Into<String>, literal: impl Into<String>) -> Result<Self> {
         let label = label.into();
         let literal = literal.into();
@@ -37,6 +41,7 @@ impl RedactionRule {
         Ok(Self { label, literal })
     }
 
+    /// Returns the marker used when this rule replaces its literal.
     pub fn replacement(&self) -> String {
         format!("[REDACTED:{}]", self.label)
     }
@@ -60,11 +65,13 @@ impl<'de> Deserialize<'de> for RedactionRule {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+/// Ordered set of redaction rules applied to model outputs.
 pub struct RedactionSet {
     rules: Vec<RedactionRule>,
 }
 
 impl RedactionSet {
+    /// Creates a redaction set and sorts rules longest literal first.
     pub fn new(mut rules: Vec<RedactionRule>) -> Result<Self> {
         let mut labels = BTreeSet::new();
         for rule in &rules {
@@ -78,14 +85,17 @@ impl RedactionSet {
         Ok(Self { rules })
     }
 
+    /// Creates an empty redaction set.
     pub fn empty() -> Self {
         Self::default()
     }
 
+    /// Returns the rules in application order.
     pub fn rules(&self) -> &[RedactionRule] {
         &self.rules
     }
 
+    /// Applies every redaction rule to a value.
     pub fn redact(&self, value: &str) -> String {
         self.rules.iter().fold(value.to_owned(), |redacted, rule| {
             redacted.replace(&rule.literal, &rule.replacement())

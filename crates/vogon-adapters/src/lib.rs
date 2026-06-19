@@ -25,6 +25,7 @@
 
 #![forbid(unsafe_code)]
 #![deny(rustdoc::broken_intra_doc_links)]
+#![deny(missing_docs)]
 
 mod fake;
 #[cfg(feature = "gemini")]
