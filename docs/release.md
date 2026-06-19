@@ -11,6 +11,7 @@ Run the full local verification set:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo check -p vogon-cli --no-default-features
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features

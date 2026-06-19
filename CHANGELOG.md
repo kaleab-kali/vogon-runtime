@@ -68,6 +68,8 @@ and this project follows semantic versioning once the first release is tagged.
   publishing job.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
+- CI now checks the CLI with default features disabled to preserve the
+  deterministic-only build path.
 - Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
 - Windows CI and release jobs now use the explicit `windows-2025-vs2026`
   runner label.
