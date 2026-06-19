@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_NET_RETRY: 10
+
 jobs:
   linux-cli:
     name: Linux CLI artifact

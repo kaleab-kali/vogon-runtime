@@ -40,6 +40,9 @@ Confirm that:
   environment secret.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
+GitHub Actions workflows set `CARGO_NET_RETRY=10` for Cargo commands so
+transient registry resets are retried before a job fails.
+
 After the install smoke command, run the installed binary for your platform
 against the same workflow and replay fixtures. The install smoke uses
 `--offline` because earlier verification commands have already fetched and
