@@ -83,6 +83,7 @@ New provider adapters should:
 - Avoid printing or logging API keys.
 - Return provider failures as `VogonError::Adapter` with actionable context.
 - Bound network calls with explicit timeouts.
+- Cap provider error output so large HTTP responses stay readable.
 - Include unit tests that do not require network access or credentials.
 - Add an explicit CLI opt-in instead of changing deterministic defaults.
 - Document required environment variables, model selection, and replay redaction

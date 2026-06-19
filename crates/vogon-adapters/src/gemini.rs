@@ -7,6 +7,7 @@ pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com";
+const MAX_GEMINI_ERROR_BODY_CHARS: usize = 2048;
 
 #[derive(Clone)]
 pub struct GeminiModel {
@@ -182,9 +183,11 @@ fn extract_text(response: &GenerateContentResponse) -> Option<String> {
 fn http_error(error: ureq::Error) -> VogonError {
     match error {
         ureq::Error::Status(status, response) => {
-            let body = response
-                .into_string()
-                .unwrap_or_else(|_| "<unreadable response body>".to_owned());
+            let body = truncate_error_body(
+                response
+                    .into_string()
+                    .unwrap_or_else(|_| "<unreadable response body>".to_owned()),
+            );
             VogonError::Adapter(format!(
                 "Gemini API request failed with HTTP {status}: {body}"
             ))
@@ -195,6 +198,19 @@ fn http_error(error: ureq::Error) -> VogonError {
     }
 }
 
+fn truncate_error_body(body: String) -> String {
+    if body.chars().count() <= MAX_GEMINI_ERROR_BODY_CHARS {
+        return body;
+    }
+
+    let mut truncated = body
+        .chars()
+        .take(MAX_GEMINI_ERROR_BODY_CHARS)
+        .collect::<String>();
+    truncated.push_str("...[truncated]");
+    truncated
+}
+
 fn adapter_error(error: impl std::error::Error) -> VogonError {
     VogonError::Adapter(format!("Gemini adapter failed: {error}"))
 }
@@ -203,7 +219,10 @@ fn adapter_error(error: impl std::error::Error) -> VogonError {
 mod tests {
     use std::time::Duration;
 
-    use super::{GeminiModel, GenerateContentResponse, extract_text};
+    use super::{
+        GeminiModel, GenerateContentResponse, MAX_GEMINI_ERROR_BODY_CHARS, extract_text,
+        truncate_error_body,
+    };
 
     #[test]
     fn debug_output_redacts_api_key() {
@@ -252,5 +271,26 @@ mod tests {
         .unwrap();
 
         assert_eq!(extract_text(&response).as_deref(), Some("hello world"));
+    }
+
+    #[test]
+    fn short_error_bodies_are_not_truncated() {
+        let body = "provider error".to_owned();
+
+        assert_eq!(truncate_error_body(body), "provider error");
+    }
+
+    #[test]
+    fn long_error_bodies_are_truncated_on_char_boundaries() {
+        let body = format!("{}tail", "é".repeat(MAX_GEMINI_ERROR_BODY_CHARS + 1));
+
+        let truncated = truncate_error_body(body);
+
+        assert!(truncated.ends_with("...[truncated]"));
+        assert!(!truncated.contains("tail"));
+        assert_eq!(
+            truncated.trim_end_matches("...[truncated]").chars().count(),
+            MAX_GEMINI_ERROR_BODY_CHARS
+        );
     }
 }
