@@ -13,7 +13,14 @@ readme = "../../README.md"
 keywords = ["ai", "model-adapters", "workflow", "runtime"]
 categories = ["development-tools"]
 
+[features]
+default = ["gemini"]
+gemini = ["dep:serde", "dep:serde_json", "dep:ureq"]
+
 [dependencies]
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
 vogon-core.workspace = true
 
 [dev-dependencies]

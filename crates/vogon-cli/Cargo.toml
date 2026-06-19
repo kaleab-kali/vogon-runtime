@@ -13,6 +13,10 @@ readme = "../../README.md"
 keywords = ["ai", "workflow", "replay", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
+[features]
+default = ["gemini"]
+gemini = ["vogon-adapters/gemini"]
+
 [[bin]]
 name = "vogon"
 path = "src/main.rs"

@@ -1,7 +1,10 @@
 use std::{fs, io, path::Path, process};
 
+use clap::ValueEnum;
 use vogon_adapters::DeterministicEchoModel;
-use vogon_core::Runtime;
+#[cfg(feature = "gemini")]
+use vogon_adapters::GeminiModel;
+use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
@@ -10,11 +13,11 @@ pub fn run(
     workflow_file: &Path,
     redaction_values: &[String],
     output: Option<&Path>,
+    model_config: RunModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let workflow = read_toml_workflow(workflow_file)?;
     let redactions = parse_redactions(redaction_values)?;
-    let report =
-        Runtime::new(DeterministicEchoModel).run_with_redactions(&workflow, &redactions)?;
+    let report = run_with_model(&workflow, &redactions, model_config)?;
     let replay_json = format!("{}\n", serde_json::to_string_pretty(&report)?);
 
     if let Some(output) = output {
@@ -36,6 +39,64 @@ pub fn run(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ModelProvider {
+    Deterministic,
+    Gemini,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RunModelConfig<'a> {
+    pub provider: ModelProvider,
+    pub gemini_model: &'a str,
+}
+
+fn run_with_model(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    model_config: RunModelConfig<'_>,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    match model_config.provider {
+        ModelProvider::Deterministic => {
+            run_with_adapter(DeterministicEchoModel, workflow, redactions)
+        }
+        ModelProvider::Gemini => run_with_gemini(workflow, redactions, model_config.gemini_model),
+    }
+}
+
+fn run_with_adapter<A>(
+    adapter: A,
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+) -> Result<RunReport, Box<dyn std::error::Error>>
+where
+    A: ModelAdapter,
+{
+    Ok(Runtime::new(adapter).run_with_redactions(workflow, redactions)?)
+}
+
+#[cfg(feature = "gemini")]
+fn run_with_gemini(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    model: &str,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    run_with_adapter(GeminiModel::from_env(model)?, workflow, redactions)
+}
+
+#[cfg(not(feature = "gemini"))]
+fn run_with_gemini(
+    _workflow: &vogon_core::Workflow,
+    _redactions: &RedactionSet,
+    _model: &str,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Gemini provider support is not enabled in this build",
+    )
+    .into())
 }
 
 fn reject_directory_output(output: &Path) -> io::Result<()> {

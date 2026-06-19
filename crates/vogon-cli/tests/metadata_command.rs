@@ -49,6 +49,8 @@ fn run_help_documents_replay_options() {
     for expected in [
         "Run a workflow file",
         "<WORKFLOW_FILE>",
+        "--provider <PROVIDER>",
+        "--gemini-model <GEMINI_MODEL>",
         "--redact <LABEL=VALUE>",
         "--output <FILE>",
     ] {
