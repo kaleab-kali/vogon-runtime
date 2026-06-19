@@ -45,6 +45,14 @@ environments:
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-timeout-seconds 60 fixtures/workflows/support-triage.toml
 ```
 
+Transient transport failures and retryable HTTP responses are retried twice by
+default. Retryable HTTP responses are status codes `408`, `409`, `425`, `429`,
+and `5xx`. Use `--gemini-max-retries 0` to disable retries:
+
+```sh
+GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
+```
+
 Do not commit API keys or real replay outputs containing private prompts or
 customer data. Use redaction rules when writing replays from real provider
 runs.
@@ -95,6 +103,7 @@ New provider adapters should:
 - Avoid printing or logging API keys.
 - Return provider failures as `VogonError::Adapter` with actionable context.
 - Bound network calls with explicit timeouts.
+- Keep retries bounded and configurable.
 - Cap provider error output so large HTTP responses stay readable.
 - Include unit tests that do not require network access or credentials.
 - Add an explicit CLI opt-in instead of changing deterministic defaults.

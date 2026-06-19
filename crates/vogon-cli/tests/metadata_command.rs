@@ -52,6 +52,7 @@ fn run_help_documents_replay_options() {
         "--provider <PROVIDER>",
         "--gemini-model <GEMINI_MODEL>",
         "--gemini-timeout-seconds <GEMINI_TIMEOUT_SECONDS>",
+        "--gemini-max-retries <GEMINI_MAX_RETRIES>",
         "--redact <LABEL=VALUE>",
         "--output <FILE>",
     ] {
