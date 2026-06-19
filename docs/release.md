@@ -35,6 +35,9 @@ Confirm that:
 - The GitHub Actions CI workflow has passed on `main`.
 - The Security Audit workflow has a recent successful run for the committed
   `Cargo.lock`.
+- If provider adapter or deployment behavior changed, the optional `Live Gemini
+  Smoke` workflow has passed with `GEMINI_API_KEY` configured as a repository or
+  environment secret.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
 After the install smoke command, run the installed binary for your platform

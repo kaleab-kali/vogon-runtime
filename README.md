@@ -202,6 +202,8 @@ Already available:
 - Rust workspace and CLI.
 - Ordered workflow execution.
 - Opt-in Gemini API execution for real provider-backed runs.
+- Manual live Gemini smoke testing for maintainers with `GEMINI_API_KEY`
+  configured in GitHub Actions.
 - Deterministic replay log generation.
 - Replay verification with structured mismatch errors.
 - Contributor-ready fixtures and examples.

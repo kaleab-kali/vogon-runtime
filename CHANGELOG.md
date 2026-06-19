@@ -40,6 +40,8 @@ and this project follows semantic versioning once the first release is tagged.
   --gemini-timeout-seconds` timeout.
 - Gemini API HTTP error bodies are capped before being returned in adapter
   errors.
+- Manual live Gemini provider smoke workflow for maintainers with
+  `GEMINI_API_KEY` configured in GitHub Actions.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.

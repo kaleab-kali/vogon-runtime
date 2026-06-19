@@ -8,6 +8,7 @@ Thanks for helping improve Vogon Runtime.
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+cargo check -p vogon-cli --no-default-features
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
@@ -44,6 +45,11 @@ The `main` branch is protected. Pull requests must pass:
 - `Minimum supported Rust`
 - `RustSec advisory audit` when Rust dependency files or the audit workflow
   change
+
+The optional `Live Gemini Smoke` workflow can be run manually by maintainers
+when `GEMINI_API_KEY` is configured as a repository or environment secret. It is
+not required for ordinary pull requests because deterministic CI must not
+depend on external provider availability.
 
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain
