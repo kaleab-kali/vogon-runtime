@@ -9,6 +9,8 @@ pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 /// Default number of retry attempts for retryable Gemini failures.
 pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
+/// Maximum accepted Gemini retry count.
+pub const MAX_GEMINI_RETRIES: u32 = 20;
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com";
 const MAX_GEMINI_ERROR_BODY_CHARS: usize = 2048;
@@ -108,6 +110,12 @@ impl GeminiModel {
             return Err(VogonError::Adapter(
                 "Gemini request timeout must be greater than zero".to_owned(),
             ));
+        }
+
+        if max_retries > MAX_GEMINI_RETRIES {
+            return Err(VogonError::Adapter(format!(
+                "Gemini max retries must be at most {MAX_GEMINI_RETRIES}"
+            )));
         }
 
         Ok(Self {
@@ -303,7 +311,7 @@ mod tests {
 
     use super::{
         GeminiModel, GenerateContentResponse, MAX_GEMINI_ERROR_BODY_BYTES,
-        MAX_GEMINI_ERROR_BODY_CHARS, extract_text, truncate_error_body,
+        MAX_GEMINI_ERROR_BODY_CHARS, MAX_GEMINI_RETRIES, extract_text, truncate_error_body,
     };
     use vogon_core::{ModelAdapter, Step, StepId};
 
@@ -333,6 +341,19 @@ mod tests {
         );
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn gemini_model_rejects_excessive_retries() {
+        let result = GeminiModel::with_model_timeout_and_retries(
+            "secret-key",
+            "gemini-3.1-flash-lite",
+            Duration::from_secs(5),
+            MAX_GEMINI_RETRIES + 1,
+        );
+
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("Gemini max retries must be at most 20"));
     }
 
     #[test]

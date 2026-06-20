@@ -166,6 +166,28 @@ fn run_command_rejects_zero_gemini_timeout() {
 }
 
 #[test]
+fn run_command_rejects_excessive_gemini_retry_count() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("gemini")
+        .arg("--gemini-max-retries")
+        .arg("21")
+        .arg(fixture)
+        .env_remove("GEMINI_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("invalid value"));
+    assert!(stderr.contains("--gemini-max-retries must be between 0 and 20"));
+}
+
+#[test]
 fn run_command_reports_missing_openai_compatible_api_key() {
     let fixture = support_triage_workflow();
 
@@ -203,6 +225,28 @@ fn run_command_rejects_zero_openai_compatible_timeout() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("invalid value"));
+}
+
+#[test]
+fn run_command_rejects_excessive_openai_compatible_retry_count() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-max-retries")
+        .arg("21")
+        .arg(fixture)
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("invalid value"));
+    assert!(stderr.contains("--openai-compatible-max-retries must be between 0 and 20"));
 }
 
 #[test]

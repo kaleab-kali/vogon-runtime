@@ -37,10 +37,11 @@ pub use fake::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 pub use gemini::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_TIMEOUT_SECONDS, GeminiModel,
+    MAX_GEMINI_RETRIES,
 };
 #[cfg(feature = "openai-compatible")]
 pub use openai_compatible::{
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
-    OpenAiCompatibleModel,
+    MAX_OPENAI_COMPATIBLE_RETRIES, OpenAiCompatibleModel,
 };

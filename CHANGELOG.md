@@ -78,6 +78,8 @@ and this project follows semantic versioning once the first release is tagged.
 - HTTP provider adapters now use `ureq` 3.3.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
+- Provider retry counts are capped at 20 attempts at CLI and adapter
+  construction boundaries.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.

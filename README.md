@@ -95,7 +95,8 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-time
 ```
 
 Transient Gemini transport failures and retryable HTTP responses are retried
-twice by default. Use `--gemini-max-retries 0` to disable retries.
+twice by default. Use `--gemini-max-retries 0` to disable retries or another
+value up to `20` to tune retry behavior.
 
 Validate a TOML workflow without executing it:
 

@@ -52,7 +52,8 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-time
 
 Transient transport failures and retryable HTTP responses are retried twice by
 default. Retryable HTTP responses are status codes `408`, `409`, `425`, `429`,
-and `5xx`. Use `--gemini-max-retries 0` to disable retries:
+and `5xx`. Retry counts must be between `0` and `20`; use
+`--gemini-max-retries 0` to disable retries:
 
 ```sh
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
@@ -90,7 +91,8 @@ Do not commit real provider replays containing private prompts or outputs.
 OpenAI-compatible requests use a 30 second timeout and retry retryable
 transport/HTTP failures twice by default. Use
 `--openai-compatible-timeout-seconds` and
-`--openai-compatible-max-retries` to adjust those bounds.
+`--openai-compatible-max-retries` to adjust those bounds. Retry counts must be
+between `0` and `20`.
 
 ### Live Provider Smoke Testing
 

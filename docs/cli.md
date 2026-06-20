@@ -91,7 +91,8 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-time
 ```
 
 Transient Gemini transport failures and retryable HTTP responses are retried
-twice by default. Use `--gemini-max-retries` to change the retry count:
+twice by default. Use `--gemini-max-retries` to change the retry count. Valid
+values are `0` through `20`:
 
 ```sh
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
@@ -114,7 +115,8 @@ OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-co
 
 OpenAI-compatible requests use a 30 second timeout and two retries by default.
 Use `--openai-compatible-timeout-seconds` and
-`--openai-compatible-max-retries` to adjust those bounds.
+`--openai-compatible-max-retries` to adjust those bounds. Retry counts must be
+between `0` and `20`.
 
 Write the replay JSON to a file:
 
