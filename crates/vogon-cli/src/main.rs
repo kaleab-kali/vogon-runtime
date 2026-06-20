@@ -7,10 +7,11 @@ use std::{path::PathBuf, process::ExitCode};
 use clap::{Parser, Subcommand};
 
 use commands::run::{
-    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
+    DEFAULT_GROQ_MODEL, DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
-    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
-    ModelProvider, RunModelConfig,
+    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES, MAX_GROQ_RETRIES,
+    MAX_OPENAI_COMPATIBLE_RETRIES, ModelProvider, RunModelConfig,
 };
 use commands::verify::VerifyModelConfig;
 
@@ -62,6 +63,18 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES, value_parser = parse_gemini_max_retries)]
         gemini_max_retries: u32,
 
+        /// Groq model name when `--provider groq` is selected.
+        #[arg(long, default_value = DEFAULT_GROQ_MODEL)]
+        groq_model: String,
+
+        /// Groq request timeout in seconds when `--provider groq` is selected.
+        #[arg(long, default_value_t = DEFAULT_GROQ_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        groq_timeout_seconds: u64,
+
+        /// Groq retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_GROQ_MAX_RETRIES, value_parser = parse_groq_max_retries)]
+        groq_max_retries: u32,
+
         /// OpenAI-compatible base URL when `--provider openai-compatible` is selected.
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
         openai_compatible_base_url: String,
@@ -106,6 +119,18 @@ enum Commands {
         /// Gemini retry count for transient provider errors.
         #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES, value_parser = parse_gemini_max_retries)]
         gemini_max_retries: u32,
+
+        /// Groq model name when verifying with the Groq provider.
+        #[arg(long, default_value = DEFAULT_GROQ_MODEL)]
+        groq_model: String,
+
+        /// Groq request timeout in seconds when verifying with Groq.
+        #[arg(long, default_value_t = DEFAULT_GROQ_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        groq_timeout_seconds: u64,
+
+        /// Groq retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_GROQ_MAX_RETRIES, value_parser = parse_groq_max_retries)]
+        groq_max_retries: u32,
 
         /// OpenAI-compatible base URL when verifying with an OpenAI-compatible provider.
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
@@ -153,6 +178,10 @@ fn parse_gemini_max_retries(value: &str) -> Result<u32, String> {
     parse_retry_count(value, "--gemini-max-retries", MAX_GEMINI_RETRIES)
 }
 
+fn parse_groq_max_retries(value: &str) -> Result<u32, String> {
+    parse_retry_count(value, "--groq-max-retries", MAX_GROQ_RETRIES)
+}
+
 fn parse_openai_compatible_max_retries(value: &str) -> Result<u32, String> {
     parse_retry_count(
         value,
@@ -187,6 +216,9 @@ fn main() -> ExitCode {
             gemini_model,
             gemini_timeout_seconds,
             gemini_max_retries,
+            groq_model,
+            groq_timeout_seconds,
+            groq_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
             openai_compatible_timeout_seconds,
@@ -203,6 +235,9 @@ fn main() -> ExitCode {
                 gemini_model: &gemini_model,
                 gemini_timeout_seconds,
                 gemini_max_retries,
+                groq_model: &groq_model,
+                groq_timeout_seconds,
+                groq_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
                 openai_compatible_timeout_seconds,
@@ -214,6 +249,9 @@ fn main() -> ExitCode {
             gemini_model,
             gemini_timeout_seconds,
             gemini_max_retries,
+            groq_model,
+            groq_timeout_seconds,
+            groq_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
             openai_compatible_timeout_seconds,
@@ -232,6 +270,9 @@ fn main() -> ExitCode {
                 gemini_model: &gemini_model,
                 gemini_timeout_seconds,
                 gemini_max_retries,
+                groq_model: &groq_model,
+                groq_timeout_seconds,
+                groq_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
                 openai_compatible_timeout_seconds,

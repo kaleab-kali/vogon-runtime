@@ -96,6 +96,28 @@ transport/HTTP failures twice by default. Use
 between `0` and `20`, and retry delays use exponential backoff with lightweight
 jitter.
 
+### Groq
+
+The Groq adapter is a preset for Groq's OpenAI-compatible chat-completions
+endpoint. Default CLI builds include the adapter, but it is only used when
+explicitly selected:
+
+```sh
+GROQ_API_KEY=... cargo run -p vogon-cli -- run --provider groq fixtures/workflows/support-triage.toml
+```
+
+The default base URL is `https://api.groq.com/openai/v1`, and the default model
+is `llama-3.1-8b-instant`. Use `--groq-model` to select another Groq model:
+
+```sh
+GROQ_API_KEY=... cargo run -p vogon-cli -- run --provider groq --groq-model llama-3.1-8b-instant fixtures/workflows/support-triage.toml
+```
+
+Groq requests use a 30 second timeout and retry retryable transport/HTTP
+failures twice by default. Use `--groq-timeout-seconds` and
+`--groq-max-retries` to adjust those bounds. Retry counts must be between `0`
+and `20`.
+
 ### Live Provider Smoke Testing
 
 The `Live Gemini Smoke` GitHub Actions workflow runs a real Gemini-backed
@@ -107,6 +129,10 @@ The `Live OpenAI-Compatible Smoke` workflow does the same for the
 OpenAI-compatible adapter when `OPENAI_COMPATIBLE_API_KEY` is configured. Its
 manual dispatch inputs let maintainers override the base URL and model, so the
 same smoke can target Hugging Face, OpenRouter, or another compatible endpoint.
+
+The `Live Groq Smoke` workflow does the same for the Groq preset when
+`GROQ_API_KEY` is configured. Its manual dispatch input lets maintainers choose
+a different Groq model without changing repository code.
 
 Run the relevant live provider workflow from GitHub Actions after changing
 adapter behavior, provider configuration, release packaging, or deployment
@@ -121,6 +147,9 @@ Official references:
 - Gemini text generation API: <https://ai.google.dev/gemini-api/docs/text-generation>
 - Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
 - OpenRouter docs: <https://openrouter.ai/docs>
+- Groq OpenAI compatibility: <https://console.groq.com/docs/openai>
+- Groq models: <https://console.groq.com/docs/models>
+- Groq rate limits: <https://console.groq.com/docs/rate-limits>
 
 ## Candidate Providers
 
@@ -131,15 +160,12 @@ implementing or recommending one.
 | Provider | Why consider it | Notes |
 | --- | --- | --- |
 | Hugging Face Inference Providers | Broad model catalog and documented free credits for experimentation. | Good candidate for open-model workflows; provider and model routing need explicit configuration. |
-| GroqCloud | Fast hosted inference and documented developer rate limits. | Good candidate for low-latency text workflows; free-tier availability should be checked before adding a default. |
 | OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Supported through the OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
 
 Official references:
 
 - Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
 - Hugging Face pricing: <https://huggingface.co/pricing>
-- GroqCloud docs: <https://console.groq.com/docs>
-- GroqCloud rate limits: <https://console.groq.com/docs/rate-limits>
 - OpenRouter docs: <https://openrouter.ai/docs>
 
 ## Adapter Requirements

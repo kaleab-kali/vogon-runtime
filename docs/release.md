@@ -47,6 +47,9 @@ Confirm that:
 - If OpenAI-compatible adapter or deployment behavior changed, the optional
   `Live OpenAI-Compatible Smoke` workflow has passed with
   `OPENAI_COMPATIBLE_API_KEY` configured as a repository or environment secret.
+- If Groq adapter or deployment behavior changed, the optional `Live Groq
+  Smoke` workflow has passed with `GROQ_API_KEY` configured as a repository or
+  environment secret.
 - If container packaging changed, the container smoke commands above pass.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 

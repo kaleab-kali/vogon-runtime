@@ -1,0 +1,90 @@
+name: Live Groq Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Groq model name.
+        required: false
+        default: llama-3.1-8b-instant
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: false
+        default: llama-3.1-8b-instant
+    secrets:
+      GROQ_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  live-groq:
+    name: Live Groq provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_MODEL: ${{ inputs.model }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run Groq workflow smoke
+        run: |
+          if [ -z "${GROQ_API_KEY:-}" ]; then
+            echo "GROQ_API_KEY is required for the live Groq smoke workflow." >&2
+            exit 1
+          fi
+
+          model="${GROQ_MODEL:-llama-3.1-8b-instant}"
+          export GROQ_MODEL="$model"
+
+          ./target/release/vogon run \
+            --provider groq \
+            --groq-model "$model" \
+            --groq-timeout-seconds 60 \
+            --groq-max-retries 2 \
+            --redact groq_api_key="$GROQ_API_KEY" \
+            --output target/live-groq-smoke.replay.json \
+            fixtures/workflows/support-triage.toml
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          replay = json.loads(Path("target/live-groq-smoke.replay.json").read_text())
+          model = os.environ["GROQ_MODEL"]
+
+          assert replay["workflow_name"] == "support-triage"
+          assert replay["schema_version"] == 1
+          runtime = replay["runtime"]
+          assert runtime["provider"] == "groq"
+          assert runtime["adapter"] == "groq-openai-compatible-chat-completions"
+          assert runtime["model"] == model
+          assert runtime["parameters"]["base_url"] == "https://api.groq.com/openai/v1"
+          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
+          assert runtime["parameters"]["max_retries"] == "2"
+          assert len(replay["steps"]) == 2
+          for step in replay["steps"]:
+              assert step["output"]
+              assert "[REDACTED:groq_api_key]" not in step["output"]
+          assert os.environ["GROQ_API_KEY"] not in json.dumps(replay)
+          PY
