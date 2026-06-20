@@ -41,6 +41,9 @@ jobs:
           verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
+          trace_jsonl="$(./target/release/vogon trace --jsonl fixtures/replays/support-triage.replay.json)"
+          echo "$trace_jsonl"
+          printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -117,6 +120,12 @@ jobs:
           $verify = $verifyJson | ConvertFrom-Json
           if ($verify.workflow_name -ne 'support-triage' -or -not $verify.is_match -or $verify.mismatches.Count -ne 0) {
             throw "Unexpected verify JSON output: $verifyJson"
+          }
+          $traceJsonl = (& .\target\release\vogon.exe trace --jsonl fixtures\replays\support-triage.replay.json) -join "`n"
+          $traceJsonl
+          $traceRun = ($traceJsonl -split "`n")[0] | ConvertFrom-Json
+          if ($traceRun.event -ne 'run' -or $traceRun.schema_version -ne 1 -or $traceRun.runtime.provider -ne 'deterministic' -or $traceRun.runtime.model -ne 'deterministic-echo') {
+            throw "Unexpected trace JSONL run event: $traceJsonl"
           }
           Get-ChildItem fixtures\replays\*.replay.json | ForEach-Object {
             $name = $_.Name -replace '\.replay\.json$', ''

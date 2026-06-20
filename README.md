@@ -38,9 +38,11 @@ with:
 - `docs` for architecture, workflow format, determinism, and replay format
   notes.
 
-The current implementation uses a deterministic model adapter so workflows,
-replays, and verification can be developed without network access. The CLI can
-also run workflows with the Gemini API when `GEMINI_API_KEY` is set.
+The deterministic adapter remains the default so workflows, replays, and
+verification can be developed without network access. The CLI can also run and
+verify workflows with the Gemini API when `GEMINI_API_KEY` is set, or with an
+OpenAI-compatible chat-completions endpoint when `OPENAI_COMPATIBLE_API_KEY` is
+set.
 
 ## Requirements
 
@@ -98,6 +100,10 @@ Transient Gemini transport failures and retryable HTTP responses are retried
 twice by default. Use `--gemini-max-retries 0` to disable retries or another
 value up to `20` to tune retry behavior.
 
+OpenAI-compatible requests also use a 30 second timeout and two retry attempts
+by default. Use `--openai-compatible-timeout-seconds` and
+`--openai-compatible-max-retries` to tune those bounds.
+
 Validate a TOML workflow without executing it:
 
 ```sh
@@ -127,6 +133,10 @@ Verify a saved replay:
 ```sh
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
+
+`vogon verify` uses the provider metadata recorded in current replay files by
+default. Pass `--provider` and provider-specific flags when intentionally
+checking a replay against a different adapter.
 
 Emit a machine-readable verification report with `workflow_name`, `is_match`,
 and `mismatches` fields:
@@ -178,6 +188,7 @@ cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-tria
 cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
+cargo run --release -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 target/install-smoke/bin/vogon --version
 target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
@@ -227,10 +238,14 @@ Already available:
 - Rust workspace and CLI.
 - Ordered workflow execution.
 - Opt-in Gemini API execution for real provider-backed runs.
+- Opt-in OpenAI-compatible chat-completions execution for providers such as
+  Hugging Face Inference Providers and OpenRouter.
 - Manual live Gemini smoke testing for maintainers with `GEMINI_API_KEY`
   configured in GitHub Actions.
+- Manual live OpenAI-compatible smoke testing for maintainers with
+  `OPENAI_COMPATIBLE_API_KEY` configured in GitHub Actions.
 - Deterministic replay log generation.
-- Replay verification with structured mismatch errors.
+- Provider-aware replay verification with structured mismatch errors.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
 

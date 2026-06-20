@@ -101,6 +101,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Library crates now deny missing public Rust documentation.
 - CI now checks the CLI with default features disabled to preserve the
   deterministic-only build path.
+- CI and release smoke tests now assert trace JSONL replay schema and runtime
+  metadata output.
 - Cargo-based GitHub Actions workflows now increase Cargo registry retry
   attempts to reduce transient dependency fetch failures.
 - Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
