@@ -1,0 +1,90 @@
+name: Live Hugging Face Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Hugging Face model name.
+        required: false
+        default: openai/gpt-oss-120b:fastest
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: false
+        default: openai/gpt-oss-120b:fastest
+    secrets:
+      HF_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  live-hugging-face:
+    name: Live Hugging Face provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGING_FACE_MODEL: ${{ inputs.model }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run Hugging Face workflow smoke
+        run: |
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "HF_TOKEN is required for the live Hugging Face smoke workflow." >&2
+            exit 1
+          fi
+
+          model="${HUGGING_FACE_MODEL:-openai/gpt-oss-120b:fastest}"
+          export HUGGING_FACE_MODEL="$model"
+
+          ./target/release/vogon run \
+            --provider hugging-face \
+            --hugging-face-model "$model" \
+            --hugging-face-timeout-seconds 60 \
+            --hugging-face-max-retries 2 \
+            --redact hf_token="$HF_TOKEN" \
+            --output target/live-hugging-face-smoke.replay.json \
+            fixtures/workflows/support-triage.toml
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          replay = json.loads(Path("target/live-hugging-face-smoke.replay.json").read_text())
+          model = os.environ["HUGGING_FACE_MODEL"]
+
+          assert replay["workflow_name"] == "support-triage"
+          assert replay["schema_version"] == 1
+          runtime = replay["runtime"]
+          assert runtime["provider"] == "hugging-face"
+          assert runtime["adapter"] == "hugging-face-openai-compatible-chat-completions"
+          assert runtime["model"] == model
+          assert runtime["parameters"]["base_url"] == "https://router.huggingface.co/v1"
+          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
+          assert runtime["parameters"]["max_retries"] == "2"
+          assert len(replay["steps"]) == 2
+          for step in replay["steps"]:
+              assert step["output"]
+              assert "[REDACTED:hf_token]" not in step["output"]
+          assert os.environ["HF_TOKEN"] not in json.dumps(replay)
+          PY

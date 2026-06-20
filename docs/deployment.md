@@ -52,6 +52,17 @@ docker run --rm \
 Use `--openai-compatible-base-url` and `--openai-compatible-model` to target a
 specific compatible service.
 
+For Hugging Face Inference Providers:
+
+```sh
+docker run --rm \
+  -e HF_TOKEN \
+  -v "$PWD:/work" \
+  vogon-runtime:local run --provider hugging-face fixtures/workflows/support-triage.toml
+```
+
+Use `--hugging-face-model` to select a different Hugging Face routed model.
+
 ## Runtime Notes
 
 - The runtime image is based on Debian bookworm slim.

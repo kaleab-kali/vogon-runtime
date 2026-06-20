@@ -118,6 +118,29 @@ failures twice by default. Use `--groq-timeout-seconds` and
 `--groq-max-retries` to adjust those bounds. Retry counts must be between `0`
 and `20`.
 
+### Hugging Face
+
+The Hugging Face adapter is a preset for Hugging Face Inference Providers'
+OpenAI-compatible endpoint. Default CLI builds include the adapter, but it is
+only used when explicitly selected:
+
+```sh
+HF_TOKEN=... cargo run -p vogon-cli -- run --provider hugging-face fixtures/workflows/support-triage.toml
+```
+
+The default base URL is `https://router.huggingface.co/v1`, and the default
+model is `openai/gpt-oss-120b:fastest`. Use `--hugging-face-model` to select
+another Hugging Face routed model:
+
+```sh
+HF_TOKEN=... cargo run -p vogon-cli -- run --provider hugging-face --hugging-face-model openai/gpt-oss-120b:fastest fixtures/workflows/support-triage.toml
+```
+
+Hugging Face requests use a 30 second timeout and retry retryable
+transport/HTTP failures twice by default. Use `--hugging-face-timeout-seconds`
+and `--hugging-face-max-retries` to adjust those bounds. Retry counts must be
+between `0` and `20`.
+
 ### Live Provider Smoke Testing
 
 The `Live Gemini Smoke` GitHub Actions workflow runs a real Gemini-backed
@@ -133,6 +156,11 @@ same smoke can target Hugging Face, OpenRouter, or another compatible endpoint.
 The `Live Groq Smoke` workflow does the same for the Groq preset when
 `GROQ_API_KEY` is configured. Its manual dispatch input lets maintainers choose
 a different Groq model without changing repository code.
+
+The `Live Hugging Face Smoke` workflow does the same for the Hugging Face
+preset when `HF_TOKEN` is configured. Its manual dispatch input lets
+maintainers choose a different Hugging Face model without changing repository
+code.
 
 Run the relevant live provider workflow from GitHub Actions after changing
 adapter behavior, provider configuration, release packaging, or deployment
@@ -159,7 +187,7 @@ implementing or recommending one.
 
 | Provider | Why consider it | Notes |
 | --- | --- | --- |
-| Hugging Face Inference Providers | Broad model catalog and documented free credits for experimentation. | Good candidate for open-model workflows; provider and model routing need explicit configuration. |
+| Hugging Face Inference Providers | Broad model catalog and documented free credits for experimentation. | Supported through the Hugging Face preset and the OpenAI-compatible adapter. |
 | OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Supported through the OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
 
 Official references:

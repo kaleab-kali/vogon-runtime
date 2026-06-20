@@ -9,6 +9,8 @@ use vogon_adapters::GeminiModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::GroqModel;
 #[cfg(feature = "openai-compatible")]
+use vogon_adapters::HuggingFaceModel;
+#[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationReport};
 
@@ -17,7 +19,8 @@ use crate::commands::redaction::parse_redactions;
 use crate::commands::redaction_markers::replay_redaction_labels;
 use crate::commands::run::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
-    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_MAX_RETRIES,
+    DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, ModelProvider,
 };
 use crate::commands::workflow_file::read_toml_workflow;
@@ -109,6 +112,9 @@ pub struct VerifyModelConfig<'a> {
     pub groq_model: &'a str,
     pub groq_timeout_seconds: u64,
     pub groq_max_retries: u32,
+    pub hugging_face_model: &'a str,
+    pub hugging_face_timeout_seconds: u64,
+    pub hugging_face_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
     pub openai_compatible_timeout_seconds: u64,
@@ -124,6 +130,9 @@ struct ResolvedModelConfig {
     groq_model: String,
     groq_timeout_seconds: u64,
     groq_max_retries: u32,
+    hugging_face_model: String,
+    hugging_face_timeout_seconds: u64,
+    hugging_face_max_retries: u32,
     openai_compatible_base_url: String,
     openai_compatible_model: String,
     openai_compatible_timeout_seconds: u64,
@@ -190,6 +199,27 @@ fn resolve_model_config(
             replay_max_retries(replay, DEFAULT_GROQ_MAX_RETRIES)?
         } else {
             model_config.groq_max_retries
+        },
+        hugging_face_model: if use_replay_metadata && provider == ModelProvider::HuggingFace {
+            replay
+                .runtime
+                .model
+                .clone()
+                .unwrap_or_else(|| model_config.hugging_face_model.to_owned())
+        } else {
+            model_config.hugging_face_model.to_owned()
+        },
+        hugging_face_timeout_seconds: if use_replay_metadata
+            && provider == ModelProvider::HuggingFace
+        {
+            replay_timeout_seconds(replay, DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS)?
+        } else {
+            model_config.hugging_face_timeout_seconds
+        },
+        hugging_face_max_retries: if use_replay_metadata && provider == ModelProvider::HuggingFace {
+            replay_max_retries(replay, DEFAULT_HUGGING_FACE_MAX_RETRIES)?
+        } else {
+            model_config.hugging_face_max_retries
         },
         openai_compatible_base_url: if use_replay_metadata
             && provider == ModelProvider::OpenAiCompatible
@@ -309,6 +339,14 @@ fn verify_with_model(
             model_config.groq_timeout_seconds,
             model_config.groq_max_retries,
         ),
+        ModelProvider::HuggingFace => verify_with_hugging_face(
+            workflow,
+            replay,
+            redactions,
+            &model_config.hugging_face_model,
+            model_config.hugging_face_timeout_seconds,
+            model_config.hugging_face_max_retries,
+        ),
         ModelProvider::OpenAiCompatible => verify_with_openai_compatible(
             workflow,
             replay,
@@ -383,6 +421,41 @@ fn verify_with_groq(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Groq provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn verify_with_hugging_face(
+    workflow: &vogon_core::Workflow,
+    replay: &RunReport,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Ok(
+        Runtime::new(HuggingFaceModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?)
+        .verify_with_redactions(workflow, replay, redactions)?,
+    )
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn verify_with_hugging_face(
+    _workflow: &vogon_core::Workflow,
+    _replay: &RunReport,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Hugging Face provider support is not enabled in this build",
     )
     .into())
 }

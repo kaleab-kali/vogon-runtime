@@ -80,6 +80,10 @@ The optional `Live Groq Smoke` workflow can be run manually by maintainers when
 `GROQ_API_KEY` is configured. Use it after changes that affect Groq provider
 configuration or OpenAI-compatible provider behavior.
 
+The optional `Live Hugging Face Smoke` workflow can be run manually by
+maintainers when `HF_TOKEN` is configured. Use it after changes that affect
+Hugging Face provider configuration or OpenAI-compatible provider behavior.
+
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain
 available for auditability.

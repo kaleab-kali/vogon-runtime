@@ -50,6 +50,9 @@ Confirm that:
 - If Groq adapter or deployment behavior changed, the optional `Live Groq
   Smoke` workflow has passed with `GROQ_API_KEY` configured as a repository or
   environment secret.
+- If Hugging Face adapter or deployment behavior changed, the optional `Live
+  Hugging Face Smoke` workflow has passed with `HF_TOKEN` configured as a
+  repository or environment secret.
 - If container packaging changed, the container smoke commands above pass.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 

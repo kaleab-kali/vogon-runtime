@@ -8,10 +8,12 @@ use clap::{Parser, Subcommand};
 
 use commands::run::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
-    DEFAULT_GROQ_MODEL, DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
-    DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
-    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES, MAX_GROQ_RETRIES,
-    MAX_OPENAI_COMPATIBLE_RETRIES, ModelProvider, RunModelConfig,
+    DEFAULT_GROQ_MODEL, DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_MAX_RETRIES,
+    DEFAULT_HUGGING_FACE_MODEL, DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS,
+    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES,
+    MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES, ModelProvider,
+    RunModelConfig,
 };
 use commands::verify::VerifyModelConfig;
 
@@ -75,6 +77,18 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_GROQ_MAX_RETRIES, value_parser = parse_groq_max_retries)]
         groq_max_retries: u32,
 
+        /// Hugging Face model name when `--provider hugging-face` is selected.
+        #[arg(long, default_value = DEFAULT_HUGGING_FACE_MODEL)]
+        hugging_face_model: String,
+
+        /// Hugging Face request timeout in seconds when `--provider hugging-face` is selected.
+        #[arg(long, default_value_t = DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        hugging_face_timeout_seconds: u64,
+
+        /// Hugging Face retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_HUGGING_FACE_MAX_RETRIES, value_parser = parse_hugging_face_max_retries)]
+        hugging_face_max_retries: u32,
+
         /// OpenAI-compatible base URL when `--provider openai-compatible` is selected.
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
         openai_compatible_base_url: String,
@@ -132,6 +146,18 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_GROQ_MAX_RETRIES, value_parser = parse_groq_max_retries)]
         groq_max_retries: u32,
 
+        /// Hugging Face model name when verifying with the Hugging Face provider.
+        #[arg(long, default_value = DEFAULT_HUGGING_FACE_MODEL)]
+        hugging_face_model: String,
+
+        /// Hugging Face request timeout in seconds when verifying with Hugging Face.
+        #[arg(long, default_value_t = DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        hugging_face_timeout_seconds: u64,
+
+        /// Hugging Face retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_HUGGING_FACE_MAX_RETRIES, value_parser = parse_hugging_face_max_retries)]
+        hugging_face_max_retries: u32,
+
         /// OpenAI-compatible base URL when verifying with an OpenAI-compatible provider.
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
         openai_compatible_base_url: String,
@@ -182,6 +208,14 @@ fn parse_groq_max_retries(value: &str) -> Result<u32, String> {
     parse_retry_count(value, "--groq-max-retries", MAX_GROQ_RETRIES)
 }
 
+fn parse_hugging_face_max_retries(value: &str) -> Result<u32, String> {
+    parse_retry_count(
+        value,
+        "--hugging-face-max-retries",
+        MAX_HUGGING_FACE_RETRIES,
+    )
+}
+
 fn parse_openai_compatible_max_retries(value: &str) -> Result<u32, String> {
     parse_retry_count(
         value,
@@ -219,6 +253,9 @@ fn main() -> ExitCode {
             groq_model,
             groq_timeout_seconds,
             groq_max_retries,
+            hugging_face_model,
+            hugging_face_timeout_seconds,
+            hugging_face_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
             openai_compatible_timeout_seconds,
@@ -238,6 +275,9 @@ fn main() -> ExitCode {
                 groq_model: &groq_model,
                 groq_timeout_seconds,
                 groq_max_retries,
+                hugging_face_model: &hugging_face_model,
+                hugging_face_timeout_seconds,
+                hugging_face_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
                 openai_compatible_timeout_seconds,
@@ -252,6 +292,9 @@ fn main() -> ExitCode {
             groq_model,
             groq_timeout_seconds,
             groq_max_retries,
+            hugging_face_model,
+            hugging_face_timeout_seconds,
+            hugging_face_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
             openai_compatible_timeout_seconds,
@@ -273,6 +316,9 @@ fn main() -> ExitCode {
                 groq_model: &groq_model,
                 groq_timeout_seconds,
                 groq_max_retries,
+                hugging_face_model: &hugging_face_model,
+                hugging_face_timeout_seconds,
+                hugging_face_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
                 openai_compatible_timeout_seconds,

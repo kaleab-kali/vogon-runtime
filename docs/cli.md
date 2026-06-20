@@ -132,6 +132,18 @@ model is `llama-3.1-8b-instant`. Use `--groq-model`,
 `--groq-timeout-seconds`, and `--groq-max-retries` to adjust the model and
 network bounds.
 
+Run with Hugging Face Inference Providers by setting `HF_TOKEN` and selecting
+the Hugging Face provider:
+
+```sh
+HF_TOKEN=... cargo run -p vogon-cli -- run --provider hugging-face fixtures/workflows/support-triage.toml
+```
+
+The default model is `openai/gpt-oss-120b:fastest`, routed through
+`https://router.huggingface.co/v1`. Use `--hugging-face-model`,
+`--hugging-face-timeout-seconds`, and `--hugging-face-max-retries` to adjust the
+model and network bounds.
+
 Write the replay JSON to a file:
 
 ```sh
