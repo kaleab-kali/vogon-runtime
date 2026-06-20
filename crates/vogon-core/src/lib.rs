@@ -45,7 +45,7 @@ mod runtime;
 mod step;
 mod workflow;
 
-pub use cache::RunCache;
+pub use cache::{DEFAULT_RUN_CACHE_MAX_ENTRIES, RunCache};
 pub use error::{Result, VogonError};
 pub use events::RuntimeEvent;
 pub use hash::stable_hash;

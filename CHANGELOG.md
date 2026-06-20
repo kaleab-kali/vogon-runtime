@@ -86,6 +86,8 @@ and this project follows semantic versioning once the first release is tagged.
   values before printing human-readable or JSON output.
 - CLI workflow and replay file reads now reject inputs larger than 1 MiB before
   buffering them into memory.
+- `RunCache` now has a bounded entry limit with explicit output removal and
+  clearing APIs.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.

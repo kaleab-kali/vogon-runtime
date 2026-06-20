@@ -25,4 +25,6 @@ events without coupling `vogon-core` to a tracing backend.
 
 Runtime calls can also use an optional `RunCache` keyed by stable step input
 hashes. The cache stores raw adapter outputs, so callers can apply different
-redaction rules to cached outputs without changing cache keys.
+redaction rules to cached outputs without changing cache keys. `RunCache` is
+bounded by entry count, supports explicit removal and clearing, and uses a
+default limit of 1024 outputs for long-lived callers.
