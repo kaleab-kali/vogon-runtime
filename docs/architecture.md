@@ -19,6 +19,11 @@ providers that expose `/chat/completions`, including Hugging Face Inference
 Providers and OpenRouter-style routers, while preserving deterministic local
 execution as the default CLI path.
 
+Adapters also provide non-secret runtime metadata for replay reports. This lets
+saved replays record provider family, adapter implementation, adapter version,
+model, cache identity, and runtime parameters without coupling `vogon-core` to
+provider SDKs or credentials.
+
 Runtime execution can emit `RuntimeEvent` values through observer callbacks.
 This keeps observability provider-neutral: callers can log, count, or export
 events without coupling `vogon-core` to a tracing backend.

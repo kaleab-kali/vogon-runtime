@@ -1,5 +1,16 @@
 {
+  "schema_version": 1,
   "workflow_name": "support-triage",
+  "runtime": {
+    "provider": "deterministic",
+    "adapter": "deterministic-echo",
+    "adapter_version": "0.1.0",
+    "model": "deterministic-echo",
+    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1",
+    "parameters": {
+      "mode": "offline"
+    }
+  },
   "run_hash": "9c6fc55019bf7f5d510fa76a7f30c52470f14fdbdb0b1667362727b65dc3a291",
   "steps": [
     {

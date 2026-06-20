@@ -1,10 +1,23 @@
 # Replay Format
 
-The first replay format is JSON.
+The replay format is JSON. Current replays include an explicit
+`schema_version` and non-secret runtime metadata. Legacy unversioned replay
+files can still be read as schema version `0`.
 
 ```json
 {
+  "schema_version": 1,
   "workflow_name": "support-triage",
+  "runtime": {
+    "provider": "deterministic",
+    "adapter": "deterministic-echo",
+    "adapter_version": "0.1.0",
+    "model": "deterministic-echo",
+    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1",
+    "parameters": {
+      "mode": "offline"
+    }
+  },
   "run_hash": "sha256-hex",
   "steps": [
     {
@@ -18,12 +31,19 @@ The first replay format is JSON.
 ```
 
 The schema will stay small until the runtime has stable verification semantics.
-Unknown top-level replay fields and unknown step fields are rejected. Hash
+Unknown top-level replay fields, unknown runtime metadata fields, and unknown
+step fields are rejected. `schema_version` must be a supported version. Hash
 fields must be 64-character lowercase hexadecimal SHA-256 digests.
 `workflow_name` uses the same portable identifier rule as workflow files: ASCII
 letters, ASCII digits, underscores, and hyphens only.
 `steps` must contain at least one step result because Vogon does not produce
 empty workflow replays. Step IDs inside a replay must be unique.
+
+Runtime metadata records non-secret provider provenance for auditability. The
+metadata includes the provider family, adapter implementation, adapter version,
+model when present, cache identity, and provider/runtime parameters such as
+base URL, timeout, and retry count. Credentials and private prompt/output data
+must not be stored in runtime metadata.
 
 ## Redaction
 

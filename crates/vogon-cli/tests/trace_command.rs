@@ -41,6 +41,9 @@ fn trace_command_prints_replay_summary() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Workflow: support-triage"));
+    assert!(stdout.contains("Replay schema: 1"));
+    assert!(stdout.contains("Provider: deterministic"));
+    assert!(stdout.contains("Model: deterministic-echo"));
     assert!(stdout.contains("[1] classify"));
     assert!(stdout.contains("[2] draft_response"));
 }
@@ -69,7 +72,9 @@ fn trace_command_can_emit_jsonl() {
 
     assert_eq!(lines.len(), 3);
     assert_eq!(lines[0]["event"], "run");
+    assert_eq!(lines[0]["schema_version"], 1);
     assert_eq!(lines[0]["workflow_name"], "support-triage");
+    assert_eq!(lines[0]["runtime"]["provider"], "deterministic");
     assert_eq!(lines[1]["event"], "step");
     assert_eq!(lines[1]["step_id"], "classify");
 }

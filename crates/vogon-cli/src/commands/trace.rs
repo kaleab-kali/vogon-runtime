@@ -30,6 +30,12 @@ pub fn run(
     }
 
     println!("Workflow: {}", replay.workflow_name);
+    println!("Replay schema: {}", replay.schema_version);
+    println!("Provider: {}", replay.runtime.provider);
+    println!("Adapter: {}", replay.runtime.adapter);
+    if let Some(model) = replay.runtime.model.as_deref() {
+        println!("Model: {model}");
+    }
     println!("Run hash: {}", replay.run_hash);
     println!("Steps: {}", replay.steps.len());
 
@@ -52,7 +58,9 @@ fn print_jsonl_trace(
         "{}",
         serde_json::to_string(&serde_json::json!({
             "event": "run",
+            "schema_version": replay.schema_version,
             "workflow_name": replay.workflow_name,
+            "runtime": &replay.runtime,
             "run_hash": replay.run_hash,
             "step_count": replay.steps.len()
         }))?

@@ -174,13 +174,15 @@ cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml f
 
 ## `vogon trace`
 
-Prints a human-readable replay trace.
+Prints a human-readable replay trace, including replay schema and runtime
+metadata.
 
 ```sh
 cargo run -p vogon-cli -- trace fixtures/replays/support-triage.replay.json
 ```
 
-Emit newline-delimited JSON for tools and logs:
+Emit newline-delimited JSON for tools and logs. The first run event includes
+replay schema and runtime metadata:
 
 ```sh
 cargo run -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json

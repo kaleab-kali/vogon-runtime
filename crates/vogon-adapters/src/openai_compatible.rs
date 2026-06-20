@@ -1,7 +1,7 @@
 use std::{env, fmt, io::Read, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use vogon_core::{ModelAdapter, Result, Step, VogonError};
+use vogon_core::{ModelAdapter, Result, RuntimeMetadata, Step, VogonError};
 
 use crate::retry::sleep_before_retry;
 
@@ -232,6 +232,19 @@ impl ModelAdapter for OpenAiCompatibleModel {
             self.max_retries
         )
     }
+
+    fn runtime_metadata(&self) -> RuntimeMetadata {
+        RuntimeMetadata::new(
+            "openai-compatible",
+            "openai-compatible-chat-completions",
+            env!("CARGO_PKG_VERSION"),
+            self.cache_identity(),
+        )
+        .with_model(self.model.clone())
+        .with_parameter("base_url", self.base_url.trim_end_matches('/'))
+        .with_parameter("timeout_nanos", self.timeout.as_nanos().to_string())
+        .with_parameter("max_retries", self.max_retries.to_string())
+    }
 }
 
 fn is_retryable_error(error: &ureq::Error) -> bool {
@@ -369,6 +382,28 @@ mod tests {
         assert!(identity.contains("https://example.test/v1"));
         assert!(identity.contains("example/model"));
         assert!(!identity.contains("secret-key"));
+    }
+
+    #[test]
+    fn runtime_metadata_includes_runtime_parameters_and_omits_api_key() {
+        let model = OpenAiCompatibleModel::with_base_url_model_timeout_and_retries(
+            "secret-key",
+            "https://example.test/v1/",
+            "example/model",
+            Duration::from_secs(5),
+            1,
+        )
+        .unwrap();
+
+        let metadata = model.runtime_metadata();
+
+        assert_eq!(metadata.provider, "openai-compatible");
+        assert_eq!(metadata.model.as_deref(), Some("example/model"));
+        assert_eq!(
+            metadata.parameters.get("max_retries").map(String::as_str),
+            Some("1")
+        );
+        assert!(!metadata.cache_identity.contains("secret-key"));
     }
 
     #[test]
