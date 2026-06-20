@@ -111,7 +111,9 @@ same smoke can target Hugging Face, OpenRouter, or another compatible endpoint.
 Run the relevant live provider workflow from GitHub Actions after changing
 adapter behavior, provider configuration, release packaging, or deployment
 settings that affect real provider calls. These workflows write replays to
-`target/`, check replay shape, and do not upload provider outputs as artifacts.
+`target/`, check replay shape, assert provider runtime metadata, confirm API
+keys are absent from the serialized replay, and do not upload provider outputs
+as artifacts.
 
 Official references:
 

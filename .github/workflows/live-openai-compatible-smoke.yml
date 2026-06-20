@@ -64,6 +64,8 @@ jobs:
 
           base_url="${OPENAI_COMPATIBLE_BASE_URL:-https://router.huggingface.co/v1}"
           model="${OPENAI_COMPATIBLE_MODEL:-openai/gpt-oss-120b:fastest}"
+          export OPENAI_COMPATIBLE_BASE_URL="$base_url"
+          export OPENAI_COMPATIBLE_MODEL="$model"
 
           ./target/release/vogon run \
             --provider openai-compatible \
@@ -77,12 +79,25 @@ jobs:
 
           python3 - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           replay = json.loads(Path("target/live-openai-compatible-smoke.replay.json").read_text())
+          base_url = os.environ["OPENAI_COMPATIBLE_BASE_URL"].rstrip("/")
+          model = os.environ["OPENAI_COMPATIBLE_MODEL"]
+
           assert replay["workflow_name"] == "support-triage"
+          assert replay["schema_version"] == 1
+          runtime = replay["runtime"]
+          assert runtime["provider"] == "openai-compatible"
+          assert runtime["adapter"] == "openai-compatible-chat-completions"
+          assert runtime["model"] == model
+          assert runtime["parameters"]["base_url"] == base_url
+          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
+          assert runtime["parameters"]["max_retries"] == "2"
           assert len(replay["steps"]) == 2
           for step in replay["steps"]:
               assert step["output"]
               assert "[REDACTED:openai_compatible_api_key]" not in step["output"]
+          assert os.environ["OPENAI_COMPATIBLE_API_KEY"] not in json.dumps(replay)
           PY
