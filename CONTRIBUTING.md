@@ -66,6 +66,7 @@ The `main` branch is protected. Pull requests must pass:
 - `Container image smoke`
 - `Windows release smoke`
 - `Dependency review`
+- `CodeQL Rust analysis`
 - `Minimum supported Rust`
 - `RustSec advisory audit` when Rust dependency files or the audit workflow
   change

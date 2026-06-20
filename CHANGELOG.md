@@ -69,6 +69,8 @@ and this project follows semantic versioning once the first release is tagged.
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
+- CodeQL static analysis for Rust code on pull requests, pushes, schedules, and
+  manual maintainer runs.
 - Workspace crate package archive validation in CI.
 - RustSec advisory auditing for committed Rust dependencies.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
