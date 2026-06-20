@@ -25,6 +25,11 @@ target/install-smoke/bin/vogon --version
 target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
+docker build --tag vogon-runtime:smoke .
+docker run --rm vogon-runtime:smoke --version
+docker run --rm -v "$PWD:/work" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
+docker run --rm -v "$PWD:/work" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+docker run --rm -v "$PWD:/work" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
@@ -42,6 +47,7 @@ Confirm that:
 - If OpenAI-compatible adapter or deployment behavior changed, the optional
   `Live OpenAI-Compatible Smoke` workflow has passed with
   `OPENAI_COMPATIBLE_API_KEY` configured as a repository or environment secret.
+- If container packaging changed, the container smoke commands above pass.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
 GitHub Actions workflows set `CARGO_NET_RETRY=10` for Cargo commands so
