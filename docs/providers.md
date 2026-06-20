@@ -94,15 +94,22 @@ workflow only when `GEMINI_API_KEY` is available as a repository or environment
 secret. It is manual by default so pull request CI stays deterministic and does
 not depend on provider availability, account quota, or network behavior.
 
-Run it from GitHub Actions after changing Gemini adapter behavior, provider
-configuration, release packaging, or deployment settings that affect real
-provider calls. The workflow writes its replay to `target/`, checks the replay
-shape, and does not upload the replay as an artifact.
+The `Live OpenAI-Compatible Smoke` workflow does the same for the
+OpenAI-compatible adapter when `OPENAI_COMPATIBLE_API_KEY` is configured. Its
+manual dispatch inputs let maintainers override the base URL and model, so the
+same smoke can target Hugging Face, OpenRouter, or another compatible endpoint.
+
+Run the relevant live provider workflow from GitHub Actions after changing
+adapter behavior, provider configuration, release packaging, or deployment
+settings that affect real provider calls. These workflows write replays to
+`target/`, check replay shape, and do not upload provider outputs as artifacts.
 
 Official references:
 
 - Gemini API pricing: <https://ai.google.dev/gemini-api/docs/pricing>
 - Gemini text generation API: <https://ai.google.dev/gemini-api/docs/text-generation>
+- Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
+- OpenRouter docs: <https://openrouter.ai/docs>
 
 ## Candidate Providers
 

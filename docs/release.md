@@ -35,9 +35,12 @@ Confirm that:
 - The GitHub Actions CI workflow has passed on `main`.
 - The Security Audit workflow has a recent successful run for the committed
   `Cargo.lock`.
-- If provider adapter or deployment behavior changed, the optional `Live Gemini
+- If Gemini adapter or deployment behavior changed, the optional `Live Gemini
   Smoke` workflow has passed with `GEMINI_API_KEY` configured as a repository or
   environment secret.
+- If OpenAI-compatible adapter or deployment behavior changed, the optional
+  `Live OpenAI-Compatible Smoke` workflow has passed with
+  `OPENAI_COMPATIBLE_API_KEY` configured as a repository or environment secret.
 - No private prompts, credentials, secrets, or sensitive replay data are present.
 
 GitHub Actions workflows set `CARGO_NET_RETRY=10` for Cargo commands so
