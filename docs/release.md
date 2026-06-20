@@ -12,6 +12,7 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check -p vogon-cli --no-default-features
+python -m unittest scripts.test_write_spdx_sbom
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
@@ -105,8 +106,9 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Includes `README.md` and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
   `vogon-v0.1.0-cargo-metadata.json`.
+- Writes an SPDX 2.3 JSON SBOM as `vogon-v0.1.0-cargo-spdx.json`.
 - Writes SHA-256 checksum files for each archive.
-- Writes a SHA-256 checksum file for the dependency metadata.
+- Writes SHA-256 checksum files for the dependency metadata and SBOM.
 - Generates GitHub artifact attestations for each release archive.
 - Creates a GitHub release for the tag and uploads both archives with their
   checksum files.
@@ -142,12 +144,13 @@ Expand-Archive .\vogon-v0.1.0-windows-x86_64.zip -DestinationPath .\vogon-releas
 
 Use the real version number in place of `v0.1.0`.
 
-The release also publishes `vogon-v0.1.0-cargo-metadata.json` and a matching
-`.sha256` file. Verify it the same way before inspecting locked dependency
-metadata:
+The release also publishes `vogon-v0.1.0-cargo-metadata.json`,
+`vogon-v0.1.0-cargo-spdx.json`, and matching `.sha256` files. Verify them the
+same way before inspecting locked dependency metadata or SBOM contents:
 
 ```sh
 sha256sum -c vogon-v0.1.0-cargo-metadata.json.sha256
+sha256sum -c vogon-v0.1.0-cargo-spdx.json.sha256
 ```
 
 The release also publishes a container image archive and checksum:

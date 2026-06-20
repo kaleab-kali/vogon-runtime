@@ -69,6 +69,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Release jobs now smoke test machine-readable `check` and `verify` output.
 - Release jobs now generate provenance attestations for packaged archives.
 - Release jobs now publish locked Cargo dependency metadata with a checksum.
+- Release jobs now publish SPDX dependency SBOMs with checksums.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
