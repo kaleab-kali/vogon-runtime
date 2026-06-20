@@ -1,7 +1,8 @@
 use serde::Serialize;
 
 use crate::commands::run::{
-    DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MODEL, DEFAULT_HUGGING_FACE_BASE_URL,
+    DEFAULT_HUGGING_FACE_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
     DEFAULT_OPENAI_COMPATIBLE_MODEL,
 };
 
@@ -48,6 +49,7 @@ fn provider_statuses() -> Vec<ProviderStatus> {
         },
         gemini_status(),
         groq_status(),
+        hugging_face_status(),
         openai_compatible_status(),
     ]
 }
@@ -101,6 +103,32 @@ fn groq_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_GROQ_BASE_URL),
         default_model: Some(DEFAULT_GROQ_MODEL),
+    }
+}
+
+#[cfg(feature = "openai-compatible")]
+fn hugging_face_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "hugging-face",
+        enabled: true,
+        default: false,
+        credential_env: Some("HF_TOKEN"),
+        credential_configured: Some(env_is_configured("HF_TOKEN")),
+        default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
+        default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
+    }
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn hugging_face_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "hugging-face",
+        enabled: false,
+        default: false,
+        credential_env: Some("HF_TOKEN"),
+        credential_configured: None,
+        default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
+        default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
     }
 }
 

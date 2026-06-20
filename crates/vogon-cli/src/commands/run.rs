@@ -9,6 +9,8 @@ use vogon_adapters::GeminiModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::GroqModel;
 #[cfg(feature = "openai-compatible")]
+use vogon_adapters::HuggingFaceModel;
+#[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "gemini")]
 pub use vogon_adapters::{
@@ -17,9 +19,11 @@ pub use vogon_adapters::{
 #[cfg(feature = "openai-compatible")]
 pub use vogon_adapters::{
     DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MAX_RETRIES, DEFAULT_GROQ_MODEL,
-    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
-    DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
-    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GROQ_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
+    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_BASE_URL, DEFAULT_HUGGING_FACE_MAX_RETRIES,
+    DEFAULT_HUGGING_FACE_MODEL, DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS,
+    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GROQ_RETRIES,
+    MAX_HUGGING_FACE_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
 };
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
@@ -52,6 +56,16 @@ pub const DEFAULT_GROQ_TIMEOUT_SECONDS: u64 = 30;
 pub const DEFAULT_GROQ_MAX_RETRIES: u32 = 2;
 #[cfg(not(feature = "openai-compatible"))]
 pub const MAX_GROQ_RETRIES: u32 = 20;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_HUGGING_FACE_BASE_URL: &str = "https://router.huggingface.co/v1";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_HUGGING_FACE_MODEL: &str = "openai/gpt-oss-120b:fastest";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_HUGGING_FACE_MAX_RETRIES: u32 = 2;
+#[cfg(not(feature = "openai-compatible"))]
+pub const MAX_HUGGING_FACE_RETRIES: u32 = 20;
 
 pub fn run(
     workflow_file: &Path,
@@ -90,6 +104,8 @@ pub enum ModelProvider {
     Deterministic,
     Gemini,
     Groq,
+    #[value(name = "hugging-face")]
+    HuggingFace,
     #[value(name = "openai-compatible")]
     OpenAiCompatible,
 }
@@ -100,6 +116,7 @@ impl ModelProvider {
             "deterministic" | "legacy" => Some(Self::Deterministic),
             "gemini" => Some(Self::Gemini),
             "groq" => Some(Self::Groq),
+            "hugging-face" => Some(Self::HuggingFace),
             "openai-compatible" => Some(Self::OpenAiCompatible),
             _ => None,
         }
@@ -115,6 +132,9 @@ pub struct RunModelConfig<'a> {
     pub groq_model: &'a str,
     pub groq_timeout_seconds: u64,
     pub groq_max_retries: u32,
+    pub hugging_face_model: &'a str,
+    pub hugging_face_timeout_seconds: u64,
+    pub hugging_face_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
     pub openai_compatible_timeout_seconds: u64,
@@ -143,6 +163,13 @@ fn run_with_model(
             model_config.groq_model,
             model_config.groq_timeout_seconds,
             model_config.groq_max_retries,
+        ),
+        ModelProvider::HuggingFace => run_with_hugging_face(
+            workflow,
+            redactions,
+            model_config.hugging_face_model,
+            model_config.hugging_face_timeout_seconds,
+            model_config.hugging_face_max_retries,
         ),
         ModelProvider::OpenAiCompatible => run_with_openai_compatible(
             workflow,
@@ -230,6 +257,40 @@ fn run_with_groq(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Groq provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn run_with_hugging_face(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    run_with_adapter(
+        HuggingFaceModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        redactions,
+    )
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn run_with_hugging_face(
+    _workflow: &vogon_core::Workflow,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Hugging Face provider support is not enabled in this build",
     )
     .into())
 }

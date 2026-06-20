@@ -332,6 +332,26 @@ fn verify_command_defaults_to_groq_replay_provider_metadata() {
 }
 
 #[test]
+fn verify_command_defaults_to_hugging_face_replay_provider_metadata() {
+    let replay = std::env::temp_dir()
+        .join("vogon-cli-tests")
+        .join("auto-hugging-face-provider-support-triage.replay.json");
+    write_hugging_face_metadata_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .env_remove("HF_TOKEN")
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("HF_TOKEN must be set"));
+}
+
+#[test]
 fn verify_command_can_emit_json_mismatch_report() {
     let replay = repo_root()
         .join("target")
@@ -655,6 +675,25 @@ fn write_groq_metadata_replay(path: &Path) {
         "cache_identity": "vogon-adapters@0.1.0:groq:v1:base=https://api.groq.com/openai/v1:model=llama-3.1-8b-instant:timeout_nanos=30000000000:max_retries=2",
         "parameters": {
             "base_url": "https://api.groq.com/openai/v1",
+            "timeout_nanos": "30000000000",
+            "max_retries": "2"
+        }
+    });
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_hugging_face_metadata_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["runtime"] = serde_json::json!({
+        "provider": "hugging-face",
+        "adapter": "hugging-face-openai-compatible-chat-completions",
+        "adapter_version": "0.1.0",
+        "model": "openai/gpt-oss-120b:fastest",
+        "cache_identity": "vogon-adapters@0.1.0:hugging-face:v1:base=https://router.huggingface.co/v1:model=openai/gpt-oss-120b:fastest:timeout_nanos=30000000000:max_retries=2",
+        "parameters": {
+            "base_url": "https://router.huggingface.co/v1",
             "timeout_nanos": "30000000000",
             "max_retries": "2"
         }

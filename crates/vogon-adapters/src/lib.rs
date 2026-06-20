@@ -5,9 +5,9 @@
 //!
 //! The current crate exposes [`DeterministicEchoModel`], a deterministic adapter
 //! intended for local development, tests, examples, and replay fixtures. With
-//! default features enabled, it also exposes [`GeminiModel`] and
-//! [`OpenAiCompatibleModel`] and [`GroqModel`] for real provider-backed API
-//! calls.
+//! default features enabled, it also exposes [`GeminiModel`],
+//! [`OpenAiCompatibleModel`], [`HuggingFaceModel`], and [`GroqModel`] for real
+//! provider-backed API calls.
 //!
 //! ```
 //! use vogon_adapters::DeterministicEchoModel;
@@ -34,6 +34,8 @@ mod gemini;
 #[cfg(feature = "openai-compatible")]
 mod groq;
 #[cfg(feature = "openai-compatible")]
+mod hugging_face;
+#[cfg(feature = "openai-compatible")]
 mod openai_compatible;
 #[cfg(any(feature = "gemini", feature = "openai-compatible"))]
 mod retry;
@@ -48,6 +50,11 @@ pub use gemini::{
 pub use groq::{
     DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MAX_RETRIES, DEFAULT_GROQ_MODEL,
     DEFAULT_GROQ_TIMEOUT_SECONDS, GroqModel, MAX_GROQ_RETRIES,
+};
+#[cfg(feature = "openai-compatible")]
+pub use hugging_face::{
+    DEFAULT_HUGGING_FACE_BASE_URL, DEFAULT_HUGGING_FACE_MAX_RETRIES, DEFAULT_HUGGING_FACE_MODEL,
+    DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, HuggingFaceModel, MAX_HUGGING_FACE_RETRIES,
 };
 #[cfg(feature = "openai-compatible")]
 pub use openai_compatible::{

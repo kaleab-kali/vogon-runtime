@@ -62,6 +62,7 @@ fn providers_command_reports_json_without_secret_values() {
         .arg("--json")
         .env("GEMINI_API_KEY", "secret-gemini-key")
         .env("GROQ_API_KEY", "secret-groq-key")
+        .env("HF_TOKEN", "secret-hugging-face-token")
         .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
         .output()
         .expect("providers command should execute");
@@ -75,6 +76,7 @@ fn providers_command_reports_json_without_secret_values() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(!stdout.contains("secret-gemini-key"));
     assert!(!stdout.contains("secret-groq-key"));
+    assert!(!stdout.contains("secret-hugging-face-token"));
     assert!(!stdout.contains("secret-openai-compatible-key"));
 
     let report: serde_json::Value =
@@ -98,6 +100,13 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["default_base_url"] == "https://api.groq.com/openai/v1"
             && provider["default_model"] == "llama-3.1-8b-instant"
+    }));
+    assert!(providers.iter().any(|provider| {
+        provider["name"] == "hugging-face"
+            && provider["credential_env"] == "HF_TOKEN"
+            && provider["credential_configured"] == true
+            && provider["default_base_url"] == "https://router.huggingface.co/v1"
+            && provider["default_model"] == "openai/gpt-oss-120b:fastest"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openai-compatible"
@@ -131,6 +140,9 @@ fn run_help_documents_replay_options() {
         "--groq-model <GROQ_MODEL>",
         "--groq-timeout-seconds <GROQ_TIMEOUT_SECONDS>",
         "--groq-max-retries <GROQ_MAX_RETRIES>",
+        "--hugging-face-model <HUGGING_FACE_MODEL>",
+        "--hugging-face-timeout-seconds <HUGGING_FACE_TIMEOUT_SECONDS>",
+        "--hugging-face-max-retries <HUGGING_FACE_MAX_RETRIES>",
         "--openai-compatible-base-url <OPENAI_COMPATIBLE_BASE_URL>",
         "--openai-compatible-model <OPENAI_COMPATIBLE_MODEL>",
         "--openai-compatible-timeout-seconds <OPENAI_COMPATIBLE_TIMEOUT_SECONDS>",

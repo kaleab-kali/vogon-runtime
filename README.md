@@ -43,7 +43,8 @@ verification can be developed without network access. The CLI can also run and
 verify workflows with the Gemini API when `GEMINI_API_KEY` is set, or with an
 OpenAI-compatible chat-completions endpoint when `OPENAI_COMPATIBLE_API_KEY` is
 set. It also includes a Groq preset for Groq's OpenAI-compatible endpoint when
-`GROQ_API_KEY` is set.
+`GROQ_API_KEY` is set, and a Hugging Face preset for Hugging Face Inference
+Providers when `HF_TOKEN` is set.
 
 ## Requirements
 
@@ -88,6 +89,12 @@ Run a workflow with Groq's OpenAI-compatible endpoint:
 GROQ_API_KEY=... cargo run -p vogon-cli -- run --provider groq fixtures/workflows/support-triage.toml
 ```
 
+Run a workflow with Hugging Face Inference Providers:
+
+```sh
+HF_TOKEN=... cargo run -p vogon-cli -- run --provider hugging-face fixtures/workflows/support-triage.toml
+```
+
 The default OpenAI-compatible base URL is Hugging Face Inference Providers'
 OpenAI-compatible router, and the default model is
 `openai/gpt-oss-120b:fastest`. Override both for OpenRouter or another
@@ -114,6 +121,11 @@ by default. Use `--openai-compatible-timeout-seconds` and
 Groq requests use the same default timeout and retry count. Use
 `--groq-model`, `--groq-timeout-seconds`, and `--groq-max-retries` when a
 workflow needs a different Groq model or stricter network bounds.
+
+Hugging Face requests also use the same default timeout and retry count. Use
+`--hugging-face-model`, `--hugging-face-timeout-seconds`, and
+`--hugging-face-max-retries` when a workflow needs a different model or stricter
+network bounds.
 
 Validate a TOML workflow without executing it:
 
@@ -253,11 +265,15 @@ Already available:
 - Opt-in OpenAI-compatible chat-completions execution for providers such as
   Hugging Face Inference Providers and OpenRouter.
 - Opt-in Groq execution through Groq's OpenAI-compatible endpoint.
+- Opt-in Hugging Face execution through Hugging Face Inference Providers'
+  OpenAI-compatible endpoint.
 - Manual live Gemini smoke testing for maintainers with `GEMINI_API_KEY`
   configured in GitHub Actions.
 - Manual live OpenAI-compatible smoke testing for maintainers with
   `OPENAI_COMPATIBLE_API_KEY` configured in GitHub Actions.
 - Manual live Groq smoke testing for maintainers with `GROQ_API_KEY`
+  configured in GitHub Actions.
+- Manual live Hugging Face smoke testing for maintainers with `HF_TOKEN`
   configured in GitHub Actions.
 - Deterministic replay log generation.
 - Provider-aware replay verification with structured mismatch errors.
