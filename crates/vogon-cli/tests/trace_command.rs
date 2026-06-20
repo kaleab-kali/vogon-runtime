@@ -4,6 +4,8 @@ use std::{
     process::Command,
 };
 
+const OVERSIZED_INPUT_BYTES: usize = 1024 * 1024 + 1;
+
 fn support_triage_replay() -> PathBuf {
     repo_root()
         .join("fixtures")
@@ -158,6 +160,28 @@ fn trace_command_reports_malformed_replay_path() {
 }
 
 #[test]
+fn trace_command_rejects_oversized_replay_file() {
+    let oversized_replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("oversized-trace.replay.json");
+    write_oversized_file(&oversized_replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("trace")
+        .arg(&oversized_replay)
+        .output()
+        .expect("trace command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("replay file"));
+    assert!(stderr.contains("exceeding the 1 MiB limit"));
+    assert!(stderr.contains(&oversized_replay.display().to_string()));
+}
+
+#[test]
 fn trace_command_rejects_unknown_replay_fields() {
     let replay = repo_root()
         .join("target")
@@ -307,6 +331,11 @@ fn trace_command_rejects_malformed_redaction_marker_labels() {
 fn write_malformed_replay(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "{").unwrap();
+}
+
+fn write_oversized_file(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "x".repeat(OVERSIZED_INPUT_BYTES)).unwrap();
 }
 
 fn write_unknown_replay(path: &Path) {

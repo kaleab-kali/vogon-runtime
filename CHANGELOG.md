@@ -84,6 +84,8 @@ and this project follows semantic versioning once the first release is tagged.
   prose fragments that are not complete markers.
 - Verification mismatch reports now redact both expected and actual step output
   values before printing human-readable or JSON output.
+- CLI workflow and replay file reads now reject inputs larger than 1 MiB before
+  buffering them into memory.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.
