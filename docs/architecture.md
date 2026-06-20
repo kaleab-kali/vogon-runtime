@@ -23,8 +23,12 @@ Runtime execution can emit `RuntimeEvent` values through observer callbacks.
 This keeps observability provider-neutral: callers can log, count, or export
 events without coupling `vogon-core` to a tracing backend.
 
-Runtime calls can also use an optional `RunCache` keyed by stable step input
-hashes. The cache stores raw adapter outputs, so callers can apply different
-redaction rules to cached outputs without changing cache keys. `RunCache` is
-bounded by entry count, supports explicit removal and clearing, and uses a
-default limit of 1024 outputs for long-lived callers.
+Runtime calls can also use an optional `RunCache`. Runtime cache keys combine
+the adapter cache identity with each stable step input hash, then hash that
+material before lookup. Provider-backed adapters include non-secret provider
+configuration such as adapter kind, endpoint, and model in their cache identity
+so outputs are not reused across incompatible providers or models. The cache
+stores raw adapter outputs, so callers can apply different redaction rules to
+cached outputs without changing cache keys. `RunCache` is bounded by entry
+count, supports explicit removal and clearing, and uses a default limit of 1024
+outputs for long-lived callers.

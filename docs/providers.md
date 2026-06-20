@@ -147,6 +147,8 @@ New provider adapters should:
 - Keep `vogon-core` provider-neutral.
 - Keep deterministic execution as the default test and fixture path.
 - Avoid printing or logging API keys.
+- Override `ModelAdapter::cache_identity` with non-secret provider, endpoint,
+  model, and behavior-affecting configuration.
 - Return provider failures as `VogonError::Adapter` with actionable context.
 - Bound network calls with explicit timeouts.
 - Keep retries bounded and configurable.

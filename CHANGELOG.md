@@ -90,6 +90,8 @@ and this project follows semantic versioning once the first release is tagged.
   clearing APIs.
 - Provider adapters now apply exponential backoff with lightweight jitter before
   retrying transient failures.
+- Runtime cache keys now include adapter cache identity so cached outputs are
+  scoped by provider, endpoint, model, and adapter implementation.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.

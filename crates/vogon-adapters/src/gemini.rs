@@ -24,6 +24,7 @@ pub struct GeminiModel {
     api_key: String,
     model: String,
     api_base: String,
+    timeout: Duration,
     max_retries: u32,
     agent: ureq::Agent,
 }
@@ -124,6 +125,7 @@ impl GeminiModel {
             api_key,
             model,
             api_base,
+            timeout,
             max_retries,
             agent: ureq::Agent::config_builder()
                 .timeout_global(Some(timeout))
@@ -149,6 +151,7 @@ impl fmt::Debug for GeminiModel {
             .field("api_key", &"<redacted>")
             .field("model", &self.model)
             .field("api_base", &self.api_base)
+            .field("timeout", &self.timeout)
             .field("max_retries", &self.max_retries)
             .finish_non_exhaustive()
     }
@@ -200,6 +203,17 @@ impl ModelAdapter for GeminiModel {
         extract_text(&response).ok_or_else(|| {
             VogonError::Adapter("Gemini API response did not include text output".to_owned())
         })
+    }
+
+    fn cache_identity(&self) -> String {
+        format!(
+            "vogon-adapters@{}:gemini:v1:base={}:model={}:timeout_nanos={}:max_retries={}",
+            env!("CARGO_PKG_VERSION"),
+            self.api_base.trim_end_matches('/'),
+            self.model,
+            self.timeout.as_nanos(),
+            self.max_retries
+        )
     }
 }
 
@@ -330,6 +344,17 @@ mod tests {
 
         assert!(debug.contains("<redacted>"));
         assert!(!debug.contains("secret-key"));
+    }
+
+    #[test]
+    fn cache_identity_includes_model_and_omits_api_key() {
+        let model = GeminiModel::with_model("secret-key", "gemini-test").unwrap();
+
+        let identity = model.cache_identity();
+
+        assert!(identity.contains("gemini"));
+        assert!(identity.contains("gemini-test"));
+        assert!(!identity.contains("secret-key"));
     }
 
     #[test]
