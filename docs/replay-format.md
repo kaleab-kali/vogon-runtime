@@ -40,8 +40,10 @@ against a redacted replay.
 Redacted outputs use `[REDACTED:<label>]` markers. When a replay contains these
 markers, `vogon verify` requires matching `--redact <label>=<literal>` rules
 before it executes the workflow. If verification fails after redaction rules are
-provided, mismatch JSON masks actual step output values so a bad redaction
-literal does not print the original output.
+provided, mismatch reports apply those redaction rules to both expected and
+actual step output values before printing human-readable or JSON output. If a
+replay contains redaction markers, step output mismatch values are replaced with
+an unreported placeholder.
 
 Redaction labels may contain ASCII letters, ASCII digits, `_`, and `-`.
 Leading or trailing whitespace is rejected instead of normalized so marker
