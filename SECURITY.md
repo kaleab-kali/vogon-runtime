@@ -24,6 +24,12 @@ dependency changes and on a weekly schedule. The audit can be run manually
 before releases. New actionable advisories should be fixed or explicitly
 documented before merge.
 
+## Static Analysis
+
+CodeQL scans Rust code on pull requests, pushes to `main`, a weekly schedule,
+and manual maintainer runs. New actionable code scanning findings should be
+fixed or explicitly documented before merge.
+
 ## Unsafe Code
 
 Workspace crates forbid unsafe Rust. Changes that require unsafe code should be
