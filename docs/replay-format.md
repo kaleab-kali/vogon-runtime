@@ -45,6 +45,11 @@ model when present, cache identity, and provider/runtime parameters such as
 base URL, timeout, and retry count. Credentials and private prompt/output data
 must not be stored in runtime metadata.
 
+`vogon verify` uses this metadata to select the replay provider by default and
+compares current-schema runtime metadata against the actual verification run.
+Legacy unversioned replays remain readable and verify with the deterministic
+provider unless a provider is selected explicitly.
+
 ## Redaction
 
 Replay output can be redacted before it is written. Redaction rules are literal

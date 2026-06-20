@@ -72,12 +72,23 @@ pub fn run(
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ModelProvider {
     Deterministic,
     Gemini,
     #[value(name = "openai-compatible")]
     OpenAiCompatible,
+}
+
+impl ModelProvider {
+    pub fn from_runtime_provider_name(provider: &str) -> Option<Self> {
+        match provider {
+            "deterministic" | "legacy" => Some(Self::Deterministic),
+            "gemini" => Some(Self::Gemini),
+            "openai-compatible" => Some(Self::OpenAiCompatible),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

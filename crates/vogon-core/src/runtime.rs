@@ -375,6 +375,19 @@ where
             );
         }
 
+        if expected.schema_version == CURRENT_REPLAY_SCHEMA_VERSION
+            && expected.runtime != actual.runtime
+        {
+            push_mismatch(
+                &mut mismatches,
+                ReplayMismatch::RuntimeMetadata {
+                    expected: Box::new(expected.runtime.clone()),
+                    actual: Box::new(actual.runtime.clone()),
+                },
+                &mut observer,
+            );
+        }
+
         if expected.steps.len() != actual.steps.len() {
             push_mismatch(
                 &mut mismatches,
@@ -476,8 +489,8 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::{
-        RedactionRule, RedactionSet, Result, RunCache, RuntimeEvent, Step, StepId, Workflow,
-        stable_hash,
+        RedactionRule, RedactionSet, ReplayMismatch, Result, RunCache, RuntimeEvent, Step, StepId,
+        Workflow, stable_hash,
     };
 
     use std::{cell::Cell, rc::Rc};
@@ -630,6 +643,28 @@ mod tests {
         let verification = runtime.verify(&workflow, &replay).unwrap();
 
         assert!(!verification.is_match());
+    }
+
+    #[test]
+    fn verify_reports_runtime_metadata_mismatch_for_current_replays() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let mut replay = runtime.run(&workflow).unwrap();
+        replay.runtime.provider = "other-provider".to_owned();
+
+        let verification = runtime.verify(&workflow, &replay).unwrap();
+
+        assert_eq!(
+            verification.mismatches,
+            vec![ReplayMismatch::RuntimeMetadata {
+                expected: Box::new(replay.runtime),
+                actual: Box::new(runtime.run(&workflow).unwrap().runtime),
+            }]
+        );
     }
 
     #[test]

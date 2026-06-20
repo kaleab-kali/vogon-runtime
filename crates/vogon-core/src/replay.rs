@@ -132,6 +132,13 @@ pub enum ReplayMismatch {
         /// Run hash from the actual run.
         actual: String,
     },
+    /// Runtime metadata differs between the expected replay and actual run.
+    RuntimeMetadata {
+        /// Runtime metadata from the expected replay.
+        expected: Box<RuntimeMetadata>,
+        /// Runtime metadata from the actual run.
+        actual: Box<RuntimeMetadata>,
+    },
     /// The expected and actual step counts differ.
     StepCount {
         /// Number of steps in the expected replay.
@@ -200,6 +207,7 @@ impl ReplayMismatch {
         match self {
             ReplayMismatch::WorkflowName { .. }
             | ReplayMismatch::RunHash { .. }
+            | ReplayMismatch::RuntimeMetadata { .. }
             | ReplayMismatch::StepCount { .. } => None,
             ReplayMismatch::StepId { actual, .. }
             | ReplayMismatch::StepInputHash {

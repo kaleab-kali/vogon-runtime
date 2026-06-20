@@ -146,6 +146,11 @@ Runs a workflow and compares the result with a saved replay.
 cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
+By default, `vogon verify` uses the provider metadata recorded in the replay.
+For legacy unversioned replays, it falls back to the deterministic provider.
+Use `--provider` and provider-specific model, timeout, base URL, and retry flags
+to override the replay metadata when intentionally checking another adapter.
+
 For redacted replays, pass the same redaction rules used when the replay was
 created:
 
