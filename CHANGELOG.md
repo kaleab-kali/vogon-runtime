@@ -75,6 +75,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Release workflow artifact upload and download actions now use Node.js 24
   action versions.
 - GitHub Actions checkout steps now use `actions/checkout@v7`.
+- HTTP provider adapters now use `ureq` 3.3.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
 - GitHub Actions jobs now have explicit timeout limits.

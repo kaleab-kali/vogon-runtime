@@ -108,7 +108,11 @@ impl OpenAiCompatibleModel {
             base_url,
             model,
             max_retries,
-            agent: ureq::AgentBuilder::new().timeout(timeout).build(),
+            agent: ureq::Agent::config_builder()
+                .timeout_global(Some(timeout))
+                .http_status_as_error(false)
+                .build()
+                .into(),
         })
     }
 
@@ -162,26 +166,34 @@ impl ModelAdapter for OpenAiCompatibleModel {
             }],
             stream: false,
         };
-        let request_json = serde_json::to_value(request).map_err(adapter_error)?;
+        let request_json = serde_json::to_string(&request).map_err(adapter_error)?;
         let mut retries_remaining = self.max_retries;
 
-        let response = loop {
+        let mut response = loop {
             match self
                 .agent
                 .post(&self.chat_completions_url())
-                .set("Authorization", &format!("Bearer {}", self.api_key))
-                .set("Content-Type", "application/json")
-                .send_json(request_json.clone())
+                .header("Authorization", &format!("Bearer {}", self.api_key))
+                .header("Content-Type", "application/json")
+                .send(request_json.as_str())
             {
-                Ok(response) => break response,
+                Ok(response) if response.status().is_success() => break response,
+                Ok(response) if retries_remaining > 0 && is_retryable_status(response.status()) => {
+                    retries_remaining -= 1;
+                }
+                Ok(response) => return Err(http_status_error(response)),
                 Err(error) if retries_remaining > 0 && is_retryable_error(&error) => {
                     retries_remaining -= 1;
                 }
                 Err(error) => return Err(http_error(error)),
             }
-        }
-        .into_json::<ChatCompletionsResponse>()
-        .map_err(adapter_error)?;
+        };
+        let response_body = response
+            .body_mut()
+            .read_to_string()
+            .map_err(adapter_error)?;
+        let response = serde_json::from_str::<ChatCompletionsResponse>(&response_body)
+            .map_err(adapter_error)?;
 
         extract_text(&response).ok_or_else(|| {
             VogonError::Adapter(
@@ -192,12 +204,11 @@ impl ModelAdapter for OpenAiCompatibleModel {
 }
 
 fn is_retryable_error(error: &ureq::Error) -> bool {
-    match error {
-        ureq::Error::Status(status, _) => {
-            matches!(*status, 408 | 409 | 425 | 429 | 500..=599)
-        }
-        ureq::Error::Transport(_) => true,
-    }
+    !matches!(error, ureq::Error::BodyExceedsLimit(_))
+}
+
+fn is_retryable_status(status: ureq::http::StatusCode) -> bool {
+    matches!(status.as_u16(), 408 | 409 | 425 | 429 | 500..=599)
 }
 
 #[derive(Debug, Serialize)]
@@ -239,22 +250,21 @@ fn extract_text(response: &ChatCompletionsResponse) -> Option<String> {
         .map(str::to_owned)
 }
 
+fn http_status_error(mut response: ureq::http::Response<ureq::Body>) -> VogonError {
+    let status = response.status();
+    let body = truncate_error_body(
+        response
+            .body_mut()
+            .read_to_string()
+            .unwrap_or_else(|_| "<unreadable response body>".to_owned()),
+    );
+    VogonError::Adapter(format!(
+        "OpenAI-compatible API request failed with HTTP {status}: {body}"
+    ))
+}
+
 fn http_error(error: ureq::Error) -> VogonError {
-    match error {
-        ureq::Error::Status(status, response) => {
-            let body = truncate_error_body(
-                response
-                    .into_string()
-                    .unwrap_or_else(|_| "<unreadable response body>".to_owned()),
-            );
-            VogonError::Adapter(format!(
-                "OpenAI-compatible API request failed with HTTP {status}: {body}"
-            ))
-        }
-        ureq::Error::Transport(error) => {
-            VogonError::Adapter(format!("OpenAI-compatible API request failed: {error}"))
-        }
-    }
+    VogonError::Adapter(format!("OpenAI-compatible API request failed: {error}"))
 }
 
 fn truncate_error_body(body: String) -> String {
@@ -405,6 +415,41 @@ mod tests {
         server.join().unwrap();
         assert_eq!(output, "retried");
         assert_eq!(requests.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn non_retryable_status_errors_include_response_body() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+
+            let body = r#"{"error":"bad request"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        });
+
+        let model = OpenAiCompatibleModel::with_base_url_model_timeout_and_retries(
+            "secret-key",
+            format!("http://{address}"),
+            "example/model",
+            Duration::from_secs(5),
+            1,
+        )
+        .unwrap();
+        let step = Step::new(StepId::new("classify").unwrap(), "Classify");
+
+        let error = model.complete(&step, "input").unwrap_err();
+
+        server.join().unwrap();
+        let error = error.to_string();
+        assert!(error.contains("HTTP 400 Bad Request"));
+        assert!(error.contains(r#"{"error":"bad request"}"#));
     }
 
     fn read_http_request(stream: &mut TcpStream) {
