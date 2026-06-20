@@ -1,8 +1,13 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
 use crate::{StepId, workflow::validate_workflow_name};
+
+/// Replay schema version emitted by current runtime runs.
+pub const CURRENT_REPLAY_SCHEMA_VERSION: u32 = 1;
+/// Schema version assigned to legacy replay files without an explicit version.
+pub const LEGACY_REPLAY_SCHEMA_VERSION: u32 = 0;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -22,11 +27,85 @@ pub struct StepResult {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// Non-secret runtime provenance recorded with a replay.
+pub struct RuntimeMetadata {
+    #[serde(deserialize_with = "deserialize_non_empty_string")]
+    /// Provider family used for the run.
+    pub provider: String,
+    #[serde(deserialize_with = "deserialize_non_empty_string")]
+    /// Adapter implementation that produced the run.
+    pub adapter: String,
+    #[serde(deserialize_with = "deserialize_non_empty_string")]
+    /// Adapter crate or implementation version.
+    pub adapter_version: String,
+    #[serde(default, deserialize_with = "deserialize_optional_non_empty_string")]
+    /// Model identifier, when the adapter uses one.
+    pub model: Option<String>,
+    #[serde(deserialize_with = "deserialize_non_empty_string")]
+    /// Non-secret adapter identity used to scope runtime cache entries.
+    pub cache_identity: String,
+    #[serde(default, deserialize_with = "deserialize_parameters")]
+    /// Additional non-secret provider or runtime parameters.
+    pub parameters: BTreeMap<String, String>,
+}
+
+impl RuntimeMetadata {
+    /// Creates runtime metadata from required non-secret provenance fields.
+    pub fn new(
+        provider: impl Into<String>,
+        adapter: impl Into<String>,
+        adapter_version: impl Into<String>,
+        cache_identity: impl Into<String>,
+    ) -> Self {
+        Self {
+            provider: provider.into(),
+            adapter: adapter.into(),
+            adapter_version: adapter_version.into(),
+            model: None,
+            cache_identity: cache_identity.into(),
+            parameters: BTreeMap::new(),
+        }
+    }
+
+    /// Adds a model identifier.
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
+    }
+
+    /// Adds one non-secret runtime parameter.
+    pub fn with_parameter(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.parameters.insert(key.into(), value.into());
+        self
+    }
+
+    fn legacy() -> Self {
+        Self::new("legacy", "unknown", "unknown", "legacy")
+    }
+}
+
+impl Default for RuntimeMetadata {
+    fn default() -> Self {
+        Self::legacy()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 /// Deterministic replay report produced by a workflow run.
 pub struct RunReport {
+    #[serde(
+        default = "legacy_replay_schema_version",
+        deserialize_with = "deserialize_replay_schema_version"
+    )]
+    /// Replay schema version.
+    pub schema_version: u32,
     #[serde(deserialize_with = "deserialize_workflow_name")]
     /// Workflow name associated with this run.
     pub workflow_name: String,
+    #[serde(default)]
+    /// Non-secret runtime provenance for this run.
+    pub runtime: RuntimeMetadata,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     /// Stable hash of the ordered step identifiers and step hashes.
     pub run_hash: String,
@@ -136,6 +215,24 @@ impl ReplayMismatch {
     }
 }
 
+fn legacy_replay_schema_version() -> u32 {
+    LEGACY_REPLAY_SCHEMA_VERSION
+}
+
+fn deserialize_replay_schema_version<'de, D>(deserializer: D) -> std::result::Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = u32::deserialize(deserializer)?;
+
+    match value {
+        LEGACY_REPLAY_SCHEMA_VERSION | CURRENT_REPLAY_SCHEMA_VERSION => Ok(value),
+        _ => Err(de::Error::custom(format!(
+            "unsupported replay schema_version `{value}`; supported versions are {LEGACY_REPLAY_SCHEMA_VERSION} and {CURRENT_REPLAY_SCHEMA_VERSION}"
+        ))),
+    }
+}
+
 fn deserialize_workflow_name<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -143,6 +240,62 @@ where
     let value = String::deserialize(deserializer)?;
     validate_workflow_name(&value).map_err(de::Error::custom)?;
     Ok(value)
+}
+
+fn deserialize_non_empty_string<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    reject_blank_string(&value).map_err(de::Error::custom)?;
+    Ok(value)
+}
+
+fn deserialize_optional_non_empty_string<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+
+    if let Some(value) = value.as_deref() {
+        reject_blank_string(value).map_err(de::Error::custom)?;
+    }
+
+    Ok(value)
+}
+
+fn deserialize_parameters<'de, D>(
+    deserializer: D,
+) -> std::result::Result<BTreeMap<String, String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let parameters = BTreeMap::<String, String>::deserialize(deserializer)?;
+
+    for (key, value) in &parameters {
+        reject_blank_parameter("runtime parameter key", key).map_err(de::Error::custom)?;
+        reject_blank_parameter("runtime parameter value", value).map_err(de::Error::custom)?;
+    }
+
+    Ok(parameters)
+}
+
+fn reject_blank_string(value: &str) -> std::result::Result<(), String> {
+    if value.trim().is_empty() {
+        Err("runtime metadata fields must not be blank".to_owned())
+    } else {
+        Ok(())
+    }
+}
+
+fn reject_blank_parameter(name: &str, value: &str) -> std::result::Result<(), String> {
+    if value.trim().is_empty() {
+        Err(format!("{name} must not be blank"))
+    } else {
+        Ok(())
+    }
 }
 
 fn deserialize_sha256_hex<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
@@ -194,7 +347,7 @@ fn is_sha256_hex(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::RunReport;
+    use crate::{CURRENT_REPLAY_SCHEMA_VERSION, LEGACY_REPLAY_SCHEMA_VERSION, RunReport};
 
     fn valid_step_json() -> &'static str {
         r#"{
@@ -203,6 +356,101 @@ mod tests {
             "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
             "output": "done"
         }"#
+    }
+
+    #[test]
+    fn run_report_deserialization_accepts_legacy_unversioned_replays() {
+        let report = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{}]
+            }}"#,
+            valid_step_json()
+        ))
+        .unwrap();
+
+        assert_eq!(report.schema_version, LEGACY_REPLAY_SCHEMA_VERSION);
+        assert_eq!(report.runtime.provider, "legacy");
+    }
+
+    #[test]
+    fn run_report_deserialization_accepts_current_runtime_metadata() {
+        let report = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
+                "schema_version": {CURRENT_REPLAY_SCHEMA_VERSION},
+                "workflow_name": "demo",
+                "runtime": {{
+                    "provider": "deterministic",
+                    "adapter": "deterministic-echo",
+                    "adapter_version": "0.1.0",
+                    "model": "deterministic-echo",
+                    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1",
+                    "parameters": {{
+                        "mode": "offline"
+                    }}
+                }},
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{}]
+            }}"#,
+            valid_step_json()
+        ))
+        .unwrap();
+
+        assert_eq!(report.schema_version, CURRENT_REPLAY_SCHEMA_VERSION);
+        assert_eq!(report.runtime.provider, "deterministic");
+        assert_eq!(report.runtime.model.as_deref(), Some("deterministic-echo"));
+        assert_eq!(
+            report.runtime.parameters.get("mode").map(String::as_str),
+            Some("offline")
+        );
+    }
+
+    #[test]
+    fn run_report_deserialization_rejects_unsupported_schema_versions() {
+        let result = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
+                "schema_version": 99,
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{}]
+            }}"#,
+            valid_step_json()
+        ));
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("unsupported replay schema_version `99`; supported versions are 0 and 1")
+        );
+    }
+
+    #[test]
+    fn run_report_deserialization_rejects_blank_runtime_metadata() {
+        let result = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
+                "schema_version": {CURRENT_REPLAY_SCHEMA_VERSION},
+                "workflow_name": "demo",
+                "runtime": {{
+                    "provider": " ",
+                    "adapter": "deterministic-echo",
+                    "adapter_version": "0.1.0",
+                    "model": "deterministic-echo",
+                    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1"
+                }},
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{}]
+            }}"#,
+            valid_step_json()
+        ));
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("runtime metadata fields must not be blank")
+        );
     }
 
     #[test]

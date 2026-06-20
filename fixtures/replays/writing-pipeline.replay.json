@@ -1,5 +1,16 @@
 {
+  "schema_version": 1,
   "workflow_name": "writing-pipeline",
+  "runtime": {
+    "provider": "deterministic",
+    "adapter": "deterministic-echo",
+    "adapter_version": "0.1.0",
+    "model": "deterministic-echo",
+    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1",
+    "parameters": {
+      "mode": "offline"
+    }
+  },
   "run_hash": "b4146508ef023b9d212004bd4f1d972f210735cd413f1d09a727a0ed2bbb5d72",
   "steps": [
     {

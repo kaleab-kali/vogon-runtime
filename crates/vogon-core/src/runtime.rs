@@ -1,6 +1,6 @@
 use crate::{
-    RedactionSet, ReplayMismatch, Result, RunCache, RunReport, RuntimeEvent, Step, StepResult,
-    VerificationReport, Workflow, stable_hash,
+    CURRENT_REPLAY_SCHEMA_VERSION, RedactionSet, ReplayMismatch, Result, RunCache, RunReport,
+    RuntimeEvent, RuntimeMetadata, Step, StepResult, VerificationReport, Workflow, stable_hash,
 };
 
 /// Adapter trait implemented by model providers.
@@ -16,6 +16,20 @@ pub trait ModelAdapter {
     /// must still avoid including credentials or other secrets.
     fn cache_identity(&self) -> String {
         std::any::type_name::<Self>().to_owned()
+    }
+
+    /// Returns non-secret runtime metadata recorded in replay reports.
+    ///
+    /// Adapter implementations should override this with structured provider,
+    /// model, adapter version, and runtime parameter details whenever those
+    /// values are known.
+    fn runtime_metadata(&self) -> RuntimeMetadata {
+        RuntimeMetadata::new(
+            "custom",
+            std::any::type_name::<Self>(),
+            "unknown",
+            self.cache_identity(),
+        )
     }
 }
 
@@ -199,7 +213,9 @@ where
             .join("|");
 
         Ok(RunReport {
+            schema_version: CURRENT_REPLAY_SCHEMA_VERSION,
             workflow_name: workflow.name().to_owned(),
+            runtime: self.adapter.runtime_metadata(),
             run_hash: stable_hash(run_hash_material),
             steps,
         })

@@ -52,7 +52,10 @@ fn run_command_executes_toml_workflow() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
 
+    assert_eq!(report["schema_version"], 1);
     assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["runtime"]["provider"], "deterministic");
+    assert_eq!(report["runtime"]["model"], "deterministic-echo");
     assert_eq!(report["steps"].as_array().unwrap().len(), 2);
 }
 
@@ -275,7 +278,9 @@ fn run_command_writes_replay_file() {
 
     let report: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(output_file).unwrap()).unwrap();
+    assert_eq!(report["schema_version"], 1);
     assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["runtime"]["provider"], "deterministic");
     assert_eq!(report["steps"].as_array().unwrap().len(), 2);
 }
 

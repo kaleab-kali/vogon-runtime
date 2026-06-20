@@ -356,6 +356,28 @@ fn verify_command_rejects_unknown_top_level_replay_fields() {
 }
 
 #[test]
+fn verify_command_rejects_unsupported_replay_schema_versions() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unsupported-schema-version.replay.json");
+    write_unsupported_schema_version_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse replay file"));
+    assert!(stderr.contains("unsupported replay schema_version `99`"));
+}
+
+#[test]
 fn verify_command_rejects_unknown_step_replay_fields() {
     let replay = repo_root()
         .join("target")
@@ -567,6 +589,14 @@ fn write_unknown_top_level_replay(path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
     replay["unexpected"] = serde_json::Value::String("ignored-before-strict-parsing".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_unsupported_schema_version_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["schema_version"] = serde_json::Value::Number(99.into());
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 

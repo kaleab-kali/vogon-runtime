@@ -50,7 +50,10 @@ pub use error::{Result, VogonError};
 pub use events::RuntimeEvent;
 pub use hash::stable_hash;
 pub use redaction::{RedactionRule, RedactionSet};
-pub use replay::{ReplayMismatch, RunReport, StepResult, VerificationReport};
+pub use replay::{
+    CURRENT_REPLAY_SCHEMA_VERSION, LEGACY_REPLAY_SCHEMA_VERSION, ReplayMismatch, RunReport,
+    RuntimeMetadata, StepResult, VerificationReport,
+};
 pub use runtime::{ModelAdapter, Runtime};
 pub use step::{Step, StepId};
 pub use workflow::Workflow;
