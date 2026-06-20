@@ -49,6 +49,8 @@ and this project follows semantic versioning once the first release is tagged.
   `GEMINI_API_KEY` configured in GitHub Actions.
 - Manual live OpenAI-compatible provider smoke workflow for maintainers with
   `OPENAI_COMPATIBLE_API_KEY` configured in GitHub Actions.
+- Dockerfile and deployment documentation for CLI container image builds.
+- CI container image smoke testing for the CLI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.
@@ -105,6 +107,8 @@ and this project follows semantic versioning once the first release is tagged.
   deterministic-only build path.
 - CI and release smoke tests now assert trace JSONL replay schema and runtime
   metadata output.
+- Live provider smoke workflows now assert replay runtime metadata and check
+  that configured API keys are absent from serialized replays.
 - Cargo-based GitHub Actions workflows now increase Cargo registry retry
   attempts to reduce transient dependency fetch failures.
 - Linux CI and release jobs now use the explicit `ubuntu-24.04` runner label.
