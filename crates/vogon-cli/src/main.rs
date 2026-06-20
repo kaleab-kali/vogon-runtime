@@ -12,6 +12,7 @@ use commands::run::{
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
     ModelProvider, RunModelConfig,
 };
+use commands::verify::VerifyModelConfig;
 
 #[derive(Debug, Parser)]
 #[command(name = "vogon")]
@@ -90,6 +91,38 @@ enum Commands {
 
     /// Verify a workflow against a replay file.
     Verify {
+        /// Model provider to use for verification. Defaults to the replay provider.
+        #[arg(long, value_enum)]
+        provider: Option<ModelProvider>,
+
+        /// Gemini model name when verifying with the Gemini provider.
+        #[arg(long, default_value = "gemini-3.1-flash-lite")]
+        gemini_model: String,
+
+        /// Gemini request timeout in seconds when verifying with Gemini.
+        #[arg(long, default_value_t = DEFAULT_GEMINI_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        gemini_timeout_seconds: u64,
+
+        /// Gemini retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES, value_parser = parse_gemini_max_retries)]
+        gemini_max_retries: u32,
+
+        /// OpenAI-compatible base URL when verifying with an OpenAI-compatible provider.
+        #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_BASE_URL)]
+        openai_compatible_base_url: String,
+
+        /// OpenAI-compatible model name when verifying with an OpenAI-compatible provider.
+        #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_MODEL)]
+        openai_compatible_model: String,
+
+        /// OpenAI-compatible request timeout in seconds.
+        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
+        openai_compatible_timeout_seconds: u64,
+
+        /// OpenAI-compatible retry count for transient provider errors.
+        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, value_parser = parse_openai_compatible_max_retries)]
+        openai_compatible_max_retries: u32,
+
         /// Redact a literal value before comparing replay outputs. May be repeated.
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
@@ -177,11 +210,34 @@ fn main() -> ExitCode {
             },
         ),
         Commands::Verify {
+            provider,
+            gemini_model,
+            gemini_timeout_seconds,
+            gemini_max_retries,
+            openai_compatible_base_url,
+            openai_compatible_model,
+            openai_compatible_timeout_seconds,
+            openai_compatible_max_retries,
             redactions,
             json,
             workflow_file,
             replay_file,
-        } => commands::verify::run(&workflow_file, &replay_file, &redactions, json),
+        } => commands::verify::run(
+            &workflow_file,
+            &replay_file,
+            &redactions,
+            json,
+            VerifyModelConfig {
+                provider,
+                gemini_model: &gemini_model,
+                gemini_timeout_seconds,
+                gemini_max_retries,
+                openai_compatible_base_url: &openai_compatible_base_url,
+                openai_compatible_model: &openai_compatible_model,
+                openai_compatible_timeout_seconds,
+                openai_compatible_max_retries,
+            },
+        ),
         Commands::Trace {
             redactions,
             jsonl,

@@ -94,6 +94,8 @@ and this project follows semantic versioning once the first release is tagged.
   scoped by provider, endpoint, model, and adapter implementation.
 - Replay reports now include schema version and non-secret runtime metadata for
   provider, adapter, model, cache identity, and runtime parameters.
+- `vogon verify` now defaults to replay provider metadata and reports runtime
+  metadata mismatches for current-schema replays.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.

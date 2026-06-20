@@ -263,6 +263,55 @@ fn verify_command_rejects_mismatched_replay() {
 }
 
 #[test]
+fn verify_command_reports_runtime_metadata_provider_mismatches() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("provider-mismatch-support-triage.replay.json");
+    write_gemini_metadata_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--provider")
+        .arg("deterministic")
+        .arg(workflow_path("support-triage"))
+        .arg(replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("\"runtime_metadata\""));
+    assert!(stderr.contains("\"expected\""));
+    assert!(stderr.contains("\"gemini\""));
+    assert!(stderr.contains("\"actual\""));
+    assert!(stderr.contains("\"deterministic\""));
+}
+
+#[test]
+fn verify_command_defaults_to_replay_provider_metadata() {
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("auto-gemini-provider-support-triage.replay.json");
+    write_gemini_metadata_replay(&replay);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(replay)
+        .env_remove("GEMINI_API_KEY")
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("GEMINI_API_KEY must be set"));
+}
+
+#[test]
 fn verify_command_can_emit_json_mismatch_report() {
     let replay = repo_root()
         .join("target")
@@ -552,6 +601,25 @@ fn write_mismatched_replay(name: &str, path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(replay_path(name)).unwrap()).unwrap();
     replay["steps"][0]["output"] = serde_json::Value::String("drifted-output".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_gemini_metadata_replay(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["runtime"] = serde_json::json!({
+        "provider": "gemini",
+        "adapter": "gemini-generate-content",
+        "adapter_version": "0.1.0",
+        "model": "gemini-3.1-flash-lite",
+        "cache_identity": "vogon-adapters@0.1.0:gemini:v1:base=https://generativelanguage.googleapis.com:model=gemini-3.1-flash-lite:timeout_nanos=30000000000:max_retries=2",
+        "parameters": {
+            "base_url": "https://generativelanguage.googleapis.com",
+            "timeout_nanos": "30000000000",
+            "max_retries": "2"
+        }
+    });
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 
