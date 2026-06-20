@@ -234,15 +234,15 @@ fixtures/          Example workflows and replay logs.
 
 Useful documentation:
 
-- [Architecture](docs/architecture.md)
-- [CLI reference](docs/cli.md)
-- [Provider adapters](docs/providers.md)
-- [Deployment](docs/deployment.md)
-- [Workflow format](docs/workflow-format.md)
-- [Determinism](docs/determinism.md)
-- [Replay format](docs/replay-format.md)
-- [Performance](docs/performance.md)
-- [Release process](docs/release.md)
+- [Architecture](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/architecture.md)
+- [CLI reference](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/cli.md)
+- [Provider adapters](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md)
+- [Deployment](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/deployment.md)
+- [Workflow format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/workflow-format.md)
+- [Determinism](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/determinism.md)
+- [Replay format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/replay-format.md)
+- [Performance](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/performance.md)
+- [Release process](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/release.md)
 
 ## Design Principles
 
