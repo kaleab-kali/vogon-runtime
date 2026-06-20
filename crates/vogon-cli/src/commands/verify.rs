@@ -7,6 +7,8 @@ use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 use vogon_adapters::GeminiModel;
 #[cfg(feature = "openai-compatible")]
+use vogon_adapters::GroqModel;
+#[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationReport};
 
@@ -14,9 +16,9 @@ use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
 use crate::commands::redaction_markers::replay_redaction_labels;
 use crate::commands::run::{
-    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS,
-    DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
-    ModelProvider,
+    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
+    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, ModelProvider,
 };
 use crate::commands::workflow_file::read_toml_workflow;
 
@@ -104,6 +106,9 @@ pub struct VerifyModelConfig<'a> {
     pub gemini_model: &'a str,
     pub gemini_timeout_seconds: u64,
     pub gemini_max_retries: u32,
+    pub groq_model: &'a str,
+    pub groq_timeout_seconds: u64,
+    pub groq_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
     pub openai_compatible_timeout_seconds: u64,
@@ -116,6 +121,9 @@ struct ResolvedModelConfig {
     gemini_model: String,
     gemini_timeout_seconds: u64,
     gemini_max_retries: u32,
+    groq_model: String,
+    groq_timeout_seconds: u64,
+    groq_max_retries: u32,
     openai_compatible_base_url: String,
     openai_compatible_model: String,
     openai_compatible_timeout_seconds: u64,
@@ -163,6 +171,25 @@ fn resolve_model_config(
             replay_max_retries(replay, DEFAULT_GEMINI_MAX_RETRIES)?
         } else {
             model_config.gemini_max_retries
+        },
+        groq_model: if use_replay_metadata && provider == ModelProvider::Groq {
+            replay
+                .runtime
+                .model
+                .clone()
+                .unwrap_or_else(|| model_config.groq_model.to_owned())
+        } else {
+            model_config.groq_model.to_owned()
+        },
+        groq_timeout_seconds: if use_replay_metadata && provider == ModelProvider::Groq {
+            replay_timeout_seconds(replay, DEFAULT_GROQ_TIMEOUT_SECONDS)?
+        } else {
+            model_config.groq_timeout_seconds
+        },
+        groq_max_retries: if use_replay_metadata && provider == ModelProvider::Groq {
+            replay_max_retries(replay, DEFAULT_GROQ_MAX_RETRIES)?
+        } else {
+            model_config.groq_max_retries
         },
         openai_compatible_base_url: if use_replay_metadata
             && provider == ModelProvider::OpenAiCompatible
@@ -274,6 +301,14 @@ fn verify_with_model(
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
         ),
+        ModelProvider::Groq => verify_with_groq(
+            workflow,
+            replay,
+            redactions,
+            &model_config.groq_model,
+            model_config.groq_timeout_seconds,
+            model_config.groq_max_retries,
+        ),
         ModelProvider::OpenAiCompatible => verify_with_openai_compatible(
             workflow,
             replay,
@@ -315,6 +350,39 @@ fn verify_with_gemini(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Gemini provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn verify_with_groq(
+    workflow: &vogon_core::Workflow,
+    replay: &RunReport,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Ok(Runtime::new(GroqModel::from_env_with_timeout_and_retries(
+        model,
+        Duration::from_secs(timeout_seconds),
+        max_retries,
+    )?)
+    .verify_with_redactions(workflow, replay, redactions)?)
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn verify_with_groq(
+    _workflow: &vogon_core::Workflow,
+    _replay: &RunReport,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Groq provider support is not enabled in this build",
     )
     .into())
 }

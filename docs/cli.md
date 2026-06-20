@@ -121,6 +121,17 @@ Use `--openai-compatible-timeout-seconds` and
 `--openai-compatible-max-retries` to adjust those bounds. Retry counts must be
 between `0` and `20`.
 
+Run with Groq by setting `GROQ_API_KEY` and selecting the Groq provider:
+
+```sh
+GROQ_API_KEY=... cargo run -p vogon-cli -- run --provider groq fixtures/workflows/support-triage.toml
+```
+
+The default Groq base URL is `https://api.groq.com/openai/v1`, and the default
+model is `llama-3.1-8b-instant`. Use `--groq-model`,
+`--groq-timeout-seconds`, and `--groq-max-retries` to adjust the model and
+network bounds.
+
 Write the replay JSON to a file:
 
 ```sh

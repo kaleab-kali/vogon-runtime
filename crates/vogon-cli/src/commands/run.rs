@@ -7,6 +7,8 @@ use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
 use vogon_adapters::GeminiModel;
 #[cfg(feature = "openai-compatible")]
+use vogon_adapters::GroqModel;
+#[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "gemini")]
 pub use vogon_adapters::{
@@ -14,9 +16,10 @@ pub use vogon_adapters::{
 };
 #[cfg(feature = "openai-compatible")]
 pub use vogon_adapters::{
-    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
-    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
-    MAX_OPENAI_COMPATIBLE_RETRIES,
+    DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MAX_RETRIES, DEFAULT_GROQ_MODEL,
+    DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
+    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GROQ_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
 };
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
@@ -39,6 +42,16 @@ pub const MAX_OPENAI_COMPATIBLE_RETRIES: u32 = 20;
 pub const DEFAULT_OPENAI_COMPATIBLE_MODEL: &str = "openai/gpt-oss-120b:fastest";
 #[cfg(not(feature = "openai-compatible"))]
 pub const DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_GROQ_MODEL: &str = "llama-3.1-8b-instant";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_GROQ_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_GROQ_MAX_RETRIES: u32 = 2;
+#[cfg(not(feature = "openai-compatible"))]
+pub const MAX_GROQ_RETRIES: u32 = 20;
 
 pub fn run(
     workflow_file: &Path,
@@ -76,6 +89,7 @@ pub fn run(
 pub enum ModelProvider {
     Deterministic,
     Gemini,
+    Groq,
     #[value(name = "openai-compatible")]
     OpenAiCompatible,
 }
@@ -85,6 +99,7 @@ impl ModelProvider {
         match provider {
             "deterministic" | "legacy" => Some(Self::Deterministic),
             "gemini" => Some(Self::Gemini),
+            "groq" => Some(Self::Groq),
             "openai-compatible" => Some(Self::OpenAiCompatible),
             _ => None,
         }
@@ -97,6 +112,9 @@ pub struct RunModelConfig<'a> {
     pub gemini_model: &'a str,
     pub gemini_timeout_seconds: u64,
     pub gemini_max_retries: u32,
+    pub groq_model: &'a str,
+    pub groq_timeout_seconds: u64,
+    pub groq_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
     pub openai_compatible_timeout_seconds: u64,
@@ -118,6 +136,13 @@ fn run_with_model(
             model_config.gemini_model,
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
+        ),
+        ModelProvider::Groq => run_with_groq(
+            workflow,
+            redactions,
+            model_config.groq_model,
+            model_config.groq_timeout_seconds,
+            model_config.groq_max_retries,
         ),
         ModelProvider::OpenAiCompatible => run_with_openai_compatible(
             workflow,
@@ -171,6 +196,40 @@ fn run_with_gemini(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Gemini provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn run_with_groq(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    run_with_adapter(
+        GroqModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        redactions,
+    )
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn run_with_groq(
+    _workflow: &vogon_core::Workflow,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "Groq provider support is not enabled in this build",
     )
     .into())
 }

@@ -45,10 +45,13 @@ and this project follows semantic versioning once the first release is tagged.
   errors.
 - OpenAI-compatible chat-completions adapter for provider-backed workflow runs
   against configurable compatible endpoints.
+- Groq provider preset for Groq's OpenAI-compatible chat-completions endpoint.
 - Manual live Gemini provider smoke workflow for maintainers with
   `GEMINI_API_KEY` configured in GitHub Actions.
 - Manual live OpenAI-compatible provider smoke workflow for maintainers with
   `OPENAI_COMPATIBLE_API_KEY` configured in GitHub Actions.
+- Manual live Groq provider smoke workflow for maintainers with `GROQ_API_KEY`
+  configured in GitHub Actions.
 - Dockerfile and deployment documentation for CLI container image builds.
 - CI container image smoke testing for the CLI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.

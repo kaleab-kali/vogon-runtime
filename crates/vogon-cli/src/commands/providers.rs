@@ -1,7 +1,9 @@
 use serde::Serialize;
 
-#[cfg(feature = "openai-compatible")]
-use crate::commands::run::{DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MODEL};
+use crate::commands::run::{
+    DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL,
+};
 
 pub fn run(json: bool) -> Result<(), Box<dyn std::error::Error>> {
     let report = ProviderDiagnostics {
@@ -45,6 +47,7 @@ fn provider_statuses() -> Vec<ProviderStatus> {
             default_model: None,
         },
         gemini_status(),
+        groq_status(),
         openai_compatible_status(),
     ]
 }
@@ -76,6 +79,32 @@ fn gemini_status() -> ProviderStatus {
 }
 
 #[cfg(feature = "openai-compatible")]
+fn groq_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "groq",
+        enabled: true,
+        default: false,
+        credential_env: Some("GROQ_API_KEY"),
+        credential_configured: Some(env_is_configured("GROQ_API_KEY")),
+        default_base_url: Some(DEFAULT_GROQ_BASE_URL),
+        default_model: Some(DEFAULT_GROQ_MODEL),
+    }
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn groq_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "groq",
+        enabled: false,
+        default: false,
+        credential_env: Some("GROQ_API_KEY"),
+        credential_configured: None,
+        default_base_url: Some(DEFAULT_GROQ_BASE_URL),
+        default_model: Some(DEFAULT_GROQ_MODEL),
+    }
+}
+
+#[cfg(feature = "openai-compatible")]
 fn openai_compatible_status() -> ProviderStatus {
     ProviderStatus {
         name: "openai-compatible",
@@ -96,8 +125,8 @@ fn openai_compatible_status() -> ProviderStatus {
         default: false,
         credential_env: Some("OPENAI_COMPATIBLE_API_KEY"),
         credential_configured: None,
-        default_base_url: Some("https://router.huggingface.co/v1"),
-        default_model: Some("openai/gpt-oss-120b:fastest"),
+        default_base_url: Some(DEFAULT_OPENAI_COMPATIBLE_BASE_URL),
+        default_model: Some(DEFAULT_OPENAI_COMPATIBLE_MODEL),
     }
 }
 

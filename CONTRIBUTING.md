@@ -75,6 +75,10 @@ when `GEMINI_API_KEY` is configured as a repository or environment secret. It is
 not required for ordinary pull requests because deterministic CI must not
 depend on external provider availability.
 
+The optional `Live Groq Smoke` workflow can be run manually by maintainers when
+`GROQ_API_KEY` is configured. Use it after changes that affect Groq provider
+configuration or OpenAI-compatible provider behavior.
+
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain
 available for auditability.
