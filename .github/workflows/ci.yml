@@ -102,6 +102,31 @@ jobs:
       - name: Test with Rust 1.85.0
         run: cargo +1.85.0 test --workspace --all-features --locked
 
+  container-smoke:
+    name: Container image smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build container image
+        run: docker build --tag vogon-runtime:ci .
+
+      - name: Smoke test container CLI
+        run: |
+          docker run --rm vogon-runtime:ci --version
+          check_json="$(docker run --rm -v "${{ github.workspace }}:/work" vogon-runtime:ci check --json fixtures/workflows/support-triage.toml)"
+          echo "$check_json"
+          printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
+          verify_json="$(docker run --rm -v "${{ github.workspace }}:/work" vogon-runtime:ci verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
+          echo "$verify_json"
+          printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
+          trace_jsonl="$(docker run --rm -v "${{ github.workspace }}:/work" vogon-runtime:ci trace --jsonl fixtures/replays/support-triage.replay.json)"
+          echo "$trace_jsonl"
+          printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
+
   windows-release-smoke:
     name: Windows release smoke
     runs-on: windows-2025-vs2026
