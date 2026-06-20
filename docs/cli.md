@@ -11,6 +11,9 @@ cargo run -p vogon-cli -- <command>
 
 After installing the binary, use `vogon <command>` directly.
 
+Workflow and replay inputs are rejected when they exceed 1 MiB, so accidental
+or adversarially large files fail before the CLI buffers them into memory.
+
 ## Global Options
 
 ```sh

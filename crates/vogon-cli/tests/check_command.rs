@@ -4,6 +4,8 @@ use std::{
     process::Command,
 };
 
+const OVERSIZED_INPUT_BYTES: usize = 1024 * 1024 + 1;
+
 fn support_triage_workflow() -> PathBuf {
     repo_root()
         .join("fixtures")
@@ -97,6 +99,11 @@ prompt = "Classify"
 fn write_malformed_workflow(path: &Path) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, "name = [").unwrap();
+}
+
+fn write_oversized_file(path: &Path) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, "x".repeat(OVERSIZED_INPUT_BYTES)).unwrap();
 }
 
 fn write_workflow_with_unknown_top_level_field(path: &Path) {
@@ -288,6 +295,28 @@ fn check_command_reports_missing_workflow_path() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("failed to read workflow file"));
     assert!(stderr.contains(&missing_workflow.display().to_string()));
+}
+
+#[test]
+fn check_command_rejects_oversized_workflow_file() {
+    let oversized_workflow = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("oversized-workflow.toml");
+    write_oversized_file(&oversized_workflow);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg(&oversized_workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("workflow file"));
+    assert!(stderr.contains("exceeding the 1 MiB limit"));
+    assert!(stderr.contains(&oversized_workflow.display().to_string()));
 }
 
 #[test]
