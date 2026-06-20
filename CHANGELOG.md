@@ -13,6 +13,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Deterministic workflow execution with replay reports and verification.
 - TOML workflow loading for CLI runs and validation.
 - CLI commands for `demo`, `check`, `run`, `verify`, and `trace`.
+- CLI provider diagnostics with `vogon providers`.
 - Replay JSONL trace export for machine-readable diagnostics.
 - JSON workflow validation summaries with `vogon check --json`.
 - JSON replay verification reports with `vogon verify --json`.

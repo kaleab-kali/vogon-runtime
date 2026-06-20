@@ -61,6 +61,12 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+Check available providers and credential setup without running a workflow:
+
+```sh
+cargo run -p vogon-cli -- providers
+```
+
 Run a workflow with the Gemini API instead of the deterministic adapter:
 
 ```sh
