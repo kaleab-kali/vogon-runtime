@@ -94,6 +94,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Runs each optimized CLI artifact against every committed replay fixture.
 - Packages a Linux x86_64 `vogon` binary as a `.tar.gz` archive.
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
+- Builds and smoke tests the CLI container image.
+- Packages the CLI container image as a `.tar.gz` archive.
 - Includes `README.md` and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
   `vogon-v0.1.0-cargo-metadata.json`.
@@ -142,11 +144,22 @@ metadata:
 sha256sum -c vogon-v0.1.0-cargo-metadata.json.sha256
 ```
 
+The release also publishes a container image archive and checksum:
+
+```sh
+sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
+docker load --input vogon-v0.1.0-container-image.tar.gz
+docker run --rm vogon-runtime:v0.1.0 --version
+```
+
+Use the real version number in place of `v0.1.0`.
+
 If the release was built by GitHub Actions, verify the archive provenance with
 GitHub CLI:
 
 ```sh
 gh attestation verify vogon-v0.1.0-linux-x86_64.tar.gz -R kaleab-kali/vogon-runtime
+gh attestation verify vogon-v0.1.0-container-image.tar.gz -R kaleab-kali/vogon-runtime
 ```
 
 On Windows PowerShell:

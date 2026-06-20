@@ -169,6 +169,61 @@ jobs:
             vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           if-no-files-found: error
 
+  container-image:
+    name: Container image artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build container image
+        run: docker build --tag "vogon-runtime:${{ github.ref_name }}" .
+
+      - name: Smoke test container image
+        run: |
+          docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
+          check_json="$(docker run --rm -v "${{ github.workspace }}:/work" "vogon-runtime:${{ github.ref_name }}" check --json fixtures/workflows/support-triage.toml)"
+          echo "$check_json"
+          printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
+          verify_json="$(docker run --rm -v "${{ github.workspace }}:/work" "vogon-runtime:${{ github.ref_name }}" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
+          echo "$verify_json"
+          printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
+          trace_jsonl="$(docker run --rm -v "${{ github.workspace }}:/work" "vogon-runtime:${{ github.ref_name }}" trace --jsonl fixtures/replays/support-triage.replay.json)"
+          echo "$trace_jsonl"
+          printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
+
+      - name: Package container image
+        run: |
+          docker save "vogon-runtime:${{ github.ref_name }}" | gzip > "vogon-${{ github.ref_name }}-container-image.tar.gz"
+          sha256sum "vogon-${{ github.ref_name }}-container-image.tar.gz" > "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
+
+      - name: Smoke test packaged image archive
+        run: |
+          sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
+          gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
+          docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
+          docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
+
+      - name: Attest container image archive
+        uses: actions/attest@v4
+        with:
+          subject-path: vogon-${{ github.ref_name }}-container-image.tar.gz
+
+      - name: Upload container image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: vogon-container-image
+          path: |
+            vogon-${{ github.ref_name }}-container-image.tar.gz
+            vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
+          if-no-files-found: error
+
   release-artifact-smoke:
     name: Release artifact download smoke
     if: github.event_name == 'workflow_dispatch'
@@ -177,6 +232,7 @@ jobs:
     needs:
       - linux-cli
       - windows-cli
+      - container-image
 
     steps:
       - name: Download CLI artifacts
@@ -192,6 +248,8 @@ jobs:
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
+          test -f "release-artifacts/vogon-container-image/vogon-${{ github.ref_name }}-container-image.tar.gz"
+          test -f "release-artifacts/vogon-container-image/vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
           (
             cd release-artifacts/vogon-linux-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
@@ -201,6 +259,13 @@ jobs:
           (
             cd release-artifacts/vogon-windows-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
+          )
+          (
+            cd release-artifacts/vogon-container-image
+            sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
+            gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
+            docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
+            docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
           )
 
   publish-release:
@@ -213,6 +278,7 @@ jobs:
     needs:
       - linux-cli
       - windows-cli
+      - container-image
 
     steps:
       - name: Download CLI artifacts

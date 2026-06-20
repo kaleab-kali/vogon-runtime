@@ -1,7 +1,8 @@
 # Deployment
 
 Vogon Runtime ships as a Rust CLI. The release workflow publishes native Linux
-and Windows binaries, and the repository includes a Dockerfile for environments
+and Windows binaries. It also publishes a downloadable container image archive
+for tagged releases, and the repository includes a Dockerfile for environments
 that standardize on container images.
 
 ## Build a Container Image
@@ -70,3 +71,16 @@ docker run --rm -v "$PWD:/work" vogon-runtime:smoke check --json fixtures/workfl
 docker run --rm -v "$PWD:/work" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 docker run --rm -v "$PWD:/work" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
 ```
+
+## Release Image Archives
+
+Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
+`.sha256` checksum file. Verify and load the archive before running it:
+
+```sh
+sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
+docker load --input vogon-v0.1.0-container-image.tar.gz
+docker run --rm vogon-runtime:v0.1.0 --version
+```
+
+Use the real version number in place of `v0.1.0`.
