@@ -50,10 +50,11 @@ pub fn run(
     )?;
 
     let mismatch_count = verification.mismatches.len();
+    let printable_verification = redact_step_output_mismatches(verification, &redactions);
     let printable_verification = if replay_redaction_labels.is_empty() {
-        verification
+        printable_verification
     } else {
-        mask_redacted_step_outputs(verification)
+        mask_redacted_step_outputs(printable_verification)
     };
 
     if json {
@@ -127,11 +128,45 @@ fn mask_redacted_step_outputs(report: VerificationReport) -> VerificationReport 
 fn mask_redacted_step_output(mismatch: ReplayMismatch) -> ReplayMismatch {
     match mismatch {
         ReplayMismatch::StepOutput {
-            step_id, expected, ..
+            step_id,
+            expected: _,
+            actual: _,
         } => ReplayMismatch::StepOutput {
             step_id,
-            expected,
+            expected: REDACTED_MISMATCH_OUTPUT.to_owned(),
             actual: REDACTED_MISMATCH_OUTPUT.to_owned(),
+        },
+        other => other,
+    }
+}
+
+fn redact_step_output_mismatches(
+    report: VerificationReport,
+    redactions: &RedactionSet,
+) -> VerificationReport {
+    VerificationReport {
+        workflow_name: report.workflow_name,
+        mismatches: report
+            .mismatches
+            .into_iter()
+            .map(|mismatch| redact_step_output_mismatch(mismatch, redactions))
+            .collect(),
+    }
+}
+
+fn redact_step_output_mismatch(
+    mismatch: ReplayMismatch,
+    redactions: &RedactionSet,
+) -> ReplayMismatch {
+    match mismatch {
+        ReplayMismatch::StepOutput {
+            step_id,
+            expected,
+            actual,
+        } => ReplayMismatch::StepOutput {
+            step_id,
+            expected: redactions.redact(&expected),
+            actual: redactions.redact(&actual),
         },
         other => other,
     }

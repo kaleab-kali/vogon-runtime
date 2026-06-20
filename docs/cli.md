@@ -152,8 +152,10 @@ cargo run -p vogon-cli -- verify --redact api_key=sk-test-123 fixtures/workflows
 
 If a replay contains redaction markers, `vogon verify` rejects it before
 execution unless each marker label has a matching `--redact` rule. If
-verification still mismatches, actual step output values are masked in the
-structured mismatch JSON for redacted replays.
+verification still mismatches after redaction rules are provided, expected and
+actual step output values are redacted before human-readable or JSON mismatch
+reports are printed. Redacted replay markers also cause step output mismatch
+values to be replaced with an unreported placeholder.
 
 Malformed redaction markers are also rejected before workflow execution.
 

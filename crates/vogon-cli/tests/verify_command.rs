@@ -189,6 +189,57 @@ fn verify_command_masks_redacted_replay_mismatch_outputs() {
 }
 
 #[test]
+fn verify_command_redacts_expected_mismatch_outputs() {
+    let secret = "sk-expected-secret";
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("sensitive-expected-mismatch.replay.json");
+    write_sensitive_expected_mismatch_replay(&replay, secret);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--redact")
+        .arg(format!("secret={secret}"))
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("[REDACTED:secret]"));
+    assert!(!stderr.contains(secret));
+}
+
+#[test]
+fn verify_command_redacts_expected_json_mismatch_outputs() {
+    let secret = "sk-json-expected-secret";
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("json-sensitive-expected-mismatch.replay.json");
+    write_sensitive_expected_mismatch_replay(&replay, secret);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--json")
+        .arg("--redact")
+        .arg(format!("secret={secret}"))
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("[REDACTED:secret]"));
+    assert!(!stdout.contains(secret));
+}
+
+#[test]
 fn verify_command_rejects_mismatched_replay() {
     let replay = repo_root()
         .join("target")
@@ -479,6 +530,14 @@ fn write_mismatched_replay(name: &str, path: &Path) {
     let mut replay: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(replay_path(name)).unwrap()).unwrap();
     replay["steps"][0]["output"] = serde_json::Value::String("drifted-output".to_owned());
+    fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
+}
+
+fn write_sensitive_expected_mismatch_replay(path: &Path, secret: &str) {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_path("support-triage")).unwrap()).unwrap();
+    replay["steps"][0]["output"] = serde_json::Value::String(format!("expected token {secret}"));
     fs::write(path, serde_json::to_string_pretty(&replay).unwrap()).unwrap();
 }
 

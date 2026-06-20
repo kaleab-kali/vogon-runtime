@@ -82,6 +82,8 @@ and this project follows semantic versioning once the first release is tagged.
   construction boundaries.
 - Redaction marker parsing now ignores escaped marker-like text and ordinary
   prose fragments that are not complete markers.
+- Verification mismatch reports now redact both expected and actual step output
+  values before printing human-readable or JSON output.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.
