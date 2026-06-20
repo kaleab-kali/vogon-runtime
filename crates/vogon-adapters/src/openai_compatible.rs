@@ -26,6 +26,7 @@ pub struct OpenAiCompatibleModel {
     api_key: String,
     base_url: String,
     model: String,
+    timeout: Duration,
     max_retries: u32,
     agent: ureq::Agent,
 }
@@ -119,6 +120,7 @@ impl OpenAiCompatibleModel {
             api_key,
             base_url,
             model,
+            timeout,
             max_retries,
             agent: ureq::Agent::config_builder()
                 .timeout_global(Some(timeout))
@@ -163,6 +165,7 @@ impl fmt::Debug for OpenAiCompatibleModel {
             .field("api_key", &"<redacted>")
             .field("base_url", &self.base_url)
             .field("model", &self.model)
+            .field("timeout", &self.timeout)
             .field("max_retries", &self.max_retries)
             .finish_non_exhaustive()
     }
@@ -217,6 +220,17 @@ impl ModelAdapter for OpenAiCompatibleModel {
                 "OpenAI-compatible API response did not include text output".to_owned(),
             )
         })
+    }
+
+    fn cache_identity(&self) -> String {
+        format!(
+            "vogon-adapters@{}:openai-compatible:v1:base={}:model={}:timeout_nanos={}:max_retries={}",
+            env!("CARGO_PKG_VERSION"),
+            self.base_url.trim_end_matches('/'),
+            self.model,
+            self.timeout.as_nanos(),
+            self.max_retries
+        )
     }
 }
 
@@ -338,6 +352,23 @@ mod tests {
 
         assert!(debug.contains("<redacted>"));
         assert!(!debug.contains("secret-key"));
+    }
+
+    #[test]
+    fn cache_identity_includes_endpoint_and_model_and_omits_api_key() {
+        let model = OpenAiCompatibleModel::with_base_url_and_model(
+            "secret-key",
+            "https://example.test/v1/",
+            "example/model",
+        )
+        .unwrap();
+
+        let identity = model.cache_identity();
+
+        assert!(identity.contains("openai-compatible"));
+        assert!(identity.contains("https://example.test/v1"));
+        assert!(identity.contains("example/model"));
+        assert!(!identity.contains("secret-key"));
     }
 
     #[test]

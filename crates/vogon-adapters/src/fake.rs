@@ -8,6 +8,13 @@ impl ModelAdapter for DeterministicEchoModel {
     fn complete(&self, step: &Step, input: &str) -> Result<String> {
         Ok(format!("{}:{}", step.id().as_str(), stable_hash(input)))
     }
+
+    fn cache_identity(&self) -> String {
+        format!(
+            "vogon-adapters@{}:deterministic-echo:v1",
+            env!("CARGO_PKG_VERSION")
+        )
+    }
 }
 
 #[cfg(test)]
@@ -25,5 +32,12 @@ mod tests {
             model.complete(&step, "same input").unwrap(),
             model.complete(&step, "same input").unwrap()
         );
+    }
+
+    #[test]
+    fn cache_identity_describes_deterministic_adapter() {
+        let model = DeterministicEchoModel;
+
+        assert!(model.cache_identity().contains("deterministic-echo"));
     }
 }

@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_RUN_CACHE_MAX_ENTRIES: usize = 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-/// In-memory cache keyed by stable step input hashes.
+/// In-memory cache keyed by runtime-generated cache keys.
+///
+/// Runtime cache keys include the adapter cache identity and stable step input
+/// hash. Direct callers may still use this type as a bounded string-to-string
+/// cache for their own stable keys.
 pub struct RunCache {
     outputs: BTreeMap<String, String>,
     #[serde(default)]
@@ -32,30 +36,30 @@ impl RunCache {
         }
     }
 
-    /// Returns the cached output for an input hash.
-    pub fn get_output(&self, input_hash: &str) -> Option<&str> {
-        self.outputs.get(input_hash).map(String::as_str)
+    /// Returns the cached output for a cache key.
+    pub fn get_output(&self, cache_key: &str) -> Option<&str> {
+        self.outputs.get(cache_key).map(String::as_str)
     }
 
-    /// Stores an output for an input hash.
-    pub fn insert_output(&mut self, input_hash: impl Into<String>, output: impl Into<String>) {
+    /// Stores an output for a cache key.
+    pub fn insert_output(&mut self, cache_key: impl Into<String>, output: impl Into<String>) {
         if self.max_entries == 0 {
             return;
         }
 
-        let input_hash = input_hash.into();
+        let cache_key = cache_key.into();
         self.ensure_order_integrity();
-        self.forget_ordered_key(&input_hash);
-        self.insertion_order.push_back(input_hash.clone());
-        self.outputs.insert(input_hash, output.into());
+        self.forget_ordered_key(&cache_key);
+        self.insertion_order.push_back(cache_key.clone());
+        self.outputs.insert(cache_key, output.into());
         self.evict_excess_outputs();
     }
 
-    /// Removes one cached output by input hash.
-    pub fn remove_output(&mut self, input_hash: &str) -> Option<String> {
+    /// Removes one cached output by cache key.
+    pub fn remove_output(&mut self, cache_key: &str) -> Option<String> {
         self.ensure_order_integrity();
-        self.forget_ordered_key(input_hash);
-        self.outputs.remove(input_hash)
+        self.forget_ordered_key(cache_key);
+        self.outputs.remove(cache_key)
     }
 
     /// Clears all cached outputs.
@@ -88,12 +92,8 @@ impl RunCache {
         }
     }
 
-    fn forget_ordered_key(&mut self, input_hash: &str) {
-        if let Some(index) = self
-            .insertion_order
-            .iter()
-            .position(|key| key == input_hash)
-        {
+    fn forget_ordered_key(&mut self, cache_key: &str) {
+        if let Some(index) = self.insertion_order.iter().position(|key| key == cache_key) {
             self.insertion_order.remove(index);
         }
     }
@@ -103,7 +103,7 @@ impl RunCache {
             && self
                 .insertion_order
                 .iter()
-                .all(|input_hash| self.outputs.contains_key(input_hash));
+                .all(|cache_key| self.outputs.contains_key(cache_key));
 
         if !order_matches_outputs {
             self.insertion_order = self.outputs.keys().cloned().collect();

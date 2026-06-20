@@ -7,6 +7,16 @@ use crate::{
 pub trait ModelAdapter {
     /// Completes one workflow step from the step metadata and assembled input.
     fn complete(&self, step: &Step, input: &str) -> Result<String>;
+
+    /// Returns non-secret adapter configuration that scopes runtime cache keys.
+    ///
+    /// Adapters that can target different providers, models, endpoints, or
+    /// behavior-affecting options should override this value. The runtime hashes
+    /// this identity before using it as cache key material, but implementations
+    /// must still avoid including credentials or other secrets.
+    fn cache_identity(&self) -> String {
+        std::any::type_name::<Self>().to_owned()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -41,7 +51,7 @@ where
         )
     }
 
-    /// Runs a workflow with a cache keyed by stable step input hashes.
+    /// Runs a workflow with a cache scoped by adapter identity and step input hash.
     pub fn run_with_cache(&self, workflow: &Workflow, cache: &mut RunCache) -> Result<RunReport> {
         self.run_with_cache_redactions_and_observer(workflow, cache, &RedactionSet::empty(), |_| {})
     }
@@ -144,16 +154,17 @@ where
 
             let input = step_input(step, &previous_output);
             let input_hash = stable_hash(&input);
+            let cache_key = self.cache_key(&input_hash);
             let output = match cache.as_deref_mut().and_then(|cache| {
                 cache
-                    .get_output(&input_hash)
+                    .get_output(&cache_key)
                     .map(std::borrow::ToOwned::to_owned)
             }) {
                 Some(output) => output,
                 None => {
                     let output = self.adapter.complete(step, &input)?;
                     if let Some(cache) = cache.as_deref_mut() {
-                        cache.insert_output(input_hash.clone(), output.clone());
+                        cache.insert_output(cache_key, output.clone());
                     }
                     output
                 }
@@ -232,7 +243,7 @@ where
         self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, |_| {})
     }
 
-    /// Verifies a workflow using a cache keyed by stable step input hashes.
+    /// Verifies a workflow using a cache scoped by adapter identity and step input hash.
     pub fn verify_with_cache(
         &self,
         workflow: &Workflow,
@@ -416,6 +427,13 @@ where
             mismatches,
         })
     }
+
+    fn cache_key(&self, input_hash: &str) -> String {
+        stable_hash(format!(
+            "adapter={}\ninput_hash={input_hash}",
+            self.adapter.cache_identity()
+        ))
+    }
 }
 
 fn push_mismatch<F>(
@@ -483,6 +501,34 @@ mod tests {
         fn complete(&self, step: &Step, input: &str) -> Result<String> {
             self.calls.set(self.calls.get() + 1);
             Ok(format!("{}:{input}", step.id().as_str()))
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct NamespacedModel {
+        namespace: &'static str,
+        output: &'static str,
+        calls: Rc<Cell<usize>>,
+    }
+
+    impl NamespacedModel {
+        fn new(namespace: &'static str, output: &'static str, calls: Rc<Cell<usize>>) -> Self {
+            Self {
+                namespace,
+                output,
+                calls,
+            }
+        }
+    }
+
+    impl ModelAdapter for NamespacedModel {
+        fn complete(&self, _step: &Step, _input: &str) -> Result<String> {
+            self.calls.set(self.calls.get() + 1);
+            Ok(self.output.to_owned())
+        }
+
+        fn cache_identity(&self) -> String {
+            self.namespace.to_owned()
         }
     }
 
@@ -648,6 +694,39 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(calls.get(), 1);
         assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn run_with_cache_scopes_entries_by_adapter_identity() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let first_calls = Rc::new(Cell::new(0));
+        let second_calls = Rc::new(Cell::new(0));
+        let first_runtime = Runtime::new(NamespacedModel::new(
+            "provider=a;model=one",
+            "first output",
+            Rc::clone(&first_calls),
+        ));
+        let second_runtime = Runtime::new(NamespacedModel::new(
+            "provider=b;model=two",
+            "second output",
+            Rc::clone(&second_calls),
+        ));
+        let mut cache = RunCache::new();
+
+        let first = first_runtime.run_with_cache(&workflow, &mut cache).unwrap();
+        let second = second_runtime
+            .run_with_cache(&workflow, &mut cache)
+            .unwrap();
+
+        assert_eq!(first.steps[0].output, "first output");
+        assert_eq!(second.steps[0].output, "second output");
+        assert_eq!(first_calls.get(), 1);
+        assert_eq!(second_calls.get(), 1);
+        assert_eq!(cache.len(), 2);
     }
 
     #[test]
