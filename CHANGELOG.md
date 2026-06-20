@@ -74,6 +74,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Redacted replay mismatch reports now mask actual step output values.
 - Release workflow artifact upload and download actions now use Node.js 24
   action versions.
+- GitHub Actions checkout steps now use `actions/checkout@v7`.
 - Release workflow token permissions are read-only except for the tag
   publishing job.
 - GitHub Actions jobs now have explicit timeout limits.
