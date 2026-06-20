@@ -80,6 +80,8 @@ and this project follows semantic versioning once the first release is tagged.
   publishing job.
 - Provider retry counts are capped at 20 attempts at CLI and adapter
   construction boundaries.
+- Redaction marker parsing now ignores escaped marker-like text and ordinary
+  prose fragments that are not complete markers.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.
