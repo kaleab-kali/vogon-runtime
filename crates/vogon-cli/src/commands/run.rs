@@ -9,11 +9,14 @@ use vogon_adapters::GeminiModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "gemini")]
-pub use vogon_adapters::{DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS};
+pub use vogon_adapters::{
+    DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES,
+};
 #[cfg(feature = "openai-compatible")]
 pub use vogon_adapters::{
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
+    MAX_OPENAI_COMPATIBLE_RETRIES,
 };
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
@@ -23,11 +26,15 @@ use crate::commands::workflow_file::read_toml_workflow;
 #[cfg(not(feature = "gemini"))]
 pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
 #[cfg(not(feature = "gemini"))]
+pub const MAX_GEMINI_RETRIES: u32 = 20;
+#[cfg(not(feature = "gemini"))]
 pub const DEFAULT_GEMINI_TIMEOUT_SECONDS: u64 = 30;
 #[cfg(not(feature = "openai-compatible"))]
 pub const DEFAULT_OPENAI_COMPATIBLE_BASE_URL: &str = "https://router.huggingface.co/v1";
 #[cfg(not(feature = "openai-compatible"))]
 pub const DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES: u32 = 2;
+#[cfg(not(feature = "openai-compatible"))]
+pub const MAX_OPENAI_COMPATIBLE_RETRIES: u32 = 20;
 #[cfg(not(feature = "openai-compatible"))]
 pub const DEFAULT_OPENAI_COMPATIBLE_MODEL: &str = "openai/gpt-oss-120b:fastest";
 #[cfg(not(feature = "openai-compatible"))]

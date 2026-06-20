@@ -9,7 +9,8 @@ use clap::{Parser, Subcommand};
 use commands::run::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, DEFAULT_OPENAI_COMPATIBLE_MODEL,
-    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, ModelProvider, RunModelConfig,
+    DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
+    ModelProvider, RunModelConfig,
 };
 
 #[derive(Debug, Parser)]
@@ -57,7 +58,7 @@ enum Commands {
         gemini_timeout_seconds: u64,
 
         /// Gemini retry count for transient provider errors.
-        #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES)]
+        #[arg(long, default_value_t = DEFAULT_GEMINI_MAX_RETRIES, value_parser = parse_gemini_max_retries)]
         gemini_max_retries: u32,
 
         /// OpenAI-compatible base URL when `--provider openai-compatible` is selected.
@@ -73,7 +74,7 @@ enum Commands {
         openai_compatible_timeout_seconds: u64,
 
         /// OpenAI-compatible retry count for transient provider errors.
-        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES)]
+        #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES, value_parser = parse_openai_compatible_max_retries)]
         openai_compatible_max_retries: u32,
 
         /// Redact a literal value from replay outputs. May be repeated.
@@ -113,6 +114,30 @@ enum Commands {
 
         replay_file: PathBuf,
     },
+}
+
+fn parse_gemini_max_retries(value: &str) -> Result<u32, String> {
+    parse_retry_count(value, "--gemini-max-retries", MAX_GEMINI_RETRIES)
+}
+
+fn parse_openai_compatible_max_retries(value: &str) -> Result<u32, String> {
+    parse_retry_count(
+        value,
+        "--openai-compatible-max-retries",
+        MAX_OPENAI_COMPATIBLE_RETRIES,
+    )
+}
+
+fn parse_retry_count(value: &str, option: &str, max_retries: u32) -> Result<u32, String> {
+    let retries = value
+        .parse::<u32>()
+        .map_err(|error| format!("{option} must be between 0 and {max_retries}: {error}"))?;
+
+    if retries > max_retries {
+        return Err(format!("{option} must be between 0 and {max_retries}"));
+    }
+
+    Ok(retries)
 }
 
 fn main() -> ExitCode {

@@ -11,6 +11,8 @@ pub const DEFAULT_OPENAI_COMPATIBLE_MODEL: &str = "openai/gpt-oss-120b:fastest";
 pub const DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS: u64 = 30;
 /// Default number of retry attempts for retryable OpenAI-compatible failures.
 pub const DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES: u32 = 2;
+/// Maximum accepted OpenAI-compatible retry count.
+pub const MAX_OPENAI_COMPATIBLE_RETRIES: u32 = 20;
 
 const MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS: usize = 2048;
 const MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES: usize =
@@ -103,6 +105,12 @@ impl OpenAiCompatibleModel {
             return Err(VogonError::Adapter(
                 "OpenAI-compatible request timeout must be greater than zero".to_owned(),
             ));
+        }
+
+        if max_retries > MAX_OPENAI_COMPATIBLE_RETRIES {
+            return Err(VogonError::Adapter(format!(
+                "OpenAI-compatible max retries must be at most {MAX_OPENAI_COMPATIBLE_RETRIES}"
+            )));
         }
 
         Ok(Self {
@@ -310,8 +318,8 @@ mod tests {
 
     use super::{
         ChatCompletionsResponse, MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES,
-        MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS, OpenAiCompatibleModel, extract_text,
-        truncate_error_body,
+        MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS, MAX_OPENAI_COMPATIBLE_RETRIES,
+        OpenAiCompatibleModel, extract_text, truncate_error_body,
     };
     use vogon_core::{ModelAdapter, Step, StepId};
 
@@ -342,6 +350,20 @@ mod tests {
         );
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn model_rejects_excessive_retries() {
+        let result = OpenAiCompatibleModel::with_base_url_model_timeout_and_retries(
+            "secret-key",
+            "https://example.test/v1",
+            "example/model",
+            Duration::from_secs(5),
+            MAX_OPENAI_COMPATIBLE_RETRIES + 1,
+        );
+
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("OpenAI-compatible max retries must be at most 20"));
     }
 
     #[test]
