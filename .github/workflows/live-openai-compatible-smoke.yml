@@ -1,0 +1,88 @@
+name: Live OpenAI-Compatible Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: OpenAI-compatible API base URL.
+        required: false
+        default: https://router.huggingface.co/v1
+      model:
+        description: OpenAI-compatible model name.
+        required: false
+        default: openai/gpt-oss-120b:fastest
+  workflow_call:
+    inputs:
+      base_url:
+        type: string
+        required: false
+        default: https://router.huggingface.co/v1
+      model:
+        type: string
+        required: false
+        default: openai/gpt-oss-120b:fastest
+    secrets:
+      OPENAI_COMPATIBLE_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  live-openai-compatible:
+    name: Live OpenAI-compatible provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPENAI_COMPATIBLE_API_KEY }}
+      OPENAI_COMPATIBLE_BASE_URL: ${{ inputs.base_url }}
+      OPENAI_COMPATIBLE_MODEL: ${{ inputs.model }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run OpenAI-compatible workflow smoke
+        run: |
+          if [ -z "${OPENAI_COMPATIBLE_API_KEY:-}" ]; then
+            echo "OPENAI_COMPATIBLE_API_KEY is required for the live OpenAI-compatible smoke workflow." >&2
+            exit 1
+          fi
+
+          base_url="${OPENAI_COMPATIBLE_BASE_URL:-https://router.huggingface.co/v1}"
+          model="${OPENAI_COMPATIBLE_MODEL:-openai/gpt-oss-120b:fastest}"
+
+          ./target/release/vogon run \
+            --provider openai-compatible \
+            --openai-compatible-base-url "$base_url" \
+            --openai-compatible-model "$model" \
+            --openai-compatible-timeout-seconds 60 \
+            --openai-compatible-max-retries 2 \
+            --redact openai_compatible_api_key="$OPENAI_COMPATIBLE_API_KEY" \
+            --output target/live-openai-compatible-smoke.replay.json \
+            fixtures/workflows/support-triage.toml
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          replay = json.loads(Path("target/live-openai-compatible-smoke.replay.json").read_text())
+          assert replay["workflow_name"] == "support-triage"
+          assert len(replay["steps"]) == 2
+          for step in replay["steps"]:
+              assert step["output"]
+              assert "[REDACTED:openai_compatible_api_key]" not in step["output"]
+          PY
