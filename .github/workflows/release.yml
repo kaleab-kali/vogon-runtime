@@ -63,6 +63,16 @@ jobs:
           cargo metadata --locked --format-version 1 > "vogon-${{ github.ref_name }}-cargo-metadata.json"
           sha256sum "vogon-${{ github.ref_name }}-cargo-metadata.json" > "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
 
+      - name: Write SPDX SBOM
+        run: |
+          python3 scripts/write_spdx_sbom.py \
+            --metadata "vogon-${{ github.ref_name }}-cargo-metadata.json" \
+            --output "vogon-${{ github.ref_name }}-cargo-spdx.json" \
+            --document-name "vogon-runtime ${{ github.ref_name }}" \
+            --namespace "https://github.com/kaleab-kali/vogon-runtime/releases/${{ github.ref_name }}/sbom/${{ github.run_id }}"
+          sha256sum "vogon-${{ github.ref_name }}-cargo-spdx.json" > "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
+          python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-spdx.json')); assert data['spdxVersion'] == 'SPDX-2.3'; assert data['packages']; assert data['relationships']"
+
       - name: Smoke test packaged archive
         run: |
           mkdir -p archive-smoke
@@ -85,6 +95,8 @@ jobs:
             vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
             vogon-${{ github.ref_name }}-cargo-metadata.json
             vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
+            vogon-${{ github.ref_name }}-cargo-spdx.json
+            vogon-${{ github.ref_name }}-cargo-spdx.json.sha256
           if-no-files-found: error
 
   windows-cli:
@@ -246,6 +258,8 @@ jobs:
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-metadata.json"
           test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-spdx.json"
+          test -f "release-artifacts/vogon-linux-x86_64/vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip"
           test -f "release-artifacts/vogon-windows-x86_64/vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
           test -f "release-artifacts/vogon-container-image/vogon-${{ github.ref_name }}-container-image.tar.gz"
@@ -254,7 +268,9 @@ jobs:
             cd release-artifacts/vogon-linux-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
             sha256sum -c "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
+            sha256sum -c "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
             python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-metadata.json')); assert data['packages']; assert data['resolve']['nodes']"
+            python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-spdx.json')); assert data['spdxVersion'] == 'SPDX-2.3'; assert data['packages']; assert data['relationships']"
           )
           (
             cd release-artifacts/vogon-windows-x86_64

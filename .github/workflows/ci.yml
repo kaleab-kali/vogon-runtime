@@ -32,6 +32,9 @@ jobs:
       - name: Install Rust components
         run: rustup component add rustfmt clippy
 
+      - name: Test release scripts
+        run: python3 -m unittest scripts.test_write_spdx_sbom
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
