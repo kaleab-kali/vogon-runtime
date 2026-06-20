@@ -3,6 +3,8 @@ use std::{env, fmt, io::Read, time::Duration};
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, Step, VogonError};
 
+use crate::retry::sleep_before_retry;
+
 /// Default Gemini model used by [`GeminiModel`].
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
 /// Default Gemini request timeout in seconds.
@@ -163,6 +165,7 @@ impl ModelAdapter for GeminiModel {
         };
         let request_json = serde_json::to_string(&request).map_err(adapter_error)?;
         let mut retries_remaining = self.max_retries;
+        let mut retry_attempt = 0;
 
         let mut response = loop {
             match self
@@ -174,10 +177,14 @@ impl ModelAdapter for GeminiModel {
             {
                 Ok(response) if response.status().is_success() => break response,
                 Ok(response) if retries_remaining > 0 && is_retryable_status(response.status()) => {
+                    sleep_before_retry(retry_attempt);
+                    retry_attempt += 1;
                     retries_remaining -= 1;
                 }
                 Ok(response) => return Err(http_status_error(response)),
                 Err(error) if retries_remaining > 0 && is_retryable_error(&error) => {
+                    sleep_before_retry(retry_attempt);
+                    retry_attempt += 1;
                     retries_remaining -= 1;
                 }
                 Err(error) => return Err(http_error(error)),

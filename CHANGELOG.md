@@ -88,6 +88,8 @@ and this project follows semantic versioning once the first release is tagged.
   buffering them into memory.
 - `RunCache` now has a bounded entry limit with explicit output removal and
   clearing APIs.
+- Provider adapters now apply exponential backoff with lightweight jitter before
+  retrying transient failures.
 - GitHub Actions jobs now have explicit timeout limits.
 - CI now treats Rustdoc warnings as errors.
 - Library crates now deny missing public Rust documentation.

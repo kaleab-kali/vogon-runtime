@@ -32,6 +32,8 @@ mod fake;
 mod gemini;
 #[cfg(feature = "openai-compatible")]
 mod openai_compatible;
+#[cfg(any(feature = "gemini", feature = "openai-compatible"))]
+mod retry;
 
 pub use fake::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
