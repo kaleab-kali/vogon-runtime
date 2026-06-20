@@ -48,8 +48,11 @@ Leading or trailing whitespace is rejected instead of normalized so marker
 labels remain exact. CLI redaction labels must be unique within one command,
 and `vogon-core` redaction sets reject duplicate labels for library callers.
 Replay commands reject markers with unsupported labels before verification
-executes or trace output is printed.
+executes or trace output is printed. Prefix marker-like text with `\` when it
+should be treated as literal replay output instead of redaction metadata.
 
-Malformed redaction markers, such as markers without a closing `]` or without a
-label, are rejected by replay commands before verification executes the workflow
-or trace output is printed.
+Complete unescaped redaction markers without a label or with unsupported label
+characters are rejected by replay commands before verification executes the
+workflow or trace output is printed. An unclosed marker candidate that contains
+only valid label characters is also rejected; marker-like prose fragments with
+normal text separators are treated as literal output.
