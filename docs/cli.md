@@ -29,6 +29,22 @@ Runs the built-in deterministic demo workflow.
 cargo run -p vogon-cli -- demo
 ```
 
+## `vogon providers`
+
+Shows available model providers, whether provider support is enabled in the
+current binary, and whether required credential environment variables are
+configured. Secret values are never printed.
+
+```sh
+cargo run -p vogon-cli -- providers
+```
+
+Emit the provider diagnostics as JSON for scripts:
+
+```sh
+cargo run -p vogon-cli -- providers --json
+```
+
 ## `vogon check`
 
 Validates a TOML workflow without executing it.

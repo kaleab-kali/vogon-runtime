@@ -35,6 +35,13 @@ enum Commands {
     /// Run the built-in deterministic demo workflow.
     Demo,
 
+    /// Show available model providers and credential configuration status.
+    Providers {
+        /// Emit machine-readable JSON instead of human-readable text.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Run a workflow file.
     Run {
         /// Model provider to use for workflow execution.
@@ -116,6 +123,7 @@ fn main() -> ExitCode {
             workflow_file,
         } => commands::check::run(&workflow_file, json),
         Commands::Demo => commands::demo::run(),
+        Commands::Providers { json } => commands::providers::run(json),
         Commands::Run {
             provider,
             gemini_model,

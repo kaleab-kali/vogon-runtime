@@ -18,6 +18,11 @@ cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 Use this provider for tests, fixtures, examples, CI, and replay verification
 work. It requires no credentials or network access.
 
+Use `vogon providers` to check which providers are enabled in the current
+binary and whether required credential environment variables are configured.
+The command reports only boolean credential status and never prints secret
+values.
+
 ### Gemini
 
 The Gemini adapter uses the Gemini API `generateContent` REST endpoint. Default

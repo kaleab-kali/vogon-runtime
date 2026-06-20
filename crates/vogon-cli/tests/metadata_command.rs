@@ -19,6 +19,7 @@ fn help_flag_lists_public_commands() {
         "Commands:",
         "check",
         "demo",
+        "providers",
         "run",
         "verify",
         "trace",
@@ -29,6 +30,71 @@ fn help_flag_lists_public_commands() {
             "stdout should contain `{expected}`:\n{stdout}"
         );
     }
+}
+
+#[test]
+fn providers_help_documents_json_option() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("providers")
+        .arg("--help")
+        .output()
+        .expect("providers help should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for expected in ["Show available model providers", "--json"] {
+        assert!(
+            stdout.contains(expected),
+            "stdout should contain `{expected}`:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn providers_command_reports_json_without_secret_values() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("providers")
+        .arg("--json")
+        .env("GEMINI_API_KEY", "secret-gemini-key")
+        .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
+        .output()
+        .expect("providers command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("secret-gemini-key"));
+    assert!(!stdout.contains("secret-openai-compatible-key"));
+
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    let providers = report["providers"]
+        .as_array()
+        .expect("providers should be an array");
+    assert!(providers.iter().any(|provider| {
+        provider["name"] == "deterministic"
+            && provider["enabled"] == true
+            && provider["default"] == true
+    }));
+    assert!(providers.iter().any(|provider| {
+        provider["name"] == "gemini"
+            && provider["credential_env"] == "GEMINI_API_KEY"
+            && provider["credential_configured"] == true
+    }));
+    assert!(providers.iter().any(|provider| {
+        provider["name"] == "openai-compatible"
+            && provider["credential_env"] == "OPENAI_COMPATIBLE_API_KEY"
+            && provider["credential_configured"] == true
+    }));
 }
 
 #[test]

@@ -1,6 +1,7 @@
 pub mod check;
 pub mod demo;
 pub mod file_io;
+pub mod providers;
 pub mod redaction;
 pub mod redaction_markers;
 pub mod run;
