@@ -1,4 +1,4 @@
-use std::{env, fmt, time::Duration};
+use std::{env, fmt, io::Read, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, Step, VogonError};
@@ -13,6 +13,8 @@ pub const DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS: u64 = 30;
 pub const DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES: u32 = 2;
 
 const MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS: usize = 2048;
+const MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES: usize =
+    MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS * 4 + 4;
 
 #[derive(Clone)]
 /// Adapter for OpenAI-compatible chat-completions APIs.
@@ -252,12 +254,7 @@ fn extract_text(response: &ChatCompletionsResponse) -> Option<String> {
 
 fn http_status_error(mut response: ureq::http::Response<ureq::Body>) -> VogonError {
     let status = response.status();
-    let body = truncate_error_body(
-        response
-            .body_mut()
-            .read_to_string()
-            .unwrap_or_else(|_| "<unreadable response body>".to_owned()),
-    );
+    let body = truncate_error_body(read_error_body(response.body_mut()));
     VogonError::Adapter(format!(
         "OpenAI-compatible API request failed with HTTP {status}: {body}"
     ))
@@ -280,6 +277,20 @@ fn truncate_error_body(body: String) -> String {
     truncated
 }
 
+fn read_error_body(body: &mut ureq::Body) -> String {
+    let mut bytes = Vec::new();
+    let read_result = body
+        .as_reader()
+        .take(MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES as u64)
+        .read_to_end(&mut bytes);
+
+    if read_result.is_err() {
+        return "<unreadable response body>".to_owned();
+    }
+
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
 fn adapter_error(error: impl std::error::Error) -> VogonError {
     VogonError::Adapter(format!("OpenAI-compatible adapter failed: {error}"))
 }
@@ -298,8 +309,9 @@ mod tests {
     };
 
     use super::{
-        ChatCompletionsResponse, MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS, OpenAiCompatibleModel,
-        extract_text, truncate_error_body,
+        ChatCompletionsResponse, MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES,
+        MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS, OpenAiCompatibleModel, extract_text,
+        truncate_error_body,
     };
     use vogon_core::{ModelAdapter, Step, StepId};
 
@@ -450,6 +462,44 @@ mod tests {
         let error = error.to_string();
         assert!(error.contains("HTTP 400 Bad Request"));
         assert!(error.contains(r#"{"error":"bad request"}"#));
+    }
+
+    #[test]
+    fn non_retryable_status_error_bodies_are_bounded_before_truncation() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+
+            let body = format!(
+                "{}tail",
+                "x".repeat(MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES + 1024)
+            );
+            write!(
+                stream,
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        });
+
+        let model = OpenAiCompatibleModel::with_base_url_model_timeout_and_retries(
+            "secret-key",
+            format!("http://{address}"),
+            "example/model",
+            Duration::from_secs(5),
+            0,
+        )
+        .unwrap();
+        let step = Step::new(StepId::new("classify").unwrap(), "Classify");
+
+        let error = model.complete(&step, "input").unwrap_err();
+
+        server.join().unwrap();
+        let error = error.to_string();
+        assert!(error.contains("...[truncated]"));
+        assert!(!error.contains("tail"));
     }
 
     fn read_http_request(stream: &mut TcpStream) {

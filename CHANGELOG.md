@@ -106,6 +106,8 @@ and this project follows semantic versioning once the first release is tagged.
   of silently normalized.
 - CLI redaction labels are now rejected when repeated in the same command.
 - Core redaction sets now reject duplicate labels for library callers.
+- Provider adapter HTTP error handling now reads only a bounded response-body
+  prefix before truncating error messages.
 - Workflow names with leading or trailing whitespace are now rejected.
 - Workflow names with spaces or punctuation are now rejected.
 - Workflow step IDs with leading or trailing whitespace are now rejected instead
