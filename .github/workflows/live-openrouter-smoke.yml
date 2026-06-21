@@ -1,0 +1,90 @@
+name: Live OpenRouter Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: OpenRouter model name.
+        required: false
+        default: openrouter/free
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        required: false
+        default: openrouter/free
+    secrets:
+      OPENROUTER_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  live-openrouter:
+    name: Live OpenRouter provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: ${{ inputs.model }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run OpenRouter workflow smoke
+        run: |
+          if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            echo "OPENROUTER_API_KEY is required for the live OpenRouter smoke workflow." >&2
+            exit 1
+          fi
+
+          model="${OPENROUTER_MODEL:-openrouter/free}"
+          export OPENROUTER_MODEL="$model"
+
+          ./target/release/vogon run \
+            --provider openrouter \
+            --openrouter-model "$model" \
+            --openrouter-timeout-seconds 60 \
+            --openrouter-max-retries 2 \
+            --redact openrouter_api_key="$OPENROUTER_API_KEY" \
+            --output target/live-openrouter-smoke.replay.json \
+            fixtures/workflows/support-triage.toml
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          replay = json.loads(Path("target/live-openrouter-smoke.replay.json").read_text())
+          model = os.environ["OPENROUTER_MODEL"]
+
+          assert replay["workflow_name"] == "support-triage"
+          assert replay["schema_version"] == 1
+          runtime = replay["runtime"]
+          assert runtime["provider"] == "openrouter"
+          assert runtime["adapter"] == "openrouter-openai-compatible-chat-completions"
+          assert runtime["model"] == model
+          assert runtime["parameters"]["base_url"] == "https://openrouter.ai/api/v1"
+          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
+          assert runtime["parameters"]["max_retries"] == "2"
+          assert len(replay["steps"]) == 2
+          for step in replay["steps"]:
+              assert step["output"]
+              assert "[REDACTED:openrouter_api_key]" not in step["output"]
+          assert os.environ["OPENROUTER_API_KEY"] not in json.dumps(replay)
+          PY

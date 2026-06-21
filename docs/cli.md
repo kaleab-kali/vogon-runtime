@@ -144,6 +144,18 @@ The default model is `openai/gpt-oss-120b:fastest`, routed through
 `--hugging-face-timeout-seconds`, and `--hugging-face-max-retries` to adjust the
 model and network bounds.
 
+Run with OpenRouter by setting `OPENROUTER_API_KEY` and selecting the
+OpenRouter provider:
+
+```sh
+OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter fixtures/workflows/support-triage.toml
+```
+
+The default OpenRouter base URL is `https://openrouter.ai/api/v1`, and the
+default model is `openrouter/free`. Use `--openrouter-model`,
+`--openrouter-timeout-seconds`, and `--openrouter-max-retries` to adjust the
+model and network bounds.
+
 Write the replay JSON to a file:
 
 ```sh

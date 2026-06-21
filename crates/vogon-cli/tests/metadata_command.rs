@@ -63,6 +63,7 @@ fn providers_command_reports_json_without_secret_values() {
         .env("GEMINI_API_KEY", "secret-gemini-key")
         .env("GROQ_API_KEY", "secret-groq-key")
         .env("HF_TOKEN", "secret-hugging-face-token")
+        .env("OPENROUTER_API_KEY", "secret-openrouter-key")
         .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
         .output()
         .expect("providers command should execute");
@@ -77,6 +78,7 @@ fn providers_command_reports_json_without_secret_values() {
     assert!(!stdout.contains("secret-gemini-key"));
     assert!(!stdout.contains("secret-groq-key"));
     assert!(!stdout.contains("secret-hugging-face-token"));
+    assert!(!stdout.contains("secret-openrouter-key"));
     assert!(!stdout.contains("secret-openai-compatible-key"));
 
     let report: serde_json::Value =
@@ -107,6 +109,13 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["default_base_url"] == "https://router.huggingface.co/v1"
             && provider["default_model"] == "openai/gpt-oss-120b:fastest"
+    }));
+    assert!(providers.iter().any(|provider| {
+        provider["name"] == "openrouter"
+            && provider["credential_env"] == "OPENROUTER_API_KEY"
+            && provider["credential_configured"] == true
+            && provider["default_base_url"] == "https://openrouter.ai/api/v1"
+            && provider["default_model"] == "openrouter/free"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openai-compatible"
@@ -143,6 +152,9 @@ fn run_help_documents_replay_options() {
         "--hugging-face-model <HUGGING_FACE_MODEL>",
         "--hugging-face-timeout-seconds <HUGGING_FACE_TIMEOUT_SECONDS>",
         "--hugging-face-max-retries <HUGGING_FACE_MAX_RETRIES>",
+        "--openrouter-model <OPENROUTER_MODEL>",
+        "--openrouter-timeout-seconds <OPENROUTER_TIMEOUT_SECONDS>",
+        "--openrouter-max-retries <OPENROUTER_MAX_RETRIES>",
         "--openai-compatible-base-url <OPENAI_COMPATIBLE_BASE_URL>",
         "--openai-compatible-model <OPENAI_COMPATIBLE_MODEL>",
         "--openai-compatible-timeout-seconds <OPENAI_COMPATIBLE_TIMEOUT_SECONDS>",

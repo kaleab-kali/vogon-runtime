@@ -96,6 +96,29 @@ transport/HTTP failures twice by default. Use
 between `0` and `20`, and retry delays use exponential backoff with lightweight
 jitter.
 
+### OpenRouter
+
+The OpenRouter adapter is a preset for OpenRouter's OpenAI-compatible
+chat-completions endpoint. Default CLI builds include the adapter, but it is
+only used when explicitly selected:
+
+```sh
+OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter fixtures/workflows/support-triage.toml
+```
+
+The default base URL is `https://openrouter.ai/api/v1`, and the default model
+is `openrouter/free`. Use `--openrouter-model` to select another OpenRouter
+model:
+
+```sh
+OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter --openrouter-model openrouter/free fixtures/workflows/support-triage.toml
+```
+
+OpenRouter requests use a 30 second timeout and retry retryable
+transport/HTTP failures twice by default. Use `--openrouter-timeout-seconds`
+and `--openrouter-max-retries` to adjust those bounds. Retry counts must be
+between `0` and `20`.
+
 ### Groq
 
 The Groq adapter is a preset for Groq's OpenAI-compatible chat-completions
@@ -162,6 +185,11 @@ preset when `HF_TOKEN` is configured. Its manual dispatch input lets
 maintainers choose a different Hugging Face model without changing repository
 code.
 
+The `Live OpenRouter Smoke` workflow does the same for the OpenRouter preset
+when `OPENROUTER_API_KEY` is configured. Its manual dispatch input lets
+maintainers choose a different OpenRouter model without changing repository
+code.
+
 Run the relevant live provider workflow from GitHub Actions after changing
 adapter behavior, provider configuration, release packaging, or deployment
 settings that affect real provider calls. These workflows write replays to
@@ -175,6 +203,8 @@ Official references:
 - Gemini text generation API: <https://ai.google.dev/gemini-api/docs/text-generation>
 - Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
 - OpenRouter docs: <https://openrouter.ai/docs>
+- OpenRouter API reference: <https://openrouter.ai/docs/api-reference/chat-completion>
+- OpenRouter free models: <https://openrouter.ai/docs/use-cases/free-models>
 - Groq OpenAI compatibility: <https://console.groq.com/docs/openai>
 - Groq models: <https://console.groq.com/docs/models>
 - Groq rate limits: <https://console.groq.com/docs/rate-limits>
@@ -188,7 +218,7 @@ implementing or recommending one.
 | Provider | Why consider it | Notes |
 | --- | --- | --- |
 | Hugging Face Inference Providers | Broad model catalog and documented free credits for experimentation. | Supported through the Hugging Face preset and the OpenAI-compatible adapter. |
-| OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Supported through the OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
+| OpenRouter | OpenAI-compatible routing across many model providers, including some free models. | Supported through the OpenRouter preset and the OpenAI-compatible adapter; model availability and free labels are provider-dependent. |
 
 Official references:
 

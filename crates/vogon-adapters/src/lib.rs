@@ -6,8 +6,8 @@
 //! The current crate exposes [`DeterministicEchoModel`], a deterministic adapter
 //! intended for local development, tests, examples, and replay fixtures. With
 //! default features enabled, it also exposes [`GeminiModel`],
-//! [`OpenAiCompatibleModel`], [`HuggingFaceModel`], and [`GroqModel`] for real
-//! provider-backed API calls.
+//! [`OpenAiCompatibleModel`], [`HuggingFaceModel`], [`GroqModel`], and
+//! [`OpenRouterModel`] for real provider-backed API calls.
 //!
 //! ```
 //! use vogon_adapters::DeterministicEchoModel;
@@ -37,6 +37,8 @@ mod groq;
 mod hugging_face;
 #[cfg(feature = "openai-compatible")]
 mod openai_compatible;
+#[cfg(feature = "openai-compatible")]
+mod openrouter;
 #[cfg(any(feature = "gemini", feature = "openai-compatible"))]
 mod retry;
 
@@ -61,4 +63,9 @@ pub use openai_compatible::{
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
     MAX_OPENAI_COMPATIBLE_RETRIES, OpenAiCompatibleModel,
+};
+#[cfg(feature = "openai-compatible")]
+pub use openrouter::{
+    DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MAX_RETRIES, DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, MAX_OPENROUTER_RETRIES, OpenRouterModel,
 };
