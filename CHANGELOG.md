@@ -30,6 +30,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Public support guidance for questions, bugs, feature requests, and security
   reports.
 - Documentation link checking in CI for repository-local Markdown links.
+- Provider credential `.env.example` validation in CI.
 - Optimized release build validation in CI.
 - Release CLI smoke testing in CI.
 - Release CLI smoke testing against every committed replay fixture.

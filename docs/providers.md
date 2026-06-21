@@ -21,7 +21,8 @@ work. It requires no credentials or network access.
 Use `vogon providers` to check which providers are enabled in the current
 binary and whether required credential environment variables are configured.
 The command reports only boolean credential status and never prints secret
-values.
+values. `.env.example` lists all supported provider credential variable names
+with blank values for local setup reference.
 
 ### Gemini
 
