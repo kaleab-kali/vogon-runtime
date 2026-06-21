@@ -24,8 +24,8 @@ Mount the repository, or a directory containing workflows and replays, at
 `/work` to run against local files:
 
 ```sh
-docker run --rm -v "$PWD:/work" vogon-runtime:local check fixtures/workflows/support-triage.toml
-docker run --rm -v "$PWD:/work" vogon-runtime:local verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:local check fixtures/workflows/support-triage.toml
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:local verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
 ## Provider Credentials
@@ -68,6 +68,8 @@ Use `--hugging-face-model` to select a different Hugging Face routed model.
 - The runtime image is based on Debian bookworm slim.
 - CA certificates are installed so HTTPS provider calls work by default.
 - The container runs as the unprivileged `vogon` user.
+- The deterministic check, verify, and trace flows can run with a read-only
+  container filesystem and a read-only `/work` mount.
 - Workflow and replay files should be mounted into `/work` instead of baked
   into the image.
 
@@ -78,9 +80,11 @@ Before publishing or deploying an image, run:
 ```sh
 docker build --tag vogon-runtime:smoke .
 docker run --rm vogon-runtime:smoke --version
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
+test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
+docker run --rm --read-only vogon-runtime:smoke --version
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
 ```
 
 ## Release Image Archives
@@ -92,6 +96,8 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
 docker run --rm vogon-runtime:v0.1.0 --version
+test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
+docker run --rm --read-only vogon-runtime:v0.1.0 --version
 ```
 
 Use the real version number in place of `v0.1.0`.

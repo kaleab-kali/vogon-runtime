@@ -34,9 +34,11 @@ target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fix
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 docker build --tag vogon-runtime:smoke .
 docker run --rm vogon-runtime:smoke --version
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
-docker run --rm -v "$PWD:/work" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
+test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
+docker run --rm --read-only vogon-runtime:smoke --version
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
@@ -170,6 +172,8 @@ The release also publishes a container image archive and checksum:
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
 docker run --rm vogon-runtime:v0.1.0 --version
+test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
+docker run --rm --read-only vogon-runtime:v0.1.0 --version
 ```
 
 Use the real version number in place of `v0.1.0`.
