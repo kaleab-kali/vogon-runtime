@@ -27,6 +27,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Example workflow and replay fixtures for support triage and writing workflows.
 - GitHub Actions CI for formatting, linting, tests, and docs.
 - GitHub issue forms for bug reports and feature requests.
+- Public support guidance for questions, bugs, feature requests, and security
+  reports.
 - Optimized release build validation in CI.
 - Release CLI smoke testing in CI.
 - Release CLI smoke testing against every committed replay fixture.
