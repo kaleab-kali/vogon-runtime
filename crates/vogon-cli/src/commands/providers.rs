@@ -21,22 +21,22 @@ pub fn run(json: bool) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[derive(Debug, Serialize)]
-struct ProviderDiagnostics {
-    providers: Vec<ProviderStatus>,
+pub(crate) struct ProviderDiagnostics {
+    pub(crate) providers: Vec<ProviderStatus>,
 }
 
 #[derive(Debug, Serialize)]
-struct ProviderStatus {
-    name: &'static str,
-    enabled: bool,
-    default: bool,
-    credential_env: Option<&'static str>,
-    credential_configured: Option<bool>,
-    default_base_url: Option<&'static str>,
-    default_model: Option<&'static str>,
+pub(crate) struct ProviderStatus {
+    pub(crate) name: &'static str,
+    pub(crate) enabled: bool,
+    pub(crate) default: bool,
+    pub(crate) credential_env: Option<&'static str>,
+    pub(crate) credential_configured: Option<bool>,
+    pub(crate) default_base_url: Option<&'static str>,
+    pub(crate) default_model: Option<&'static str>,
 }
 
-fn provider_statuses() -> Vec<ProviderStatus> {
+pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
     vec![
         ProviderStatus {
             name: "deterministic",

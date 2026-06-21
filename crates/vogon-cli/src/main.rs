@@ -41,6 +41,13 @@ enum Commands {
     /// Run the built-in deterministic demo workflow.
     Demo,
 
+    /// Run local installation diagnostics without making network calls.
+    Doctor {
+        /// Emit machine-readable JSON instead of human-readable text.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Show available model providers and credential configuration status.
     Providers {
         /// Emit machine-readable JSON instead of human-readable text.
@@ -273,6 +280,7 @@ fn main() -> ExitCode {
             workflow_file,
         } => commands::check::run(&workflow_file, json),
         Commands::Demo => commands::demo::run(),
+        Commands::Doctor { json } => commands::doctor::run(json),
         Commands::Providers { json } => commands::providers::run(json),
         Commands::Run {
             provider,

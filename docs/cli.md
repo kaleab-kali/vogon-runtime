@@ -48,6 +48,22 @@ Emit the provider diagnostics as JSON for scripts:
 cargo run -p vogon-cli -- providers --json
 ```
 
+## `vogon doctor`
+
+Runs local installation diagnostics without making network calls. The command
+executes a deterministic one-step workflow self-check and reports provider
+credential status without printing secret values.
+
+```sh
+cargo run -p vogon-cli -- doctor
+```
+
+Emit the diagnostics as JSON for scripts:
+
+```sh
+cargo run -p vogon-cli -- doctor --json
+```
+
 ## `vogon check`
 
 Validates a TOML workflow without executing it.

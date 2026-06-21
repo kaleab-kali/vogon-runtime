@@ -35,6 +35,9 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           ./target/release/vogon --version
+          doctor_json="$(./target/release/vogon doctor --json)"
+          echo "$doctor_json"
+          printf '%s\n' "$doctor_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['status'] == 'ok'; assert any(check['name'] == 'deterministic_runtime' and check['status'] == 'ok' for check in data['checks'])"
           check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
           printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
@@ -78,6 +81,7 @@ jobs:
           mkdir -p archive-smoke
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
           ./archive-smoke/vogon --version
+          ./archive-smoke/vogon doctor --json
           test -f archive-smoke/README.md
           test -f archive-smoke/LICENSE
 
@@ -121,6 +125,12 @@ jobs:
       - name: Smoke test CLI artifact
         run: |
           .\target\release\vogon.exe --version
+          $doctorJson = (& .\target\release\vogon.exe doctor --json) -join "`n"
+          $doctorJson
+          $doctor = $doctorJson | ConvertFrom-Json
+          if ($doctor.status -ne 'ok' -or -not ($doctor.checks | Where-Object { $_.name -eq 'deterministic_runtime' -and $_.status -eq 'ok' })) {
+            throw "Unexpected doctor JSON output: $doctorJson"
+          }
           $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
           $checkJson
           $check = $checkJson | ConvertFrom-Json
@@ -160,6 +170,7 @@ jobs:
         run: |
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
           .\archive-smoke\vogon.exe --version
+          .\archive-smoke\vogon.exe doctor --json
           if (-not (Test-Path archive-smoke\README.md)) {
             throw "Packaged archive is missing README.md"
           }
