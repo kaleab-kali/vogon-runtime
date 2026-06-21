@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
     url: https://github.com/kaleab-kali/vogon-runtime/security/advisories/new
-    about: Report vulnerabilities privately when possible.
+    about: Please report security vulnerabilities privately through GitHub Security Advisories.

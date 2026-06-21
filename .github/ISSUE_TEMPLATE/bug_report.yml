@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible problem in Vogon Runtime.
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please include enough detail for maintainers to reproduce it with deterministic fixtures when possible.
+  - type: input
+    id: version
+    attributes:
+      label: Vogon Runtime version
+      description: Use `vogon --version`, a Git commit SHA, or the release tag.
+      placeholder: "vogon 0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - CLI
+        - Runtime
+        - Replay verification
+        - Provider adapter
+        - Documentation
+        - Release artifact
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include exact error messages when available.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include workflow files, replay files, commands, and relevant environment details.
+      placeholder: |
+        1. Run `cargo run -p vogon-cli -- ...`
+        2. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version, shell, and whether a real provider or deterministic adapter was used.
+      placeholder: |
+        - OS:
+        - Rust:
+        - Provider:
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have removed secrets, API keys, private prompts, and sensitive replay data.
+          required: true
+        - label: I searched existing issues for a similar report.
+          required: true
