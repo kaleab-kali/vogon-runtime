@@ -89,6 +89,8 @@ and this project follows semantic versioning once the first release is tagged.
 
 ### Changed
 
+- GitHub issue intake now uses structured issue forms instead of duplicate
+  Markdown templates.
 - Redacted replay mismatch reports now mask actual step output values.
 - Release workflow artifact upload and download actions now use Node.js 24
   action versions.
