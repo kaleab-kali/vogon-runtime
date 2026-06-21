@@ -244,6 +244,7 @@ Useful documentation:
 - [Replay format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/replay-format.md)
 - [Performance](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/performance.md)
 - [Release process](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/release.md)
+- [Support](https://github.com/kaleab-kali/vogon-runtime/blob/main/SUPPORT.md)
 
 ## Design Principles
 
