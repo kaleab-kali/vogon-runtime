@@ -14,6 +14,12 @@ RUN cargo build --release --locked -p vogon-cli
 
 FROM debian:bookworm-slim AS runtime
 
+LABEL org.opencontainers.image.title="Vogon Runtime" \
+    org.opencontainers.image.description="Deterministic, replayable AI workflow runtime CLI." \
+    org.opencontainers.image.source="https://github.com/kaleab-kali/vogon-runtime" \
+    org.opencontainers.image.documentation="https://github.com/kaleab-kali/vogon-runtime#readme" \
+    org.opencontainers.image.licenses="MIT"
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \

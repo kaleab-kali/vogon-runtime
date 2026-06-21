@@ -33,6 +33,8 @@ target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.to
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 docker build --tag vogon-runtime:smoke .
+test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
 docker run --rm vogon-runtime:smoke --version
 test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
@@ -116,6 +118,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
 - Builds and smoke tests the CLI container image.
 - Packages the CLI container image as a `.tar.gz` archive.
+- Verifies OCI source and license labels on the built and packaged container
+  image.
 - Includes `README.md` and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
   `vogon-v0.1.0-cargo-metadata.json`.
@@ -171,6 +175,8 @@ The release also publishes a container image archive and checksum:
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
+test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
 docker run --rm vogon-runtime:v0.1.0 --version
 test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version

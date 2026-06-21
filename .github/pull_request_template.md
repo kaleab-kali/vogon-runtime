@@ -29,6 +29,8 @@
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json`
 - [ ] `docker build --tag vogon-runtime:smoke .`
+- [ ] `test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"`
+- [ ] `test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"`
 - [ ] `docker run --rm vogon-runtime:smoke --version`
 - [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`

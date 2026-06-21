@@ -66,6 +66,8 @@ Use `--hugging-face-model` to select a different Hugging Face routed model.
 ## Runtime Notes
 
 - The runtime image is based on Debian bookworm slim.
+- The image includes Open Containers Initiative labels for title, source,
+  documentation, and license metadata.
 - CA certificates are installed so HTTPS provider calls work by default.
 - The container runs as the unprivileged `vogon` user.
 - The deterministic check, verify, and trace flows can run with a read-only
@@ -79,6 +81,8 @@ Before publishing or deploying an image, run:
 
 ```sh
 docker build --tag vogon-runtime:smoke .
+test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
 docker run --rm vogon-runtime:smoke --version
 test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
@@ -95,6 +99,8 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
+test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
 docker run --rm vogon-runtime:v0.1.0 --version
 test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
