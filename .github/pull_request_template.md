@@ -9,6 +9,7 @@
 - [ ] `cargo test --workspace --all-features`
 - [ ] `cargo check -p vogon-cli --no-default-features`
 - [ ] `python -m unittest scripts.test_write_spdx_sbom`
+- [ ] `python -m unittest scripts.test_check_benchmark_output`
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
 - [ ] `python -m unittest scripts.test_check_secrets`
@@ -18,7 +19,7 @@
 - [ ] `python scripts/check_secrets.py --root .`
 - [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
-- [ ] `cargo bench -p vogon-core --bench runtime -- --iterations 100`
+- [ ] `cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100`
 - [ ] `cargo build --release --workspace --all-features`
 - [ ] `cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml`
 - [ ] `cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
