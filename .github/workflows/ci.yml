@@ -50,6 +50,11 @@ jobs:
           python3 -m unittest scripts.test_check_secrets
           python3 scripts/check_secrets.py --root .
 
+      - name: Check GitHub workflow policies
+        run: |
+          python3 -m unittest scripts.test_check_workflow_policies
+          python3 scripts/check_workflow_policies.py --root .
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
