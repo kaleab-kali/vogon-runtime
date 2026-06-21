@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::commands::run::{
     DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MODEL, DEFAULT_HUGGING_FACE_BASE_URL,
     DEFAULT_HUGGING_FACE_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
-    DEFAULT_OPENAI_COMPATIBLE_MODEL,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL,
 };
 
 pub fn run(json: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -50,6 +50,7 @@ fn provider_statuses() -> Vec<ProviderStatus> {
         gemini_status(),
         groq_status(),
         hugging_face_status(),
+        openrouter_status(),
         openai_compatible_status(),
     ]
 }
@@ -129,6 +130,32 @@ fn hugging_face_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
+    }
+}
+
+#[cfg(feature = "openai-compatible")]
+fn openrouter_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "openrouter",
+        enabled: true,
+        default: false,
+        credential_env: Some("OPENROUTER_API_KEY"),
+        credential_configured: Some(env_is_configured("OPENROUTER_API_KEY")),
+        default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
+        default_model: Some(DEFAULT_OPENROUTER_MODEL),
+    }
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn openrouter_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "openrouter",
+        enabled: false,
+        default: false,
+        credential_env: Some("OPENROUTER_API_KEY"),
+        credential_configured: None,
+        default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
+        default_model: Some(DEFAULT_OPENROUTER_MODEL),
     }
 }
 

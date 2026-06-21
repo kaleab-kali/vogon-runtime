@@ -242,6 +242,22 @@ fn run_command_reports_missing_hugging_face_token() {
 }
 
 #[test]
+fn run_command_reports_missing_openrouter_api_key() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openrouter")
+        .arg(support_triage_workflow())
+        .env_remove("OPENROUTER_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("OPENROUTER_API_KEY must be set"));
+}
+
+#[test]
 fn run_command_rejects_zero_groq_timeout() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("run")
@@ -269,6 +285,24 @@ fn run_command_rejects_zero_hugging_face_timeout() {
         .arg("0")
         .arg(support_triage_workflow())
         .env_remove("HF_TOKEN")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("invalid value '0'"));
+}
+
+#[test]
+fn run_command_rejects_zero_openrouter_timeout() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openrouter")
+        .arg("--openrouter-timeout-seconds")
+        .arg("0")
+        .arg(support_triage_workflow())
+        .env_remove("OPENROUTER_API_KEY")
         .output()
         .expect("run command should execute");
 
@@ -311,6 +345,24 @@ fn run_command_rejects_excessive_hugging_face_retry_count() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("--hugging-face-max-retries must be between 0 and 20"));
+}
+
+#[test]
+fn run_command_rejects_excessive_openrouter_retry_count() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openrouter")
+        .arg("--openrouter-max-retries")
+        .arg("21")
+        .arg(support_triage_workflow())
+        .env_remove("OPENROUTER_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--openrouter-max-retries must be between 0 and 20"));
 }
 
 #[test]

@@ -44,7 +44,8 @@ verify workflows with the Gemini API when `GEMINI_API_KEY` is set, or with an
 OpenAI-compatible chat-completions endpoint when `OPENAI_COMPATIBLE_API_KEY` is
 set. It also includes a Groq preset for Groq's OpenAI-compatible endpoint when
 `GROQ_API_KEY` is set, and a Hugging Face preset for Hugging Face Inference
-Providers when `HF_TOKEN` is set.
+Providers when `HF_TOKEN` is set. OpenRouter is available as a first-class
+preset when `OPENROUTER_API_KEY` is set.
 
 ## Requirements
 
@@ -95,6 +96,12 @@ Run a workflow with Hugging Face Inference Providers:
 HF_TOKEN=... cargo run -p vogon-cli -- run --provider hugging-face fixtures/workflows/support-triage.toml
 ```
 
+Run a workflow with OpenRouter:
+
+```sh
+OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter fixtures/workflows/support-triage.toml
+```
+
 The default OpenAI-compatible base URL is Hugging Face Inference Providers'
 OpenAI-compatible router, and the default model is
 `openai/gpt-oss-120b:fastest`. Override both for OpenRouter or another
@@ -126,6 +133,11 @@ Hugging Face requests also use the same default timeout and retry count. Use
 `--hugging-face-model`, `--hugging-face-timeout-seconds`, and
 `--hugging-face-max-retries` when a workflow needs a different model or stricter
 network bounds.
+
+OpenRouter requests default to `https://openrouter.ai/api/v1` with the
+`openrouter/free` router. Use `--openrouter-model`,
+`--openrouter-timeout-seconds`, and `--openrouter-max-retries` when a workflow
+needs a specific OpenRouter model or stricter network bounds.
 
 Validate a TOML workflow without executing it:
 
@@ -271,6 +283,7 @@ Already available:
 - Opt-in Groq execution through Groq's OpenAI-compatible endpoint.
 - Opt-in Hugging Face execution through Hugging Face Inference Providers'
   OpenAI-compatible endpoint.
+- Opt-in OpenRouter execution through OpenRouter's OpenAI-compatible endpoint.
 - Manual live Gemini smoke testing for maintainers with `GEMINI_API_KEY`
   configured in GitHub Actions.
 - Manual live OpenAI-compatible smoke testing for maintainers with
@@ -279,6 +292,8 @@ Already available:
   configured in GitHub Actions.
 - Manual live Hugging Face smoke testing for maintainers with `HF_TOKEN`
   configured in GitHub Actions.
+- Manual live OpenRouter smoke testing for maintainers with
+  `OPENROUTER_API_KEY` configured in GitHub Actions.
 - Deterministic replay log generation.
 - Provider-aware replay verification with structured mismatch errors.
 - Contributor-ready fixtures and examples.

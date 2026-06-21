@@ -12,6 +12,8 @@ use vogon_adapters::GroqModel;
 use vogon_adapters::HuggingFaceModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
+#[cfg(feature = "openai-compatible")]
+use vogon_adapters::OpenRouterModel;
 #[cfg(feature = "gemini")]
 pub use vogon_adapters::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES,
@@ -22,8 +24,10 @@ pub use vogon_adapters::{
     DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_BASE_URL, DEFAULT_HUGGING_FACE_MAX_RETRIES,
     DEFAULT_HUGGING_FACE_MODEL, DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS,
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
-    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, MAX_GROQ_RETRIES,
-    MAX_HUGGING_FACE_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
+    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
+    DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MAX_RETRIES, DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES,
+    MAX_OPENAI_COMPATIBLE_RETRIES, MAX_OPENROUTER_RETRIES,
 };
 use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
 
@@ -66,6 +70,16 @@ pub const DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS: u64 = 30;
 pub const DEFAULT_HUGGING_FACE_MAX_RETRIES: u32 = 2;
 #[cfg(not(feature = "openai-compatible"))]
 pub const MAX_HUGGING_FACE_RETRIES: u32 = 20;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENROUTER_MODEL: &str = "openrouter/free";
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENROUTER_TIMEOUT_SECONDS: u64 = 30;
+#[cfg(not(feature = "openai-compatible"))]
+pub const DEFAULT_OPENROUTER_MAX_RETRIES: u32 = 2;
+#[cfg(not(feature = "openai-compatible"))]
+pub const MAX_OPENROUTER_RETRIES: u32 = 20;
 
 pub fn run(
     workflow_file: &Path,
@@ -108,6 +122,8 @@ pub enum ModelProvider {
     HuggingFace,
     #[value(name = "openai-compatible")]
     OpenAiCompatible,
+    #[value(name = "openrouter")]
+    OpenRouter,
 }
 
 impl ModelProvider {
@@ -118,6 +134,7 @@ impl ModelProvider {
             "groq" => Some(Self::Groq),
             "hugging-face" => Some(Self::HuggingFace),
             "openai-compatible" => Some(Self::OpenAiCompatible),
+            "openrouter" => Some(Self::OpenRouter),
             _ => None,
         }
     }
@@ -135,6 +152,9 @@ pub struct RunModelConfig<'a> {
     pub hugging_face_model: &'a str,
     pub hugging_face_timeout_seconds: u64,
     pub hugging_face_max_retries: u32,
+    pub openrouter_model: &'a str,
+    pub openrouter_timeout_seconds: u64,
+    pub openrouter_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
     pub openai_compatible_timeout_seconds: u64,
@@ -170,6 +190,13 @@ fn run_with_model(
             model_config.hugging_face_model,
             model_config.hugging_face_timeout_seconds,
             model_config.hugging_face_max_retries,
+        ),
+        ModelProvider::OpenRouter => run_with_openrouter(
+            workflow,
+            redactions,
+            model_config.openrouter_model,
+            model_config.openrouter_timeout_seconds,
+            model_config.openrouter_max_retries,
         ),
         ModelProvider::OpenAiCompatible => run_with_openai_compatible(
             workflow,
@@ -291,6 +318,40 @@ fn run_with_hugging_face(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Hugging Face provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn run_with_openrouter(
+    workflow: &vogon_core::Workflow,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    run_with_adapter(
+        OpenRouterModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        redactions,
+    )
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn run_with_openrouter(
+    _workflow: &vogon_core::Workflow,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<RunReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "OpenRouter provider support is not enabled in this build",
     )
     .into())
 }

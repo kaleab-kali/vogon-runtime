@@ -52,6 +52,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Groq provider preset for Groq's OpenAI-compatible chat-completions endpoint.
 - Hugging Face provider preset for Hugging Face Inference Providers'
   OpenAI-compatible endpoint.
+- OpenRouter provider preset for OpenRouter's OpenAI-compatible endpoint.
 - Manual live Gemini provider smoke workflow for maintainers with
   `GEMINI_API_KEY` configured in GitHub Actions.
 - Manual live OpenAI-compatible provider smoke workflow for maintainers with
@@ -60,6 +61,8 @@ and this project follows semantic versioning once the first release is tagged.
   configured in GitHub Actions.
 - Manual live Hugging Face provider smoke workflow for maintainers with
   `HF_TOKEN` configured in GitHub Actions.
+- Manual live OpenRouter provider smoke workflow for maintainers with
+  `OPENROUTER_API_KEY` configured in GitHub Actions.
 - Dockerfile and deployment documentation for CLI container image builds.
 - CI container image smoke testing for the CLI.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
