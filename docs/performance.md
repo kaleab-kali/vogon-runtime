@@ -18,3 +18,13 @@ The benchmark prints:
 
 Use the same machine, Rust toolchain, and iteration count when comparing two
 branches.
+
+CI validates the benchmark smoke output shape with:
+
+```sh
+cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
+```
+
+The validator checks the expected iteration count and requires positive finite
+`elapsed_ms` and `iterations_per_second` values. It intentionally does not set a
+minimum throughput threshold because GitHub-hosted runner performance varies.
