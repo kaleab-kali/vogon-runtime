@@ -30,9 +30,11 @@
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json`
 - [ ] `docker build --tag vogon-runtime:smoke .`
 - [ ] `docker run --rm vogon-runtime:smoke --version`
-- [ ] `docker run --rm -v "$PWD:/work" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml`
-- [ ] `docker run --rm -v "$PWD:/work" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
-- [ ] `docker run --rm -v "$PWD:/work" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json`
+- [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
+- [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
+- [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml`
+- [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
+- [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json`
 - [ ] `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps`
 - [ ] `cargo package --workspace --allow-dirty --no-verify --offline`
 - [ ] Relevant CLI smoke test:

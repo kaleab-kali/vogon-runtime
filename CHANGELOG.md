@@ -67,6 +67,8 @@ and this project follows semantic versioning once the first release is tagged.
   `OPENROUTER_API_KEY` configured in GitHub Actions.
 - Dockerfile and deployment documentation for CLI container image builds.
 - CI container image smoke testing for the CLI.
+- Container smoke tests now assert the unprivileged runtime UID and read-only
+  deterministic CLI execution.
 - Tag-triggered GitHub release workflow for Linux CLI artifacts.
 - Tag-triggered GitHub release workflow for Windows CLI artifacts.
 - Release archives now include `README.md` and `LICENSE`.
