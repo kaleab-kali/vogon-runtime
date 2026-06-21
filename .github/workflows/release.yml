@@ -199,16 +199,20 @@ jobs:
 
       - name: Smoke test container image
         run: |
-          docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
-          test "$(docker run --rm --entrypoint id "vogon-runtime:${{ github.ref_name }}" -u)" = "10001"
-          docker run --rm --read-only "vogon-runtime:${{ github.ref_name }}" --version
-          check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "vogon-runtime:${{ github.ref_name }}" check --json fixtures/workflows/support-triage.toml)"
+          image="vogon-runtime:${{ github.ref_name }}"
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+          docker run --rm "$image" --version
+          test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
+          docker run --rm --read-only "$image" --version
+          check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
           printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
-          verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "vogon-runtime:${{ github.ref_name }}" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
+          verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
-          trace_jsonl="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "vogon-runtime:${{ github.ref_name }}" trace --jsonl fixtures/replays/support-triage.replay.json)"
+          trace_jsonl="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
 
@@ -219,12 +223,16 @@ jobs:
 
       - name: Smoke test packaged image archive
         run: |
+          image="vogon-runtime:${{ github.ref_name }}"
           sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
           gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
           docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-          docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
-          test "$(docker run --rm --entrypoint id "vogon-runtime:${{ github.ref_name }}" -u)" = "10001"
-          docker run --rm --read-only "vogon-runtime:${{ github.ref_name }}" --version
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+          docker run --rm "$image" --version
+          test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
+          docker run --rm --read-only "$image" --version
 
       - name: Attest container image archive
         uses: actions/attest@v4
@@ -282,12 +290,16 @@ jobs:
           )
           (
             cd release-artifacts/vogon-container-image
+            image="vogon-runtime:${{ github.ref_name }}"
             sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
             gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
             docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-            docker run --rm "vogon-runtime:${{ github.ref_name }}" --version
-            test "$(docker run --rm --entrypoint id "vogon-runtime:${{ github.ref_name }}" -u)" = "10001"
-            docker run --rm --read-only "vogon-runtime:${{ github.ref_name }}" --version
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
+            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+            docker run --rm "$image" --version
+            test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
+            docker run --rm --read-only "$image" --version
           )
 
   publish-release:
