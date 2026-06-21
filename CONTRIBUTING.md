@@ -11,7 +11,9 @@ cargo test --workspace --all-features
 cargo check -p vogon-cli --no-default-features
 python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_docs_links
+python -m unittest scripts.test_check_env_example
 python scripts/check_docs_links.py --root .
+python scripts/check_env_example.py --root .
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100
 cargo build --release --workspace --all-features
@@ -40,6 +42,10 @@ dependencies have already been fetched.
 
 The Docker smoke commands require a running Docker daemon. They are also
 enforced by the `Container image smoke` CI job.
+
+Use `.env.example` as the public list of provider credential variables. Keep
+all values blank in the committed example, and do not commit local `.env`
+files.
 
 ### Windows target file locks
 
