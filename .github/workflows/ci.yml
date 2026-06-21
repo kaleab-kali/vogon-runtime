@@ -45,6 +45,11 @@ jobs:
           python3 -m unittest scripts.test_check_env_example
           python3 scripts/check_env_example.py --root .
 
+      - name: Check committed secret patterns
+        run: |
+          python3 -m unittest scripts.test_check_secrets
+          python3 scripts/check_secrets.py --root .
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
