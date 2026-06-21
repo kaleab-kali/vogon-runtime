@@ -35,6 +35,11 @@ jobs:
       - name: Test release scripts
         run: python3 -m unittest scripts.test_write_spdx_sbom
 
+      - name: Check documentation links
+        run: |
+          python3 -m unittest scripts.test_check_docs_links
+          python3 scripts/check_docs_links.py --root .
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 

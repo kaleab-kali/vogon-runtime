@@ -29,6 +29,7 @@ and this project follows semantic versioning once the first release is tagged.
 - GitHub issue forms for bug reports and feature requests.
 - Public support guidance for questions, bugs, feature requests, and security
   reports.
+- Documentation link checking in CI for repository-local Markdown links.
 - Optimized release build validation in CI.
 - Release CLI smoke testing in CI.
 - Release CLI smoke testing against every committed replay fixture.
