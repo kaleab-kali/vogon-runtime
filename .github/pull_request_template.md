@@ -12,9 +12,11 @@
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
 - [ ] `python -m unittest scripts.test_check_secrets`
+- [ ] `python -m unittest scripts.test_check_workflow_policies`
 - [ ] `python scripts/check_docs_links.py --root .`
 - [ ] `python scripts/check_env_example.py --root .`
 - [ ] `python scripts/check_secrets.py --root .`
+- [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
 - [ ] `cargo bench -p vogon-core --bench runtime -- --iterations 100`
 - [ ] `cargo build --release --workspace --all-features`
