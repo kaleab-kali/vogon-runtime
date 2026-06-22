@@ -18,6 +18,7 @@ directly:
 
 ```sh
 docker run --rm vogon-runtime:local --version
+docker run --rm --read-only vogon-runtime:local doctor --json
 ```
 
 Mount the repository, or a directory containing workflows and replays, at
@@ -86,6 +87,7 @@ test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labe
 docker run --rm vogon-runtime:smoke --version
 test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
+docker run --rm --read-only vogon-runtime:smoke doctor --json
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json
@@ -104,6 +106,7 @@ test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Lab
 docker run --rm vogon-runtime:v0.1.0 --version
 test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
+docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json
 ```
 
 Use the real version number in place of `v0.1.0`.
