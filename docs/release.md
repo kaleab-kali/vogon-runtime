@@ -25,6 +25,7 @@ python scripts/check_workflow_policies.py --root .
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
 cargo build --release --workspace --all-features
+cargo run --release -p vogon-cli -- doctor --json
 cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml
 cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
@@ -32,6 +33,7 @@ cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.t
 cargo run --release -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 target/install-smoke/bin/vogon --version
+target/install-smoke/bin/vogon doctor --json
 target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
@@ -118,6 +120,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
   Windows.
 - Runs machine-readable `check` and `verify` smoke tests against each optimized
   CLI artifact.
+- Runs machine-readable `doctor` diagnostics against each optimized CLI
+  artifact.
 - Runs machine-readable trace smoke tests that assert replay schema and runtime
   metadata.
 - Runs each optimized CLI artifact against every committed replay fixture.
