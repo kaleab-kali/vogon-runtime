@@ -154,6 +154,9 @@ jobs:
           docker run --rm "$image" --version
           test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
           docker run --rm --read-only "$image" --version
+          doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
+          echo "$doctor_json"
+          printf '%s\n' "$doctor_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['status'] == 'ok'; assert any(check['name'] == 'deterministic_runtime' and check['status'] == 'ok' for check in data['checks'])"
           check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
           printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"

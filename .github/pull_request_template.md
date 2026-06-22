@@ -39,6 +39,7 @@
 - [ ] `docker run --rm vogon-runtime:smoke --version`
 - [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
+- [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json`
