@@ -21,6 +21,8 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  contents: read",
                         "jobs:",
                         "  publish:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
                         "    permissions:",
                         "      contents: write",
                     ]
@@ -60,6 +62,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  pull_request_target:",
                         "permissions: write-all",
                         "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
                     ]
                 ),
                 encoding="utf-8",
@@ -91,6 +96,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  contents: write",
                         "  security-events: write",
                         "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
                     ]
                 ),
                 encoding="utf-8",
@@ -108,6 +116,74 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             )
             self.assertNotIn(
                 ".github/workflows/ci.yml:6: top-level security-events write permission must be job-scoped",
+                errors,
+            )
+
+    def test_rejects_floating_runner_and_missing_timeout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "ci.yml").write_text(
+                "\n".join(
+                    [
+                        "name: CI",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-latest",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_workflow_policies.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/ci.yml:8: job `test` uses floating runner `ubuntu-latest`",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/ci.yml:7: job `test` missing timeout-minutes",
+                errors,
+            )
+
+    def test_rejects_invalid_timeout_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "ci.yml").write_text(
+                "\n".join(
+                    [
+                        "name: CI",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "jobs:",
+                        "  slow:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 90",
+                        "  invalid:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: soon",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_workflow_policies.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/ci.yml:9: job `slow` timeout-minutes must be between 1 and 60",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/ci.yml:12: job `invalid` timeout-minutes must be an integer",
                 errors,
             )
 

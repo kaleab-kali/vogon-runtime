@@ -30,6 +30,13 @@ CodeQL scans Rust code on pull requests, pushes to `main`, a weekly schedule,
 and manual maintainer runs. New actionable code scanning findings should be
 fixed or explicitly documented before merge.
 
+## Workflow Hardening
+
+GitHub Actions workflows must use least-privilege top-level permissions,
+explicit hosted runner versions, and bounded `timeout-minutes` values on every
+job. Floating runner labels such as `ubuntu-latest` are avoided so CI and
+release behavior changes deliberately.
+
 ## Unsafe Code
 
 Workspace crates forbid unsafe Rust. Changes that require unsafe code should be
