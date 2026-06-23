@@ -83,6 +83,11 @@ jobs:
           doctor_json="$(./target/release/vogon doctor --json)"
           echo "$doctor_json"
           printf '%s\n' "$doctor_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['status'] == 'ok'; assert any(check['name'] == 'deterministic_runtime' and check['status'] == 'ok' for check in data['checks'])"
+          init_workflow="$RUNNER_TEMP/vogon-init-smoke.toml"
+          ./target/release/vogon init --force --output "$init_workflow"
+          init_check_json="$(./target/release/vogon check --json "$init_workflow")"
+          echo "$init_check_json"
+          printf '%s\n' "$init_check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'starter-workflow'; assert data['step_count'] == 2"
           check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
           printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
@@ -103,6 +108,8 @@ jobs:
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           target/install-smoke/bin/vogon --version
           target/install-smoke/bin/vogon doctor --json
+          target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml
+          target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml
           target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
@@ -157,6 +164,12 @@ jobs:
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"
           printf '%s\n' "$doctor_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['status'] == 'ok'; assert any(check['name'] == 'deterministic_runtime' and check['status'] == 'ok' for check in data['checks'])"
+          mkdir -p "${{ runner.temp }}/vogon-container-smoke"
+          chmod 777 "${{ runner.temp }}/vogon-container-smoke"
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" init --force --output /work/starter.toml
+          init_check_json="$(docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" check --json /work/starter.toml)"
+          echo "$init_check_json"
+          printf '%s\n' "$init_check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'starter-workflow'; assert data['step_count'] == 2"
           check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
           printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
@@ -190,6 +203,14 @@ jobs:
           $doctor = $doctorJson | ConvertFrom-Json
           if ($doctor.status -ne 'ok' -or -not ($doctor.checks | Where-Object { $_.name -eq 'deterministic_runtime' -and $_.status -eq 'ok' })) {
             throw "Unexpected doctor JSON output: $doctorJson"
+          }
+          $initWorkflow = Join-Path $env:RUNNER_TEMP 'vogon-init-smoke.toml'
+          .\target\release\vogon.exe init --force --output $initWorkflow
+          $initCheckJson = (& .\target\release\vogon.exe check --json $initWorkflow) -join "`n"
+          $initCheckJson
+          $initCheck = $initCheckJson | ConvertFrom-Json
+          if ($initCheck.workflow_name -ne 'starter-workflow' -or $initCheck.step_count -ne 2) {
+            throw "Unexpected init workflow check JSON output: $initCheckJson"
           }
           $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
           $checkJson
