@@ -65,26 +65,8 @@ jobs:
             --output target/live-groq-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          replay = json.loads(Path("target/live-groq-smoke.replay.json").read_text())
-          model = os.environ["GROQ_MODEL"]
-
-          assert replay["workflow_name"] == "support-triage"
-          assert replay["schema_version"] == 1
-          runtime = replay["runtime"]
-          assert runtime["provider"] == "groq"
-          assert runtime["adapter"] == "groq-openai-compatible-chat-completions"
-          assert runtime["model"] == model
-          assert runtime["parameters"]["base_url"] == "https://api.groq.com/openai/v1"
-          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
-          assert runtime["parameters"]["max_retries"] == "2"
-          assert len(replay["steps"]) == 2
-          for step in replay["steps"]:
-              assert step["output"]
-              assert "[REDACTED:groq_api_key]" not in step["output"]
-          assert os.environ["GROQ_API_KEY"] not in json.dumps(replay)
-          PY
+          python3 scripts/check_live_replay.py \
+            --replay target/live-groq-smoke.replay.json \
+            --provider groq \
+            --model "$model" \
+            --secret-env GROQ_API_KEY
