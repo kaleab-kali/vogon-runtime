@@ -32,6 +32,24 @@ Runs the built-in deterministic demo workflow.
 cargo run -p vogon-cli -- demo
 ```
 
+## `vogon init`
+
+Creates a starter TOML workflow file that can be checked and run immediately
+with the deterministic adapter.
+
+```sh
+cargo run -p vogon-cli -- init --output workflow.toml
+cargo run -p vogon-cli -- check workflow.toml
+cargo run -p vogon-cli -- run workflow.toml
+```
+
+By default, `vogon init` refuses to overwrite an existing file. Pass `--force`
+when intentionally replacing the output path:
+
+```sh
+cargo run -p vogon-cli -- init --output workflow.toml --force
+```
+
 ## `vogon providers`
 
 Shows available model providers, whether provider support is enabled in the

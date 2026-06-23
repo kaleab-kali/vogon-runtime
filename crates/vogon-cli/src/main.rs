@@ -48,6 +48,17 @@ enum Commands {
         json: bool,
     },
 
+    /// Create a starter TOML workflow file.
+    Init {
+        /// Output path for the generated workflow file.
+        #[arg(short, long, default_value = "workflow.toml", value_name = "FILE")]
+        output: PathBuf,
+
+        /// Overwrite an existing workflow file.
+        #[arg(long)]
+        force: bool,
+    },
+
     /// Show available model providers and credential configuration status.
     Providers {
         /// Emit machine-readable JSON instead of human-readable text.
@@ -281,6 +292,7 @@ fn main() -> ExitCode {
         } => commands::check::run(&workflow_file, json),
         Commands::Demo => commands::demo::run(),
         Commands::Doctor { json } => commands::doctor::run(json),
+        Commands::Init { output, force } => commands::init::run(&output, force),
         Commands::Providers { json } => commands::providers::run(json),
         Commands::Run {
             provider,
