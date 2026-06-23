@@ -60,6 +60,13 @@ Run the deterministic demo workflow:
 cargo run -p vogon-cli -- demo
 ```
 
+Create a starter workflow file:
+
+```sh
+cargo run -p vogon-cli -- init --output workflow.toml
+cargo run -p vogon-cli -- check workflow.toml
+```
+
 Run a TOML workflow file:
 
 ```sh
@@ -296,6 +303,7 @@ Already available:
 
 - Rust workspace and CLI.
 - Ordered workflow execution.
+- Starter workflow generation with `vogon init`.
 - Opt-in Gemini API execution for real provider-backed runs.
 - Opt-in OpenAI-compatible chat-completions execution for providers such as
   Hugging Face Inference Providers and OpenRouter.

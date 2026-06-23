@@ -2,6 +2,7 @@ pub mod check;
 pub mod demo;
 pub mod doctor;
 pub mod file_io;
+pub mod init;
 pub mod providers;
 pub mod redaction;
 pub mod redaction_markers;

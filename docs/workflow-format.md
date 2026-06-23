@@ -15,6 +15,12 @@ id = "draft_response"
 prompt = "Draft a concise customer response based on the classification."
 ```
 
+Generate a starter workflow with:
+
+```sh
+cargo run -p vogon-cli -- init --output workflow.toml
+```
+
 ## Fields
 
 ### `name`

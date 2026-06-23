@@ -20,11 +20,39 @@ fn help_flag_lists_public_commands() {
         "check",
         "demo",
         "doctor",
+        "init",
         "providers",
         "run",
         "verify",
         "trace",
         "--version",
+    ] {
+        assert!(
+            stdout.contains(expected),
+            "stdout should contain `{expected}`:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn init_help_documents_output_options() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("init")
+        .arg("--help")
+        .output()
+        .expect("init help should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for expected in [
+        "Create a starter TOML workflow file",
+        "--output <FILE>",
+        "--force",
     ] {
         assert!(
             stdout.contains(expected),
