@@ -237,6 +237,7 @@ python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_benchmark_output
 python -m unittest scripts.test_check_docs_links
 python -m unittest scripts.test_check_env_example
+python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_secrets
 python -m unittest scripts.test_check_workflow_policies
 python scripts/check_docs_links.py --root .

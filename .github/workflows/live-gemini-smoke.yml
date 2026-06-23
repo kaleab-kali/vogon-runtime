@@ -50,24 +50,8 @@ jobs:
             --output target/live-gemini-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          replay = json.loads(Path("target/live-gemini-smoke.replay.json").read_text())
-          assert replay["workflow_name"] == "support-triage"
-          assert replay["schema_version"] == 1
-          runtime = replay["runtime"]
-          assert runtime["provider"] == "gemini"
-          assert runtime["adapter"] == "gemini-generate-content"
-          assert runtime["model"] == "gemini-3.1-flash-lite"
-          assert runtime["parameters"]["base_url"] == "https://generativelanguage.googleapis.com"
-          assert runtime["parameters"]["timeout_nanos"] == "60000000000"
-          assert runtime["parameters"]["max_retries"] == "2"
-          assert len(replay["steps"]) == 2
-          for step in replay["steps"]:
-              assert step["output"]
-              assert "[REDACTED:gemini_api_key]" not in step["output"]
-          assert os.environ["GEMINI_API_KEY"] not in json.dumps(replay)
-          PY
+          python3 scripts/check_live_replay.py \
+            --replay target/live-gemini-smoke.replay.json \
+            --provider gemini \
+            --model gemini-3.1-flash-lite \
+            --secret-env GEMINI_API_KEY
