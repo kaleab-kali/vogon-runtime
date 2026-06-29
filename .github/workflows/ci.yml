@@ -55,6 +55,11 @@ jobs:
           python3 -m unittest scripts.test_check_workflow_policies
           python3 scripts/check_workflow_policies.py --root .
 
+      - name: Check live provider smoke workflows
+        run: |
+          python3 -m unittest scripts.test_check_live_workflows
+          python3 scripts/check_live_workflows.py --root .
+
       - name: Test live provider replay validator
         run: python3 -m unittest scripts.test_check_live_replay
 
