@@ -40,6 +40,11 @@ jobs:
           python3 -m unittest scripts.test_check_cargo_manifests
           python3 scripts/check_cargo_manifests.py --root .
 
+      - name: Check contributing checklist
+        run: |
+          python3 -m unittest scripts.test_check_contributing_checklist
+          python3 scripts/check_contributing_checklist.py --root .
+
       - name: Check documentation links
         run: |
           python3 -m unittest scripts.test_check_docs_links
