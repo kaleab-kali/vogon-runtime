@@ -23,6 +23,11 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  publish:",
                         "    runs-on: ubuntu-24.04",
                         "    timeout-minutes: 10",
+                        "    steps:",
+                        "      - uses: actions/checkout@v7",
+                        "      - uses: github/codeql-action/analyze@v4",
+                        "      - uses: docker://alpine:3.20",
+                        "      - uses: ./github/actions/local-check",
                         "    permissions:",
                         "      contents: write",
                     ]
@@ -184,6 +189,52 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             )
             self.assertIn(
                 ".github/workflows/ci.yml:12: job `invalid` timeout-minutes must be an integer",
+                errors,
+            )
+
+    def test_rejects_unpinned_and_mutable_action_refs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "ci.yml").write_text(
+                "\n".join(
+                    [
+                        "name: CI",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                        "    steps:",
+                        "      - uses: actions/checkout",
+                        "      - uses: github/codeql-action/analyze@main",
+                        "      - uses: actions/cache@refs/heads/main",
+                        "      - uses: actions/upload-artifact@${{ inputs.ref }}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_workflow_policies.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/ci.yml:11: external action references must include an explicit ref",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/ci.yml:12: action reference `github/codeql-action/analyze@main` uses a mutable ref",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/ci.yml:13: action reference `actions/cache@refs/heads/main` uses a mutable ref",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/ci.yml:14: action references must not use expressions",
                 errors,
             )
 

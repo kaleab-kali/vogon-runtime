@@ -35,7 +35,9 @@ fixed or explicitly documented before merge.
 GitHub Actions workflows must use least-privilege top-level permissions,
 explicit hosted runner versions, and bounded `timeout-minutes` values on every
 job. Floating runner labels such as `ubuntu-latest` are avoided so CI and
-release behavior changes deliberately.
+release behavior changes deliberately. External actions must use explicit,
+non-mutable refs; refs such as `main`, `master`, `latest`, and branch refs are
+not allowed.
 
 ## Unsafe Code
 
