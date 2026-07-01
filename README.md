@@ -73,7 +73,8 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
-Check available providers and credential setup without running a workflow:
+Check available providers, credential setup, and provider documentation links
+without running a workflow:
 
 ```sh
 cargo run -p vogon-cli -- providers

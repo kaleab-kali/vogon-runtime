@@ -130,6 +130,8 @@ fn doctor_command_reports_json_without_secret_values() {
                 provider["name"] == "deterministic"
                     && provider["enabled"] == true
                     && provider["default"] == true
+                    && provider["documentation_url"]
+                        == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic"
             })
     );
 }
@@ -192,11 +194,14 @@ fn providers_command_reports_json_without_secret_values() {
         provider["name"] == "deterministic"
             && provider["enabled"] == true
             && provider["default"] == true
+            && provider["documentation_url"]
+                == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "gemini"
             && provider["credential_env"] == "GEMINI_API_KEY"
             && provider["credential_configured"] == true
+            && provider["documentation_url"] == "https://ai.google.dev/gemini-api/docs"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "groq"
@@ -204,6 +209,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["default_base_url"] == "https://api.groq.com/openai/v1"
             && provider["default_model"] == "llama-3.1-8b-instant"
+            && provider["documentation_url"] == "https://console.groq.com/docs/openai"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "hugging-face"
@@ -211,6 +217,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["default_base_url"] == "https://router.huggingface.co/v1"
             && provider["default_model"] == "openai/gpt-oss-120b:fastest"
+            && provider["documentation_url"] == "https://huggingface.co/docs/inference-providers"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openrouter"
@@ -218,12 +225,44 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["default_base_url"] == "https://openrouter.ai/api/v1"
             && provider["default_model"] == "openrouter/free"
+            && provider["documentation_url"] == "https://openrouter.ai/docs"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openai-compatible"
             && provider["credential_env"] == "OPENAI_COMPATIBLE_API_KEY"
             && provider["credential_configured"] == true
+            && provider["documentation_url"]
+                == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible"
     }));
+}
+
+#[test]
+fn providers_command_prints_documentation_links() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("providers")
+        .output()
+        .expect("providers command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for expected in [
+        "documentation: https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic",
+        "documentation: https://ai.google.dev/gemini-api/docs",
+        "documentation: https://console.groq.com/docs/openai",
+        "documentation: https://huggingface.co/docs/inference-providers",
+        "documentation: https://openrouter.ai/docs",
+        "documentation: https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+    ] {
+        assert!(
+            stdout.contains(expected),
+            "stdout should contain `{expected}`:\n{stdout}"
+        );
+    }
 }
 
 #[test]

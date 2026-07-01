@@ -53,8 +53,9 @@ cargo run -p vogon-cli -- init --output workflow.toml --force
 ## `vogon providers`
 
 Shows available model providers, whether provider support is enabled in the
-current binary, and whether required credential environment variables are
-configured. Secret values are never printed.
+current binary, whether required credential environment variables are
+configured, default endpoint/model metadata, and provider documentation links.
+Secret values are never printed.
 
 ```sh
 cargo run -p vogon-cli -- providers
@@ -66,11 +67,16 @@ Emit the provider diagnostics as JSON for scripts:
 cargo run -p vogon-cli -- providers --json
 ```
 
+The JSON output includes a `documentation_url` field for each provider so
+operator tooling can point users to setup and provider-specific usage notes
+without embedding secret values.
+
 ## `vogon doctor`
 
 Runs local installation diagnostics without making network calls. The command
 executes a deterministic one-step workflow self-check and reports provider
-credential status without printing secret values.
+credential status, default endpoint/model metadata, and documentation links
+without printing secret values.
 
 ```sh
 cargo run -p vogon-cli -- doctor
