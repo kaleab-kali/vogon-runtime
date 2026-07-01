@@ -96,6 +96,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Cargo manifest metadata validation for open-source package readiness.
 - Changelog structure validation in CI.
 - Contributor verification checklist validation in CI.
+- Deployment smoke checklist validation in CI.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
@@ -219,6 +220,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Security policy and contributor docs now describe RustSec advisory auditing.
 - Contributor verification docs now stay aligned with the README local check
   list through CI validation.
+- Deployment smoke commands now stay aligned with README and release
+  verification docs through CI validation.
 - Issue forms now stay aligned with required reproduction, security, and intake
   fields through CI validation.
 - The pull request template verification checklist now stays aligned with the

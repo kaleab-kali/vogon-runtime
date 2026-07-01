@@ -14,6 +14,7 @@
 - [ ] `python -m unittest scripts.test_check_changelog`
 - [ ] `python -m unittest scripts.test_check_contributing_checklist`
 - [ ] `python -m unittest scripts.test_check_container_policy`
+- [ ] `python -m unittest scripts.test_check_deployment_checklist`
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
 - [ ] `python -m unittest scripts.test_check_issue_templates`
@@ -27,6 +28,7 @@
 - [ ] `python scripts/check_cargo_manifests.py --root .`
 - [ ] `python scripts/check_changelog.py --root .`
 - [ ] `python scripts/check_contributing_checklist.py --root .`
+- [ ] `python scripts/check_deployment_checklist.py --root .`
 - [ ] `python scripts/check_docs_links.py --root .`
 - [ ] `python scripts/check_env_example.py --root .`
 - [ ] `python scripts/check_issue_templates.py --root .`
@@ -63,8 +65,8 @@
 - [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json`
-- [ ] `mkdir -p "$PWD/target/container-smoke"`
-- [ ] `chmod 777 "$PWD/target/container-smoke"`
+- [ ] `mkdir -p target/container-smoke`
+- [ ] `chmod 777 target/container-smoke`
 - [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml`
 - [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml`

@@ -60,6 +60,11 @@ jobs:
           python3 -m unittest scripts.test_check_docs_links
           python3 scripts/check_docs_links.py --root .
 
+      - name: Check deployment checklist
+        run: |
+          python3 -m unittest scripts.test_check_deployment_checklist
+          python3 scripts/check_deployment_checklist.py --root .
+
       - name: Check issue templates
         run: |
           python3 -m unittest scripts.test_check_issue_templates
