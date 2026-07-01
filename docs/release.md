@@ -20,6 +20,7 @@ python -m unittest scripts.test_check_env_example
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
 python -m unittest scripts.test_check_release_checklist
+python -m unittest scripts.test_check_release_workflow
 python -m unittest scripts.test_check_secrets
 python -m unittest scripts.test_check_workflow_policies
 python scripts/check_docs_links.py --root .
@@ -27,6 +28,7 @@ python scripts/check_env_example.py --root .
 python scripts/check_container_policy.py --root .
 python scripts/check_live_workflows.py --root .
 python scripts/check_release_checklist.py --root .
+python scripts/check_release_workflow.py --root .
 python scripts/check_secrets.py --root .
 python scripts/check_workflow_policies.py --root .
 cargo +1.85.0 test --workspace --all-features --locked

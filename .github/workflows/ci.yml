@@ -45,6 +45,11 @@ jobs:
           python3 -m unittest scripts.test_check_release_checklist
           python3 scripts/check_release_checklist.py --root .
 
+      - name: Check release workflow
+        run: |
+          python3 -m unittest scripts.test_check_release_workflow
+          python3 scripts/check_release_workflow.py --root .
+
       - name: Check provider env example
         run: |
           python3 -m unittest scripts.test_check_env_example
