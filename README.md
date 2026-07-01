@@ -241,6 +241,7 @@ python -m unittest scripts.test_check_contributing_checklist
 python -m unittest scripts.test_check_container_policy
 python -m unittest scripts.test_check_docs_links
 python -m unittest scripts.test_check_env_example
+python -m unittest scripts.test_check_issue_templates
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
 python -m unittest scripts.test_check_pr_template
@@ -253,6 +254,7 @@ python scripts/check_changelog.py --root .
 python scripts/check_contributing_checklist.py --root .
 python scripts/check_docs_links.py --root .
 python scripts/check_env_example.py --root .
+python scripts/check_issue_templates.py --root .
 python scripts/check_container_policy.py --root .
 python scripts/check_live_workflows.py --root .
 python scripts/check_pr_template.py --root .
