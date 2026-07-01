@@ -18,6 +18,7 @@ python -m unittest scripts.test_check_cargo_manifests
 python -m unittest scripts.test_check_changelog
 python -m unittest scripts.test_check_contributing_checklist
 python -m unittest scripts.test_check_container_policy
+python -m unittest scripts.test_check_deployment_checklist
 python -m unittest scripts.test_check_docs_links
 python -m unittest scripts.test_check_env_example
 python -m unittest scripts.test_check_issue_templates
@@ -31,6 +32,7 @@ python -m unittest scripts.test_check_workflow_policies
 python scripts/check_cargo_manifests.py --root .
 python scripts/check_changelog.py --root .
 python scripts/check_contributing_checklist.py --root .
+python scripts/check_deployment_checklist.py --root .
 python scripts/check_docs_links.py --root .
 python scripts/check_env_example.py --root .
 python scripts/check_issue_templates.py --root .
