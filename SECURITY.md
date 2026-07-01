@@ -39,6 +39,10 @@ release behavior changes deliberately. External actions must use explicit,
 non-mutable refs; refs such as `main`, `master`, `latest`, and branch refs are
 not allowed.
 
+The container image must keep a small build context, avoid `latest` base image
+tags, install runtime packages with `--no-install-recommends`, clean apt package
+lists, and run as the non-root `vogon` user.
+
 ## Unsafe Code
 
 Workspace crates forbid unsafe Rust. Changes that require unsafe code should be

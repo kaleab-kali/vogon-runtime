@@ -45,6 +45,11 @@ jobs:
           python3 -m unittest scripts.test_check_env_example
           python3 scripts/check_env_example.py --root .
 
+      - name: Check container policy
+        run: |
+          python3 -m unittest scripts.test_check_container_policy
+          python3 scripts/check_container_policy.py --root .
+
       - name: Check committed secret patterns
         run: |
           python3 -m unittest scripts.test_check_secrets
