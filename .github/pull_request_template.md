@@ -10,12 +10,29 @@
 - [ ] `cargo check -p vogon-cli --no-default-features`
 - [ ] `python -m unittest scripts.test_write_spdx_sbom`
 - [ ] `python -m unittest scripts.test_check_benchmark_output`
+- [ ] `python -m unittest scripts.test_check_cargo_manifests`
+- [ ] `python -m unittest scripts.test_check_changelog`
+- [ ] `python -m unittest scripts.test_check_contributing_checklist`
+- [ ] `python -m unittest scripts.test_check_container_policy`
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
+- [ ] `python -m unittest scripts.test_check_live_replay`
+- [ ] `python -m unittest scripts.test_check_live_workflows`
+- [ ] `python -m unittest scripts.test_check_pr_template`
+- [ ] `python -m unittest scripts.test_check_release_checklist`
+- [ ] `python -m unittest scripts.test_check_release_workflow`
 - [ ] `python -m unittest scripts.test_check_secrets`
 - [ ] `python -m unittest scripts.test_check_workflow_policies`
+- [ ] `python scripts/check_cargo_manifests.py --root .`
+- [ ] `python scripts/check_changelog.py --root .`
+- [ ] `python scripts/check_contributing_checklist.py --root .`
 - [ ] `python scripts/check_docs_links.py --root .`
 - [ ] `python scripts/check_env_example.py --root .`
+- [ ] `python scripts/check_container_policy.py --root .`
+- [ ] `python scripts/check_live_workflows.py --root .`
+- [ ] `python scripts/check_pr_template.py --root .`
+- [ ] `python scripts/check_release_checklist.py --root .`
+- [ ] `python scripts/check_release_workflow.py --root .`
 - [ ] `python scripts/check_secrets.py --root .`
 - [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
