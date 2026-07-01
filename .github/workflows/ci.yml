@@ -50,6 +50,11 @@ jobs:
           python3 -m unittest scripts.test_check_contributing_checklist
           python3 scripts/check_contributing_checklist.py --root .
 
+      - name: Check pull request template
+        run: |
+          python3 -m unittest scripts.test_check_pr_template
+          python3 scripts/check_pr_template.py --root .
+
       - name: Check documentation links
         run: |
           python3 -m unittest scripts.test_check_docs_links
