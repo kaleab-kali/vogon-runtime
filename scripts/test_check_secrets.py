@@ -41,6 +41,57 @@ class CheckSecretsTests(unittest.TestCase):
 
             self.assertEqual(findings, [])
 
+    def test_reports_provider_env_assignments_with_real_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / ".env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        "GEMINI_API" + "_KEY=real-provider-secret",
+                        "OPENROUTER_API" + "_KEY: another-provider-secret",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(check_secrets, "tracked_files", return_value=[env_file]):
+                findings = check_secrets.check_repository(root)
+
+            self.assertEqual(
+                findings,
+                [
+                    ".env:1: possible committed GEMINI_API_KEY value",
+                    ".env:2: possible committed OPENROUTER_API_KEY value",
+                ],
+            )
+
+    def test_accepts_provider_env_placeholders_and_secret_refs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflow_file = root / "workflow.yml"
+            workflow_file.write_text(
+                "\n".join(
+                    [
+                        "GEMINI_API_KEY=...",
+                        "GROQ_API_KEY=",
+                        "HF_TOKEN: ${{ secrets.HF_TOKEN }}",
+                        'OPENROUTER_API_KEY="$OPENROUTER_API_KEY"',
+                        "OPENAI_COMPATIBLE_API_KEY=<api-key>",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(
+                check_secrets,
+                "tracked_files",
+                return_value=[workflow_file],
+            ):
+                findings = check_secrets.check_repository(root)
+
+            self.assertEqual(findings, [])
+
     def test_skips_binary_and_large_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

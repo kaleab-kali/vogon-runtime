@@ -32,6 +32,33 @@ SECRET_PATTERNS = [
         re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
     ),
 ]
+PROVIDER_CREDENTIAL_VARS = {
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "HF_TOKEN",
+    "OPENAI_COMPATIBLE_API_KEY",
+    "OPENROUTER_API_KEY",
+}
+PROVIDER_ASSIGNMENT_RE = re.compile(
+    r"(?<![A-Z0-9_{])("
+    + "|".join(sorted(PROVIDER_CREDENTIAL_VARS))
+    + r")\s*[:=]\s*([^\s#]+)?"
+)
+PLACEHOLDER_VALUES = {
+    "",
+    "...",
+    "''",
+    '""',
+    "<token>",
+    "<api-key>",
+    "<api_key>",
+    "<secret>",
+    "changeme",
+    "change-me",
+    "your-token",
+    "your-api-key",
+    "your_api_key",
+}
 
 
 def main() -> int:
@@ -61,7 +88,38 @@ def check_repository(root: Path) -> list[str]:
             for secret_pattern in SECRET_PATTERNS:
                 if secret_pattern.pattern.search(line):
                     findings.append(format_finding(root, path, line_number, secret_pattern.name))
+            provider_assignment = find_provider_secret_assignment(line)
+            if provider_assignment:
+                findings.append(format_finding(root, path, line_number, provider_assignment))
     return findings
+
+
+def find_provider_secret_assignment(line: str) -> str | None:
+    match = PROVIDER_ASSIGNMENT_RE.search(line)
+    if not match:
+        return None
+
+    name = match.group(1)
+    value = normalize_assignment_value(match.group(2) or "")
+    if is_allowed_placeholder_value(value):
+        return None
+    return f"committed {name} value"
+
+
+def normalize_assignment_value(value: str) -> str:
+    return value.strip().strip(",").strip("\"'")
+
+
+def is_allowed_placeholder_value(value: str) -> bool:
+    lowered = value.lower()
+    return (
+        lowered in PLACEHOLDER_VALUES
+        or value.startswith("${{")
+        or value.startswith("$")
+        or "..." in value
+        or lowered.startswith("your-")
+        or lowered.startswith("<")
+    )
 
 
 def tracked_files(root: Path) -> list[Path]:

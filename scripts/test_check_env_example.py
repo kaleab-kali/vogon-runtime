@@ -22,7 +22,7 @@ class CheckEnvExampleTests(unittest.TestCase):
             (root / ".env.example").write_text(
                 "\n".join(
                     [
-                        "GEMINI_API_KEY=secret",
+                        "GEMINI_API" + "_KEY=secret",
                         "GROQ_API_KEY=",
                         "HF_TOKEN=",
                         "OPENROUTER_API_KEY=",
