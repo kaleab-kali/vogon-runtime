@@ -35,6 +35,11 @@ jobs:
       - name: Test release scripts
         run: python3 -m unittest scripts.test_write_spdx_sbom
 
+      - name: Check Cargo manifests
+        run: |
+          python3 -m unittest scripts.test_check_cargo_manifests
+          python3 scripts/check_cargo_manifests.py --root .
+
       - name: Check documentation links
         run: |
           python3 -m unittest scripts.test_check_docs_links
