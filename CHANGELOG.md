@@ -93,6 +93,9 @@ and this project follows semantic versioning once the first release is tagged.
 - Runtime benchmark smoke target and CI check.
 - CLI verification safety checks for redacted replay labels.
 - Minimum supported Rust version CI testing for Rust 1.85.0.
+- Cargo manifest metadata validation for open-source package readiness.
+- Changelog structure validation in CI.
+- Contributor verification checklist validation in CI.
 
 ### Changed
 
@@ -212,3 +215,5 @@ and this project follows semantic versioning once the first release is tagged.
 - Pull request template replay verification now includes every committed replay
   fixture.
 - Security policy and contributor docs now describe RustSec advisory auditing.
+- Contributor verification docs now stay aligned with the README local check
+  list through CI validation.
