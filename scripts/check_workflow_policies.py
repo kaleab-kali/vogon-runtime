@@ -17,8 +17,10 @@ TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z0-9_-]+:")
 JOB_KEY_RE = re.compile(r"^\s{2}([A-Za-z0-9_-]+):\s*$")
 RUNS_ON_RE = re.compile(r"^\s{4}runs-on:\s*(.+?)\s*$")
 TIMEOUT_RE = re.compile(r"^\s{4}timeout-minutes:\s*(.+?)\s*$")
+USES_RE = re.compile(r"^\s+(?:-\s+)?uses:\s*(.+?)\s*$")
 ALLOWED_TOP_LEVEL_WRITE_SCOPES = {"security-events"}
 FLOATING_RUNNERS = {"ubuntu-latest", "windows-latest", "macos-latest"}
+MUTABLE_ACTION_REFS = {"main", "master", "latest", "head", "trunk"}
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,15 @@ def check_workflow_file(root: Path, path: Path) -> list[str]:
             errors.append(
                 f"{relative_path}:{line_number}: broad workflow permissions are not allowed"
             )
+        uses_match = USES_RE.match(line)
+        if uses_match:
+            action_error = check_action_reference(
+                relative_path,
+                line_number,
+                uses_match.group(1),
+            )
+            if action_error:
+                errors.append(action_error)
 
     permissions = parse_top_level_permissions(lines)
     if permissions is None:
@@ -119,6 +130,39 @@ def check_workflow_file(root: Path, path: Path) -> list[str]:
             )
 
     return errors
+
+
+def check_action_reference(
+    relative_path: str,
+    line_number: int,
+    raw_reference: str,
+) -> str | None:
+    reference = raw_reference.strip().strip("\"'")
+    if reference.startswith(("./", "docker://")):
+        return None
+
+    if "${{" in reference:
+        return (
+            f"{relative_path}:{line_number}: action references must not use expressions"
+        )
+
+    if "@" not in reference:
+        return (
+            f"{relative_path}:{line_number}: external action references must include "
+            "an explicit ref"
+        )
+
+    action, ref = reference.rsplit("@", 1)
+    if not action or not ref:
+        return f"{relative_path}:{line_number}: action reference must include action and ref"
+
+    if ref.lower() in MUTABLE_ACTION_REFS or ref.lower().startswith("refs/heads/"):
+        return (
+            f"{relative_path}:{line_number}: action reference `{reference}` uses "
+            "a mutable ref"
+        )
+
+    return None
 
 
 def check_jobs(relative_path: str, lines: list[str]) -> list[str]:
