@@ -18,7 +18,7 @@ directly:
 
 ```sh
 docker run --rm vogon-runtime:local --version
-docker run --rm --read-only vogon-runtime:local doctor --json
+docker run --rm --read-only vogon-runtime:local doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:local init --force --output /work/starter.toml
@@ -91,7 +91,7 @@ test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labe
 docker run --rm vogon-runtime:smoke --version
 test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
-docker run --rm --read-only vogon-runtime:smoke doctor --json
+docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml
@@ -114,7 +114,7 @@ test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Lab
 docker run --rm vogon-runtime:v0.1.0 --version
 test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
-docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json
+docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.0 init --force --output /work/starter.toml
