@@ -13,6 +13,7 @@
 - [ ] `python -m unittest scripts.test_check_spdx_sbom_json`
 - [ ] `python -m unittest scripts.test_check_sha256_file`
 - [ ] `python -m unittest scripts.test_check_archive_contents`
+- [ ] `python -m unittest scripts.test_check_container_image`
 - [ ] `python -m unittest scripts.test_check_benchmark_output`
 - [ ] `python -m unittest scripts.test_check_cargo_manifests`
 - [ ] `python -m unittest scripts.test_check_changelog`
@@ -74,10 +75,8 @@
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json`
 - [ ] `docker build --tag vogon-runtime:smoke .`
-- [ ] `test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"`
-- [ ] `test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"`
+- [ ] `python scripts/check_container_image.py vogon-runtime:smoke`
 - [ ] `docker run --rm vogon-runtime:smoke --version`
-- [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py`
 - [ ] `mkdir -p target/container-smoke`

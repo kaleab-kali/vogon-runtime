@@ -223,11 +223,8 @@ jobs:
       - name: Smoke test container image
         run: |
           image="vogon-runtime:${{ github.ref_name }}"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+          python3 scripts/check_container_image.py "$image"
           docker run --rm "$image" --version
-          test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"
@@ -262,11 +259,8 @@ jobs:
           sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
           gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
           docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+          python3 scripts/check_container_image.py "$image"
           docker run --rm "$image" --version
-          test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
           mkdir -p "${{ runner.temp }}/vogon-packaged-container-smoke"
@@ -350,11 +344,8 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-container-image.tar.gz"
             gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
             docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-            test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+            python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image"
             docker run --rm "$image" --version
-            test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
             docker run --rm --read-only "$image" --version
             docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
