@@ -99,6 +99,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Changelog structure validation in CI.
 - Contributor verification checklist validation in CI.
 - Deployment smoke checklist validation in CI.
+- Release and installed CLI smoke checks now verify bounded run cache files.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
