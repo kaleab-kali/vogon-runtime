@@ -46,6 +46,8 @@ and this project follows semantic versioning once the first release is tagged.
   shape through a shared script.
 - Cache file smoke checks now validate entry bounds and insertion-order shape
   through a shared script.
+- Release metadata and SPDX SBOM smoke checks now validate artifact JSON shape
+  through shared scripts.
 - Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
 - Offline cargo install smoke testing now verifies installed CLI workflow and

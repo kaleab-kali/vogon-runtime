@@ -10,6 +10,8 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check -p vogon-cli --no-default-features
 python -m unittest scripts.test_write_spdx_sbom
+python -m unittest scripts.test_check_cargo_metadata_json
+python -m unittest scripts.test_check_spdx_sbom_json
 python -m unittest scripts.test_check_benchmark_output
 python -m unittest scripts.test_check_cargo_manifests
 python -m unittest scripts.test_check_changelog

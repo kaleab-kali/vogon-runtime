@@ -33,7 +33,10 @@ jobs:
         run: rustup component add rustfmt clippy
 
       - name: Test release scripts
-        run: python3 -m unittest scripts.test_write_spdx_sbom
+        run: |
+          python3 -m unittest scripts.test_write_spdx_sbom
+          python3 -m unittest scripts.test_check_cargo_metadata_json
+          python3 -m unittest scripts.test_check_spdx_sbom_json
 
       - name: Check Cargo manifests
         run: |
