@@ -72,6 +72,7 @@ jobs:
       - name: Write dependency metadata
         run: |
           cargo metadata --locked --format-version 1 > "vogon-${{ github.ref_name }}-cargo-metadata.json"
+          python3 scripts/check_cargo_metadata_json.py "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
           sha256sum "vogon-${{ github.ref_name }}-cargo-metadata.json" > "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
 
       - name: Write SPDX SBOM
@@ -82,7 +83,7 @@ jobs:
             --document-name "vogon-runtime ${{ github.ref_name }}" \
             --namespace "https://github.com/kaleab-kali/vogon-runtime/releases/${{ github.ref_name }}/sbom/${{ github.run_id }}"
           sha256sum "vogon-${{ github.ref_name }}-cargo-spdx.json" > "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
-          python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-spdx.json')); assert data['spdxVersion'] == 'SPDX-2.3'; assert data['packages']; assert data['relationships']"
+          python3 scripts/check_spdx_sbom_json.py "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
 
       - name: Smoke test packaged archive
         run: |
@@ -326,8 +327,8 @@ jobs:
             sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
             sha256sum -c "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
             sha256sum -c "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
-            python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-metadata.json')); assert data['packages']; assert data['resolve']['nodes']"
-            python3 -c "import json; data = json.load(open('vogon-${{ github.ref_name }}-cargo-spdx.json')); assert data['spdxVersion'] == 'SPDX-2.3'; assert data['packages']; assert data['relationships']"
+            python3 "$GITHUB_WORKSPACE/scripts/check_cargo_metadata_json.py" "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
+            python3 "$GITHUB_WORKSPACE/scripts/check_spdx_sbom_json.py" "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
           )
           (
             cd release-artifacts/vogon-windows-x86_64

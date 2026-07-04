@@ -85,13 +85,14 @@ jobs:
       - run: cargo build --release -p vogon-cli --locked
       - run: |
           cargo metadata --locked --format-version 1
+          python3 scripts/check_cargo_metadata_json.py
           python3 scripts/write_spdx_sbom.py
+          python3 scripts/check_spdx_sbom_json.py
           python3 scripts/check_doctor_json.py
           python3 scripts/check_cache_json.py
           python3 scripts/check_workflow_json.py
           python3 scripts/check_verify_json.py
           python3 scripts/check_trace_jsonl.py
-          python3 -c "assert data['spdxVersion'] == 'SPDX-2.3'"
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-spdx.json.sha256
