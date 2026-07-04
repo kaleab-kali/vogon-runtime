@@ -169,19 +169,22 @@ where
             let input = step_input(step, &previous_output);
             let input_hash = stable_hash(&input);
             let cache_key = self.cache_key(&input_hash);
-            let output = match cache.as_deref_mut().and_then(|cache| {
-                cache
-                    .get_output(&cache_key)
-                    .map(std::borrow::ToOwned::to_owned)
-            }) {
-                Some(output) => output,
-                None => {
+            let output = if let Some(cache) = cache.as_deref_mut() {
+                if let Some(output) = cache.get_output(&cache_key).map(str::to_owned) {
+                    observer(RuntimeEvent::CacheHit {
+                        step_id: step.id().clone(),
+                    });
+                    output
+                } else {
+                    observer(RuntimeEvent::CacheMiss {
+                        step_id: step.id().clone(),
+                    });
                     let output = self.adapter.complete(step, &input)?;
-                    if let Some(cache) = cache.as_deref_mut() {
-                        cache.insert_output(cache_key, output.clone());
-                    }
+                    cache.insert_output(cache_key, output.clone());
                     output
                 }
+            } else {
+                self.adapter.complete(step, &input)?
             };
             let redacted_output = redactions.redact(&output);
 
@@ -745,6 +748,51 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(calls.get(), 1);
         assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn run_with_cache_observer_emits_cache_events() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let calls = Rc::new(Cell::new(0));
+        let runtime = Runtime::new(CountingModel::new(Rc::clone(&calls)));
+        let mut cache = RunCache::new();
+        let mut events = Vec::new();
+
+        runtime
+            .run_with_cache_and_observer(&workflow, &mut cache, |event| events.push(event))
+            .unwrap();
+        runtime
+            .run_with_cache_and_observer(&workflow, &mut cache, |event| events.push(event))
+            .unwrap();
+
+        assert_eq!(calls.get(), 1);
+        assert_eq!(
+            events,
+            vec![
+                RuntimeEvent::StepStarted {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::CacheMiss {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::StepFinished {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::StepStarted {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::CacheHit {
+                    step_id: StepId::new("first").unwrap()
+                },
+                RuntimeEvent::StepFinished {
+                    step_id: StepId::new("first").unwrap()
+                },
+            ]
+        );
     }
 
     #[test]
