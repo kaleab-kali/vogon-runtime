@@ -122,6 +122,9 @@ def check_workflow_file(
         "workflow_call secret declaration": (
             f"      {provider.secret_env}:\n        required: true"
         ),
+        "checkout step": "        uses: actions/checkout@v7",
+        "Rust toolchain step": "        run: rustup show",
+        "release CLI build": "        run: cargo build --release -p vogon-cli --locked",
         "secret env wiring": f"      {provider.secret_env}: {secret_ref}",
         "secret presence guard": f'if [ -z "${{{provider.secret_env}:-}}" ]; then',
         "provider run flag": f"            --provider {expectation.provider}",
