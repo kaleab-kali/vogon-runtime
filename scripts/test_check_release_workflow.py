@@ -87,6 +87,7 @@ jobs:
           cargo metadata --locked --format-version 1
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_doctor_json.py
+          python3 scripts/check_cache_json.py
           python3 scripts/check_workflow_json.py
           python3 scripts/check_verify_json.py
           python3 scripts/check_trace_jsonl.py

@@ -54,7 +54,7 @@ jobs:
           printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           cache_file="$RUNNER_TEMP/vogon-cache-smoke.cache.json"
           ./target/release/vogon run --cache-file "$cache_file" --cache-max-entries 1 fixtures/workflows/support-triage.toml > "$RUNNER_TEMP/vogon-cache-smoke.replay.json"
-          CACHE_FILE="$cache_file" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+          python3 scripts/check_cache_json.py "$cache_file" --expected-max-entries 1 --expected-entry-count 1
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -93,7 +93,7 @@ jobs:
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
-          python3 -c "import json; data = json.load(open('archive-smoke/cache-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+          python3 scripts/check_cache_json.py archive-smoke/cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
           test -f archive-smoke/README.md
           test -f archive-smoke/LICENSE
 
@@ -156,10 +156,7 @@ jobs:
           $traceJsonl | python scripts\check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           $cacheFile = Join-Path $env:RUNNER_TEMP 'vogon-cache-smoke.cache.json'
           .\target\release\vogon.exe run --cache-file $cacheFile --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
-          $cache = Get-Content $cacheFile -Raw | ConvertFrom-Json
-          if ($cache.max_entries -ne 1 -or $cache.outputs.PSObject.Properties.Count -ne 1 -or $cache.insertion_order.Count -ne 1) {
-            throw "Unexpected cache file shape: $cache"
-          }
+          python scripts\check_cache_json.py $cacheFile --expected-max-entries 1 --expected-entry-count 1
           Get-ChildItem fixtures\replays\*.replay.json | ForEach-Object {
             $name = $_.Name -replace '\.replay\.json$', ''
             .\target\release\vogon.exe verify "fixtures\workflows\$name.toml" $_.FullName
@@ -186,10 +183,7 @@ jobs:
           .\archive-smoke\vogon.exe init --force --output archive-smoke\starter.toml
           .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
-          $cache = Get-Content archive-smoke\cache-smoke.cache.json -Raw | ConvertFrom-Json
-          if ($cache.max_entries -ne 1 -or $cache.outputs.PSObject.Properties.Count -ne 1 -or $cache.insertion_order.Count -ne 1) {
-            throw "Unexpected packaged cache file shape: $cache"
-          }
+          python scripts\check_cache_json.py archive-smoke\cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
           if (-not (Test-Path archive-smoke\README.md)) {
             throw "Packaged archive is missing README.md"
           }
@@ -255,7 +249,7 @@ jobs:
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-container-smoke/cache-smoke.replay.json"
-          CACHE_FILE="${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+          python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
 
       - name: Package container image
         run: |
@@ -280,7 +274,7 @@ jobs:
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" init --force --output /work/starter.toml
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.replay.json"
-          CACHE_FILE="${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+          python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
 
       - name: Attest container image archive
         uses: actions/attest@v4
@@ -357,7 +351,7 @@ jobs:
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" init --force --output /work/starter.toml
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.replay.json"
-            CACHE_FILE="${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+            python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
           )
 
   publish-release:

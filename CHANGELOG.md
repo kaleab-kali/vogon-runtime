@@ -44,6 +44,8 @@ and this project follows semantic versioning once the first release is tagged.
   through a shared script.
 - Replay verification JSON smoke checks now validate match status and mismatch
   shape through a shared script.
+- Cache file smoke checks now validate entry bounds and insertion-order shape
+  through a shared script.
 - Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
 - Offline cargo install smoke testing now verifies installed CLI workflow and

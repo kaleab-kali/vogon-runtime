@@ -17,6 +17,7 @@ python -m unittest scripts.test_check_contributing_checklist
 python -m unittest scripts.test_check_container_policy
 python -m unittest scripts.test_check_deployment_checklist
 python -m unittest scripts.test_check_doctor_json
+python -m unittest scripts.test_check_cache_json
 python -m unittest scripts.test_check_workflow_json
 python -m unittest scripts.test_check_verify_json
 python -m unittest scripts.test_check_trace_jsonl
@@ -58,7 +59,7 @@ cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.tom
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo run --release -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
 cargo run --release -p vogon-cli -- run --cache-file target/vogon-cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml
-python -c "import json; data = json.load(open('target/vogon-cache-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+python scripts/check_cache_json.py target/vogon-cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
 cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
 target/install-smoke/bin/vogon --version
 target/install-smoke/bin/vogon doctor --json | python scripts/check_doctor_json.py
@@ -66,7 +67,7 @@ target/install-smoke/bin/vogon init --force --output target/install-smoke-workfl
 target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
 target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
 target/install-smoke/bin/vogon run --cache-file target/install-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml
-python -c "import json; data = json.load(open('target/install-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
+python scripts/check_cache_json.py target/install-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 docker build --tag vogon-runtime:smoke .
