@@ -26,6 +26,7 @@ REQUIRED_SNIPPETS = {
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "doctor JSON validator": "scripts/check_doctor_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",
+    "verify JSON validator": "scripts/check_verify_json.py",
     "trace JSONL validator": "scripts/check_trace_jsonl.py",
     "SPDX version validation": "assert data['spdxVersion'] == 'SPDX-2.3'",
     "Linux checksum": "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256",

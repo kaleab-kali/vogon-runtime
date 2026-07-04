@@ -88,6 +88,7 @@ jobs:
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_doctor_json.py
           python3 scripts/check_workflow_json.py
+          python3 scripts/check_verify_json.py
           python3 scripts/check_trace_jsonl.py
           python3 -c "assert data['spdxVersion'] == 'SPDX-2.3'"
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
