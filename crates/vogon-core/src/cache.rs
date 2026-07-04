@@ -83,6 +83,15 @@ impl RunCache {
         self.max_entries
     }
 
+    /// Updates the maximum number of outputs retained by this cache.
+    ///
+    /// Lowering the limit evicts the oldest cached outputs immediately. A
+    /// limit of `0` clears existing outputs and disables future storage.
+    pub fn set_max_entries(&mut self, max_entries: usize) {
+        self.max_entries = max_entries;
+        self.evict_excess_outputs();
+    }
+
     fn evict_excess_outputs(&mut self) {
         while self.outputs.len() > self.max_entries {
             let Some(input_hash) = self.insertion_order.pop_front() else {
@@ -211,5 +220,21 @@ mod tests {
         assert_eq!(cache.max_entries(), DEFAULT_RUN_CACHE_MAX_ENTRIES);
         assert_eq!(cache.get_output("first"), Some("first output"));
         assert_eq!(cache.get_output("second"), Some("second output"));
+    }
+
+    #[test]
+    fn cache_can_update_entry_limit() {
+        let mut cache = RunCache::with_max_entries(3);
+        cache.insert_output("first", "first output");
+        cache.insert_output("second", "second output");
+        cache.insert_output("third", "third output");
+
+        cache.set_max_entries(1);
+
+        assert_eq!(cache.max_entries(), 1);
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.get_output("first"), None);
+        assert_eq!(cache.get_output("second"), None);
+        assert_eq!(cache.get_output("third"), Some("third output"));
     }
 }

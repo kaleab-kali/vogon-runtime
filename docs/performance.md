@@ -28,3 +28,20 @@ cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/c
 The validator checks the expected iteration count and requires positive finite
 `elapsed_ms` and `iterations_per_second` values. It intentionally does not set a
 minimum throughput threshold because GitHub-hosted runner performance varies.
+
+## Runtime Cache
+
+`vogon run` can persist a bounded cache of provider outputs across repeated
+runs:
+
+```sh
+cargo run -p vogon-cli -- run --cache-file target/vogon.cache.json fixtures/workflows/support-triage.toml
+```
+
+The cache is scoped by adapter identity and stable step input hash, so entries
+are not reused across different providers, endpoints, models, or input hashes.
+Use `--cache-max-entries` to choose the retained entry count; the default is
+`1024`, and `0` disables storage.
+
+Treat cache files as sensitive. They may contain raw model outputs, including
+values redacted from replay files, and should stay out of version control.

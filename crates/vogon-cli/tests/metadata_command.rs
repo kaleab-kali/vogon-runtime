@@ -302,6 +302,8 @@ fn run_help_documents_replay_options() {
         "--openai-compatible-max-retries <OPENAI_COMPATIBLE_MAX_RETRIES>",
         "--redact <LABEL=VALUE>",
         "--output <FILE>",
+        "--cache-file <FILE>",
+        "--cache-max-entries <CACHE_MAX_ENTRIES>",
     ] {
         assert!(
             stdout.contains(expected),

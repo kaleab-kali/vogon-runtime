@@ -29,8 +29,9 @@ pub use vogon_adapters::{
     DEFAULT_OPENROUTER_TIMEOUT_SECONDS, MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES,
     MAX_OPENAI_COMPATIBLE_RETRIES, MAX_OPENROUTER_RETRIES,
 };
-use vogon_core::{ModelAdapter, RedactionSet, RunReport, Runtime};
+use vogon_core::{ModelAdapter, RedactionSet, RunCache, RunReport, Runtime};
 
+use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
 
@@ -85,12 +86,18 @@ pub fn run(
     workflow_file: &Path,
     redaction_values: &[String],
     output: Option<&Path>,
+    cache_file: Option<&Path>,
+    cache_max_entries: usize,
     model_config: RunModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let workflow = read_toml_workflow(workflow_file)?;
     let redactions = parse_redactions(redaction_values)?;
-    let report = run_with_model(&workflow, &redactions, model_config)?;
+    let mut cache = load_run_cache(cache_file, cache_max_entries)?;
+    let report = run_with_model(&workflow, &redactions, model_config, cache.as_mut())?;
     let replay_json = format!("{}\n", serde_json::to_string_pretty(&report)?);
+    if let (Some(cache_file), Some(cache)) = (cache_file, cache.as_ref()) {
+        write_run_cache_file(cache_file, cache)?;
+    }
 
     if let Some(output) = output {
         create_output_parent(output)?;
@@ -165,10 +172,11 @@ fn run_with_model(
     workflow: &vogon_core::Workflow,
     redactions: &RedactionSet,
     model_config: RunModelConfig<'_>,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     match model_config.provider {
         ModelProvider::Deterministic => {
-            run_with_adapter(DeterministicEchoModel, workflow, redactions)
+            run_with_adapter(DeterministicEchoModel, workflow, redactions, cache)
         }
         ModelProvider::Gemini => run_with_gemini(
             workflow,
@@ -176,6 +184,7 @@ fn run_with_model(
             model_config.gemini_model,
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
+            cache,
         ),
         ModelProvider::Groq => run_with_groq(
             workflow,
@@ -183,6 +192,7 @@ fn run_with_model(
             model_config.groq_model,
             model_config.groq_timeout_seconds,
             model_config.groq_max_retries,
+            cache,
         ),
         ModelProvider::HuggingFace => run_with_hugging_face(
             workflow,
@@ -190,6 +200,7 @@ fn run_with_model(
             model_config.hugging_face_model,
             model_config.hugging_face_timeout_seconds,
             model_config.hugging_face_max_retries,
+            cache,
         ),
         ModelProvider::OpenRouter => run_with_openrouter(
             workflow,
@@ -197,6 +208,7 @@ fn run_with_model(
             model_config.openrouter_model,
             model_config.openrouter_timeout_seconds,
             model_config.openrouter_max_retries,
+            cache,
         ),
         ModelProvider::OpenAiCompatible => run_with_openai_compatible(
             workflow,
@@ -205,6 +217,7 @@ fn run_with_model(
             model_config.openai_compatible_model,
             model_config.openai_compatible_timeout_seconds,
             model_config.openai_compatible_max_retries,
+            cache,
         ),
     }
 }
@@ -213,11 +226,16 @@ fn run_with_adapter<A>(
     adapter: A,
     workflow: &vogon_core::Workflow,
     redactions: &RedactionSet,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>>
 where
     A: ModelAdapter,
 {
-    Ok(Runtime::new(adapter).run_with_redactions(workflow, redactions)?)
+    let runtime = Runtime::new(adapter);
+    match cache {
+        Some(cache) => Ok(runtime.run_with_cache_and_redactions(workflow, cache, redactions)?),
+        None => Ok(runtime.run_with_redactions(workflow, redactions)?),
+    }
 }
 
 #[cfg(feature = "gemini")]
@@ -227,6 +245,7 @@ fn run_with_gemini(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
         GeminiModel::from_env_with_timeout_and_retries(
@@ -236,6 +255,7 @@ fn run_with_gemini(
         )?,
         workflow,
         redactions,
+        cache,
     )
 }
 
@@ -246,6 +266,7 @@ fn run_with_gemini(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -261,6 +282,7 @@ fn run_with_groq(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
         GroqModel::from_env_with_timeout_and_retries(
@@ -270,6 +292,7 @@ fn run_with_groq(
         )?,
         workflow,
         redactions,
+        cache,
     )
 }
 
@@ -280,6 +303,7 @@ fn run_with_groq(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -295,6 +319,7 @@ fn run_with_hugging_face(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
         HuggingFaceModel::from_env_with_timeout_and_retries(
@@ -304,6 +329,7 @@ fn run_with_hugging_face(
         )?,
         workflow,
         redactions,
+        cache,
     )
 }
 
@@ -314,6 +340,7 @@ fn run_with_hugging_face(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -329,6 +356,7 @@ fn run_with_openrouter(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
         OpenRouterModel::from_env_with_timeout_and_retries(
@@ -338,6 +366,7 @@ fn run_with_openrouter(
         )?,
         workflow,
         redactions,
+        cache,
     )
 }
 
@@ -348,6 +377,7 @@ fn run_with_openrouter(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -364,6 +394,7 @@ fn run_with_openai_compatible(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     run_with_adapter(
         OpenAiCompatibleModel::from_env_with_base_url_model_timeout_and_retries(
@@ -374,6 +405,7 @@ fn run_with_openai_compatible(
         )?,
         workflow,
         redactions,
+        cache,
     )
 }
 
@@ -385,12 +417,65 @@ fn run_with_openai_compatible(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "OpenAI-compatible provider support is not enabled in this build",
     )
     .into())
+}
+
+fn load_run_cache(
+    cache_file: Option<&Path>,
+    cache_max_entries: usize,
+) -> Result<Option<RunCache>, Box<dyn std::error::Error>> {
+    let Some(cache_file) = cache_file else {
+        return Ok(None);
+    };
+
+    if !cache_file.exists() {
+        return Ok(Some(RunCache::with_max_entries(cache_max_entries)));
+    }
+
+    let cache_text = file_io::read_to_string(cache_file, "run cache file")?;
+    let mut cache: RunCache = serde_json::from_str(&cache_text).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "failed to parse run cache file `{}`: {error}",
+                cache_file.display()
+            ),
+        )
+    })?;
+    cache.set_max_entries(cache_max_entries);
+    Ok(Some(cache))
+}
+
+fn write_run_cache_file(
+    cache_file: &Path,
+    cache: &RunCache,
+) -> Result<(), Box<dyn std::error::Error>> {
+    create_cache_parent(cache_file)?;
+    if cache_file.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("run cache path `{}` is a directory", cache_file.display()),
+        )
+        .into());
+    }
+
+    let cache_json = format!("{}\n", serde_json::to_string_pretty(cache)?);
+    write_replay_file(cache_file, &cache_json).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!(
+                "failed to write run cache file `{}`: {error}",
+                cache_file.display()
+            ),
+        )
+    })?;
+    Ok(())
 }
 
 fn reject_directory_output(output: &Path) -> io::Result<()> {
@@ -405,7 +490,15 @@ fn reject_directory_output(output: &Path) -> io::Result<()> {
 }
 
 fn create_output_parent(output: &Path) -> io::Result<()> {
-    if let Some(parent) = output
+    create_parent(output, "replay output directory")
+}
+
+fn create_cache_parent(cache_file: &Path) -> io::Result<()> {
+    create_parent(cache_file, "run cache directory")
+}
+
+fn create_parent(path: &Path, description: &str) -> io::Result<()> {
+    if let Some(parent) = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
     {
@@ -413,7 +506,7 @@ fn create_output_parent(output: &Path) -> io::Result<()> {
             io::Error::new(
                 error.kind(),
                 format!(
-                    "failed to create replay output directory `{}`: {error}",
+                    "failed to create {description} `{}`: {error}",
                     parent.display()
                 ),
             )

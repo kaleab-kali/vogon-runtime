@@ -441,6 +441,105 @@ fn run_command_writes_replay_file() {
 }
 
 #[test]
+fn run_command_persists_run_cache_file() {
+    let fixture = support_triage_workflow();
+    let cache_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("support-triage.cache.json");
+    remove_file_if_exists(&cache_file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let cache: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&cache_file).unwrap()).unwrap();
+    assert_eq!(cache["max_entries"], 1024);
+    assert_eq!(cache["outputs"].as_object().unwrap().len(), 2);
+    assert_eq!(cache["insertion_order"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn run_command_applies_cache_entry_limit_when_loading_cache_file() {
+    let fixture = support_triage_workflow();
+    let cache_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("bounded-support-triage.cache.json");
+    remove_file_if_exists(&cache_file);
+
+    let first = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg(&fixture)
+        .output()
+        .expect("run command should execute");
+    assert!(
+        first.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+
+    let second = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg("--cache-max-entries")
+        .arg("1")
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+    assert!(
+        second.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+
+    let cache: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&cache_file).unwrap()).unwrap();
+    assert_eq!(cache["max_entries"], 1);
+    assert_eq!(cache["outputs"].as_object().unwrap().len(), 1);
+    assert_eq!(cache["insertion_order"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn run_command_rejects_malformed_cache_file() {
+    let fixture = support_triage_workflow();
+    let cache_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("malformed.cache.json");
+    fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
+    fs::write(&cache_file, "not json").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("failed to parse run cache file"));
+    assert!(stderr.contains(&cache_file.display().to_string()));
+}
+
+#[test]
 fn run_command_overwrites_existing_replay_file() {
     let fixture = support_triage_workflow();
     let output_file = repo_root()
