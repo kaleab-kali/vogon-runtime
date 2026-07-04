@@ -54,8 +54,8 @@ cargo run -p vogon-cli -- init --output workflow.toml --force
 
 Shows available model providers, whether provider support is enabled in the
 current binary, whether required credential environment variables are
-configured, default endpoint/model metadata, and provider documentation links.
-Secret values are never printed.
+configured, default endpoint/model metadata, provider documentation links, and
+public usage or rate-limit links. Secret values are never printed.
 
 ```sh
 cargo run -p vogon-cli -- providers
@@ -67,9 +67,10 @@ Emit the provider diagnostics as JSON for scripts:
 cargo run -p vogon-cli -- providers --json
 ```
 
-The JSON output includes a `documentation_url` field for each provider so
-operator tooling can point users to setup and provider-specific usage notes
-without embedding secret values.
+The JSON output includes `documentation_url` and `usage_url` fields so operator
+tooling can point users to setup, pricing, credit, and rate-limit information
+without embedding secret values. `usage_url` is `null` for provider-neutral
+entries that do not have a single external pricing or limits page.
 
 ## `vogon doctor`
 

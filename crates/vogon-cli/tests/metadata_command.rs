@@ -132,6 +132,7 @@ fn doctor_command_reports_json_without_secret_values() {
                     && provider["default"] == true
                     && provider["documentation_url"]
                         == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic"
+                    && provider["usage_url"].is_null()
             })
     );
 }
@@ -202,6 +203,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_env"] == "GEMINI_API_KEY"
             && provider["credential_configured"] == true
             && provider["documentation_url"] == "https://ai.google.dev/gemini-api/docs"
+            && provider["usage_url"] == "https://ai.google.dev/gemini-api/docs/pricing"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "groq"
@@ -210,6 +212,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["default_base_url"] == "https://api.groq.com/openai/v1"
             && provider["default_model"] == "llama-3.1-8b-instant"
             && provider["documentation_url"] == "https://console.groq.com/docs/openai"
+            && provider["usage_url"] == "https://console.groq.com/docs/rate-limits"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "hugging-face"
@@ -218,6 +221,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["default_base_url"] == "https://router.huggingface.co/v1"
             && provider["default_model"] == "openai/gpt-oss-120b:fastest"
             && provider["documentation_url"] == "https://huggingface.co/docs/inference-providers"
+            && provider["usage_url"] == "https://huggingface.co/docs/inference-providers/pricing"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openrouter"
@@ -226,6 +230,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["default_base_url"] == "https://openrouter.ai/api/v1"
             && provider["default_model"] == "openrouter/free"
             && provider["documentation_url"] == "https://openrouter.ai/docs"
+            && provider["usage_url"] == "https://openrouter.ai/pricing"
     }));
     assert!(providers.iter().any(|provider| {
         provider["name"] == "openai-compatible"
@@ -233,6 +238,7 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["credential_configured"] == true
             && provider["documentation_url"]
                 == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible"
+            && provider["usage_url"].is_null()
     }));
 }
 
@@ -257,6 +263,10 @@ fn providers_command_prints_documentation_links() {
         "documentation: https://huggingface.co/docs/inference-providers",
         "documentation: https://openrouter.ai/docs",
         "documentation: https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+        "usage and limits: https://ai.google.dev/gemini-api/docs/pricing",
+        "usage and limits: https://console.groq.com/docs/rate-limits",
+        "usage and limits: https://huggingface.co/docs/inference-providers/pricing",
+        "usage and limits: https://openrouter.ai/pricing",
     ] {
         assert!(
             stdout.contains(expected),

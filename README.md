@@ -74,7 +74,8 @@ cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
 Check available providers, credential setup, and provider documentation links
-without running a workflow:
+without running a workflow. Provider-backed entries also include public usage,
+pricing, or rate-limit links when available:
 
 ```sh
 cargo run -p vogon-cli -- providers
