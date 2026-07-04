@@ -51,7 +51,7 @@ jobs:
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
           trace_jsonl="$(./target/release/vogon trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
-          printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
+          printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           cache_file="$RUNNER_TEMP/vogon-cache-smoke.cache.json"
           ./target/release/vogon run --cache-file "$cache_file" --cache-max-entries 1 fixtures/workflows/support-triage.toml > "$RUNNER_TEMP/vogon-cache-smoke.replay.json"
           CACHE_FILE="$cache_file" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
@@ -162,10 +162,7 @@ jobs:
           }
           $traceJsonl = (& .\target\release\vogon.exe trace --jsonl fixtures\replays\support-triage.replay.json) -join "`n"
           $traceJsonl
-          $traceRun = ($traceJsonl -split "`n")[0] | ConvertFrom-Json
-          if ($traceRun.event -ne 'run' -or $traceRun.schema_version -ne 1 -or $traceRun.runtime.provider -ne 'deterministic' -or $traceRun.runtime.model -ne 'deterministic-echo') {
-            throw "Unexpected trace JSONL run event: $traceJsonl"
-          }
+          $traceJsonl | python scripts\check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           $cacheFile = Join-Path $env:RUNNER_TEMP 'vogon-cache-smoke.cache.json'
           .\target\release\vogon.exe run --cache-file $cacheFile --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           $cache = Get-Content $cacheFile -Raw | ConvertFrom-Json
@@ -265,7 +262,7 @@ jobs:
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
           trace_jsonl="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
-          printf '%s\n' "$trace_jsonl" | python3 -c "import json, sys; first = json.loads(sys.stdin.readline()); assert first['event'] == 'run'; assert first['schema_version'] == 1; assert first['runtime']['provider'] == 'deterministic'; assert first['runtime']['model'] == 'deterministic-echo'"
+          printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-container-smoke/cache-smoke.replay.json"
           CACHE_FILE="${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
 
