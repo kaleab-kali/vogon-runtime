@@ -147,6 +147,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
+      - run: |
+          python3 scripts/check_archive_contents.py
+          python3 scripts/check_archive_contents.py
   publish-release:
     steps:
       - uses: actions/download-artifact@v8

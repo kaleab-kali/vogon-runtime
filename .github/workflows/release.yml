@@ -331,11 +331,17 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-cargo-spdx.json"
             python3 "$GITHUB_WORKSPACE/scripts/check_cargo_metadata_json.py" "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
             python3 "$GITHUB_WORKSPACE/scripts/check_spdx_sbom_json.py" "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
+            mkdir -p linux-archive-smoke
+            tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C linux-archive-smoke
+            python3 "$GITHUB_WORKSPACE/scripts/check_archive_contents.py" linux-archive-smoke --binary vogon
           )
           (
             cd release-artifacts/vogon-windows-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
             python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-windows-x86_64.zip"
+            mkdir -p windows-archive-smoke
+            unzip -q "vogon-${{ github.ref_name }}-windows-x86_64.zip" -d windows-archive-smoke
+            python3 "$GITHUB_WORKSPACE/scripts/check_archive_contents.py" windows-archive-smoke --binary vogon.exe
           )
           (
             cd release-artifacts/vogon-container-image
