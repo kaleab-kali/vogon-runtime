@@ -89,6 +89,7 @@ jobs:
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_spdx_sbom_json.py
           python3 scripts/check_sha256_file.py
+          python3 scripts/check_archive_contents.py
           python3 scripts/check_sha256_file.py
           python3 scripts/check_sha256_file.py
           python3 scripts/check_doctor_json.py
@@ -115,6 +116,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           python3 scripts/check_sha256_file.py
+          python3 scripts/check_archive_contents.py
           sha256sum -c vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip

@@ -92,6 +92,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Release jobs now publish locked Cargo dependency metadata with a checksum.
 - Release jobs now publish SPDX dependency SBOMs with checksums.
 - Release jobs now validate SHA-256 checksum files with a reusable smoke script.
+- Release archive smoke tests now validate packaged binary and docs with a
+  reusable script.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
