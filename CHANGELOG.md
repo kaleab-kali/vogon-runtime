@@ -102,6 +102,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Release and installed CLI smoke checks now verify bounded run cache files.
 - Container build context policy now excludes persistent run cache artifacts.
 - Package verification rationale validation in CI.
+- Contributor verification docs now include package verification rationale checks.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
