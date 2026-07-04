@@ -34,6 +34,7 @@ pub(crate) struct ProviderStatus {
     pub(crate) credential_configured: Option<bool>,
     pub(crate) default_base_url: Option<&'static str>,
     pub(crate) default_model: Option<&'static str>,
+    pub(crate) documentation_url: &'static str,
 }
 
 pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
@@ -46,6 +47,7 @@ pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
             credential_configured: None,
             default_base_url: None,
             default_model: None,
+            documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic",
         },
         gemini_status(),
         groq_status(),
@@ -65,6 +67,7 @@ fn gemini_status() -> ProviderStatus {
         credential_configured: Some(env_is_configured("GEMINI_API_KEY")),
         default_base_url: None,
         default_model: Some("gemini-3.1-flash-lite"),
+        documentation_url: "https://ai.google.dev/gemini-api/docs",
     }
 }
 
@@ -78,6 +81,7 @@ fn gemini_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: None,
         default_model: Some("gemini-3.1-flash-lite"),
+        documentation_url: "https://ai.google.dev/gemini-api/docs",
     }
 }
 
@@ -91,6 +95,7 @@ fn groq_status() -> ProviderStatus {
         credential_configured: Some(env_is_configured("GROQ_API_KEY")),
         default_base_url: Some(DEFAULT_GROQ_BASE_URL),
         default_model: Some(DEFAULT_GROQ_MODEL),
+        documentation_url: "https://console.groq.com/docs/openai",
     }
 }
 
@@ -104,6 +109,7 @@ fn groq_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_GROQ_BASE_URL),
         default_model: Some(DEFAULT_GROQ_MODEL),
+        documentation_url: "https://console.groq.com/docs/openai",
     }
 }
 
@@ -117,6 +123,7 @@ fn hugging_face_status() -> ProviderStatus {
         credential_configured: Some(env_is_configured("HF_TOKEN")),
         default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
+        documentation_url: "https://huggingface.co/docs/inference-providers",
     }
 }
 
@@ -130,6 +137,7 @@ fn hugging_face_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
+        documentation_url: "https://huggingface.co/docs/inference-providers",
     }
 }
 
@@ -143,6 +151,7 @@ fn openrouter_status() -> ProviderStatus {
         credential_configured: Some(env_is_configured("OPENROUTER_API_KEY")),
         default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
         default_model: Some(DEFAULT_OPENROUTER_MODEL),
+        documentation_url: "https://openrouter.ai/docs",
     }
 }
 
@@ -156,6 +165,7 @@ fn openrouter_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
         default_model: Some(DEFAULT_OPENROUTER_MODEL),
+        documentation_url: "https://openrouter.ai/docs",
     }
 }
 
@@ -169,6 +179,7 @@ fn openai_compatible_status() -> ProviderStatus {
         credential_configured: Some(env_is_configured("OPENAI_COMPATIBLE_API_KEY")),
         default_base_url: Some(DEFAULT_OPENAI_COMPATIBLE_BASE_URL),
         default_model: Some(DEFAULT_OPENAI_COMPATIBLE_MODEL),
+        documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
     }
 }
 
@@ -182,6 +193,7 @@ fn openai_compatible_status() -> ProviderStatus {
         credential_configured: None,
         default_base_url: Some(DEFAULT_OPENAI_COMPATIBLE_BASE_URL),
         default_model: Some(DEFAULT_OPENAI_COMPATIBLE_MODEL),
+        documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
     }
 }
 
@@ -219,5 +231,7 @@ fn print_human(report: &ProviderDiagnostics) {
         if let Some(model) = provider.default_model {
             println!("  default model: {model}");
         }
+
+        println!("  documentation: {}", provider.documentation_url);
     }
 }
