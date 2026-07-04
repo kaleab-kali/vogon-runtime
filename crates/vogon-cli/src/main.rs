@@ -5,6 +5,7 @@ mod commands;
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Parser, Subcommand};
+use vogon_core::DEFAULT_RUN_CACHE_MAX_ENTRIES;
 
 use commands::run::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
@@ -143,6 +144,14 @@ enum Commands {
         /// Write the replay JSON to a file instead of stdout.
         #[arg(short, long, value_name = "FILE")]
         output: Option<PathBuf>,
+
+        /// Persist provider outputs in a bounded cache file for repeated runs.
+        #[arg(long, value_name = "FILE")]
+        cache_file: Option<PathBuf>,
+
+        /// Maximum number of outputs retained in `--cache-file`.
+        #[arg(long, default_value_t = DEFAULT_RUN_CACHE_MAX_ENTRIES)]
+        cache_max_entries: usize,
 
         workflow_file: PathBuf,
     },
@@ -313,12 +322,16 @@ fn main() -> ExitCode {
             openai_compatible_timeout_seconds,
             openai_compatible_max_retries,
             output,
+            cache_file,
+            cache_max_entries,
             redactions,
             workflow_file,
         } => commands::run::run(
             &workflow_file,
             &redactions,
             output.as_deref(),
+            cache_file.as_deref(),
+            cache_max_entries,
             RunModelConfig {
                 provider,
                 gemini_model: &gemini_model,

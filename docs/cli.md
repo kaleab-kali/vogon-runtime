@@ -202,6 +202,21 @@ Write the replay JSON to a file:
 cargo run -p vogon-cli -- run --output target/support-triage.replay.json fixtures/workflows/support-triage.toml
 ```
 
+Persist a bounded run cache across repeated runs:
+
+```sh
+cargo run -p vogon-cli -- run --cache-file target/vogon.cache.json fixtures/workflows/support-triage.toml
+```
+
+Use `--cache-max-entries` to tune the retained output count. The default is
+`1024`; `0` disables storage while still allowing the cache file to be
+rewritten as an empty cache.
+
+Cache files are performance artifacts, not public replay files. They may
+contain raw provider outputs, including values that `--redact` removes from the
+replay JSON. Store cache files only in private, trusted locations and do not
+commit them.
+
 Redact a known literal value from replay outputs:
 
 ```sh
