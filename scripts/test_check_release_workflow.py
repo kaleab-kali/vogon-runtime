@@ -85,6 +85,7 @@ jobs:
       - run: |
           cargo metadata --locked --format-version 1
           python3 scripts/write_spdx_sbom.py
+          python3 scripts/check_doctor_json.py
           python3 -c "assert data['spdxVersion'] == 'SPDX-2.3'"
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-metadata.json.sha256

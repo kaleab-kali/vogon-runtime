@@ -15,6 +15,7 @@
 - [ ] `python -m unittest scripts.test_check_contributing_checklist`
 - [ ] `python -m unittest scripts.test_check_container_policy`
 - [ ] `python -m unittest scripts.test_check_deployment_checklist`
+- [ ] `python -m unittest scripts.test_check_doctor_json`
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
 - [ ] `python -m unittest scripts.test_check_issue_templates`
@@ -44,7 +45,7 @@
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
 - [ ] `cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100`
 - [ ] `cargo build --release --workspace --all-features`
-- [ ] `cargo run --release -p vogon-cli -- doctor --json`
+- [ ] `cargo run --release -p vogon-cli -- doctor --json | python scripts/check_doctor_json.py`
 - [ ] `cargo run --release -p vogon-cli -- init --force --output target/vogon-init-smoke/workflow.toml`
 - [ ] `cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml`
 - [ ] `cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml`
@@ -56,7 +57,7 @@
 - [ ] `python -c "import json; data = json.load(open('target/vogon-cache-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"`
 - [ ] `cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force`
 - [ ] `target/install-smoke/bin/vogon --version`
-- [ ] `target/install-smoke/bin/vogon doctor --json`
+- [ ] `target/install-smoke/bin/vogon doctor --json | python scripts/check_doctor_json.py`
 - [ ] `target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml`
 - [ ] `target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml`
 - [ ] `target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml`
@@ -70,7 +71,7 @@
 - [ ] `docker run --rm vogon-runtime:smoke --version`
 - [ ] `test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
-- [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json`
+- [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py`
 - [ ] `mkdir -p target/container-smoke`
 - [ ] `chmod 777 target/container-smoke`
 - [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml`

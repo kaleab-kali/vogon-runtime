@@ -107,6 +107,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Provider diagnostics now include public usage and rate-limit links.
 - Doctor diagnostics now print provider documentation, defaults, and usage links
   in human-readable output.
+- Release and container smoke checks now validate provider usage links in
+  `doctor --json` output.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
