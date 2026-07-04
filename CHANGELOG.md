@@ -40,6 +40,8 @@ and this project follows semantic versioning once the first release is tagged.
   JSON fields.
 - Trace JSONL smoke checks now validate run and step event structure through a
   shared script.
+- Workflow check JSON smoke checks now validate workflow names and step counts
+  through a shared script.
 - Windows release CLI smoke testing in CI.
 - Offline cargo install smoke testing for the CLI in CI.
 - Offline cargo install smoke testing now verifies installed CLI workflow and

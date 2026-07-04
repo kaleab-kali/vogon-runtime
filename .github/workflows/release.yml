@@ -42,10 +42,10 @@ jobs:
           ./target/release/vogon init --force --output "$init_workflow"
           init_check_json="$(./target/release/vogon check --json "$init_workflow")"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'starter-workflow'; assert data['step_count'] == 2"
+          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
+          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
@@ -91,7 +91,7 @@ jobs:
           ./archive-smoke/vogon --version
           ./archive-smoke/vogon doctor --json | python3 scripts/check_doctor_json.py
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
-          ./archive-smoke/vogon check --json archive-smoke/starter.toml
+          ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
           python3 -c "import json; data = json.load(open('archive-smoke/cache-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
           test -f archive-smoke/README.md
@@ -144,16 +144,10 @@ jobs:
           .\target\release\vogon.exe init --force --output $initWorkflow
           $initCheckJson = (& .\target\release\vogon.exe check --json $initWorkflow) -join "`n"
           $initCheckJson
-          $initCheck = $initCheckJson | ConvertFrom-Json
-          if ($initCheck.workflow_name -ne 'starter-workflow' -or $initCheck.step_count -ne 2) {
-            throw "Unexpected init workflow check JSON output: $initCheckJson"
-          }
+          $initCheckJson | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
           $checkJson
-          $check = $checkJson | ConvertFrom-Json
-          if ($check.workflow_name -ne 'support-triage' -or $check.step_count -ne 2) {
-            throw "Unexpected check JSON output: $checkJson"
-          }
+          $checkJson | python scripts\check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           $verifyJson = (& .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json) -join "`n"
           $verifyJson
           $verify = $verifyJson | ConvertFrom-Json
@@ -193,7 +187,7 @@ jobs:
           $archiveDoctorJson = (& .\archive-smoke\vogon.exe doctor --json) -join "`n"
           $archiveDoctorJson | python scripts\check_doctor_json.py
           .\archive-smoke\vogon.exe init --force --output archive-smoke\starter.toml
-          .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml
+          .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           $cache = Get-Content archive-smoke\cache-smoke.cache.json -Raw | ConvertFrom-Json
           if ($cache.max_entries -ne 1 -or $cache.outputs.PSObject.Properties.Count -ne 1 -or $cache.insertion_order.Count -ne 1) {
@@ -253,10 +247,10 @@ jobs:
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" init --force --output /work/starter.toml
           init_check_json="$(docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" check --json /work/starter.toml)"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'starter-workflow'; assert data['step_count'] == 2"
+          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['step_count'] == 2"
+          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
@@ -287,7 +281,7 @@ jobs:
           mkdir -p "${{ runner.temp }}/vogon-packaged-container-smoke"
           chmod 777 "${{ runner.temp }}/vogon-packaged-container-smoke"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" init --force --output /work/starter.toml
-          docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.replay.json"
           CACHE_FILE="${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
 
@@ -364,7 +358,7 @@ jobs:
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
             chmod 777 "${{ runner.temp }}/vogon-downloaded-container-smoke"
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" init --force --output /work/starter.toml
-            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml
+            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.replay.json"
             CACHE_FILE="${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" python3 -c "import json, os; data = json.load(open(os.environ['CACHE_FILE'], encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"
           )
