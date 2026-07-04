@@ -315,6 +315,12 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
 
+The package command uses `--no-verify` for the offline workspace check because
+Cargo can fail offline verification while resolving unpublished internal
+workspace crates. The preceding build, test, docs, install, and smoke commands
+still verify compilation and CLI behavior before maintainers inspect package
+contents.
+
 ## Repository Layout
 
 ```text
