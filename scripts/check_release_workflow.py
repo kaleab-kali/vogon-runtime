@@ -60,7 +60,7 @@ REQUIRED_COUNTS = {
     "uses: actions/download-artifact@v8": 2,
     "sha256sum -c": 5,
     "scripts/check_sha256_file.py": 10,
-    "scripts/check_archive_contents.py": 2,
+    "scripts/check_archive_contents.py": 4,
 }
 
 
