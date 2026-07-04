@@ -48,7 +48,7 @@ jobs:
           printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
-          printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
+          printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
           trace_jsonl="$(./target/release/vogon trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
@@ -150,10 +150,7 @@ jobs:
           $checkJson | python scripts\check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           $verifyJson = (& .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json) -join "`n"
           $verifyJson
-          $verify = $verifyJson | ConvertFrom-Json
-          if ($verify.workflow_name -ne 'support-triage' -or -not $verify.is_match -or $verify.mismatches.Count -ne 0) {
-            throw "Unexpected verify JSON output: $verifyJson"
-          }
+          $verifyJson | python scripts\check_verify_json.py --expected-workflow-name support-triage --expect-match
           $traceJsonl = (& .\target\release\vogon.exe trace --jsonl fixtures\replays\support-triage.replay.json) -join "`n"
           $traceJsonl
           $traceJsonl | python scripts\check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
@@ -253,7 +250,7 @@ jobs:
           printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
-          printf '%s\n' "$verify_json" | python3 -c "import json, sys; data = json.load(sys.stdin); assert data['workflow_name'] == 'support-triage'; assert data['is_match'] is True; assert data['mismatches'] == []"
+          printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
           trace_jsonl="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | python3 scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
