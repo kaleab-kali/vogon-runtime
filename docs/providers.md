@@ -26,6 +26,26 @@ operators can route setup help without exposing credentials. `.env.example`
 lists all supported provider credential variable names with blank values for
 local setup reference.
 
+## Free and Low-Cost Real Provider Paths
+
+Keep the deterministic provider as the default for tests, fixtures, CI, and
+offline development. When a maintainer needs to prove a real provider path, use
+a short workflow, redaction rules, bounded retries, and one of these opt-in
+routes:
+
+| Provider | Best first use | Current public limit or credit signal |
+| --- | --- | --- |
+| OpenRouter | Quick manual smoke of an OpenAI-compatible endpoint with the built-in `openrouter/free` default. | OpenRouter lists a free plan with free models and request limits on its pricing page. |
+| Gemini | Direct Gemini API smoke testing with `GEMINI_API_KEY`. | Google documents a Gemini API free tier for developers and small projects. |
+| Hugging Face | Testing the generic OpenAI-compatible adapter through Hugging Face's routed endpoint. | Hugging Face documents monthly Inference Providers credits for free users and larger credits for paid accounts. |
+| Groq | Low-latency OpenAI-compatible smoke testing with `GROQ_API_KEY`. | Groq publishes free-plan model rate limits and recommends checking account-specific limits in the console. |
+
+Treat these as evaluation paths, not permanent guarantees. Provider terms,
+models, rate limits, regions, and data-use policies can change independently of
+Vogon releases. Re-check the linked provider documentation before relying on a
+provider for deployment, and prefer paid or contract-backed plans for
+production workloads that need predictable availability or privacy terms.
+
 ### Gemini
 
 The Gemini adapter uses the Gemini API `generateContent` REST endpoint. Default
@@ -205,9 +225,10 @@ Official references:
 - Gemini API pricing: <https://ai.google.dev/gemini-api/docs/pricing>
 - Gemini text generation API: <https://ai.google.dev/gemini-api/docs/text-generation>
 - Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
+- Hugging Face Inference Providers pricing: <https://huggingface.co/docs/inference-providers/pricing>
 - OpenRouter docs: <https://openrouter.ai/docs>
 - OpenRouter API reference: <https://openrouter.ai/docs/api-reference/chat-completion>
-- OpenRouter free models: <https://openrouter.ai/docs/use-cases/free-models>
+- OpenRouter pricing: <https://openrouter.ai/pricing>
 - Groq OpenAI compatibility: <https://console.groq.com/docs/openai>
 - Groq models: <https://console.groq.com/docs/models>
 - Groq rate limits: <https://console.groq.com/docs/rate-limits>
@@ -226,8 +247,9 @@ implementing or recommending one.
 Official references:
 
 - Hugging Face Inference Providers: <https://huggingface.co/docs/inference-providers>
-- Hugging Face pricing: <https://huggingface.co/pricing>
+- Hugging Face Inference Providers pricing: <https://huggingface.co/docs/inference-providers/pricing>
 - OpenRouter docs: <https://openrouter.ai/docs>
+- OpenRouter pricing: <https://openrouter.ai/pricing>
 
 ## Adapter Requirements
 

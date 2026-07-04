@@ -120,6 +120,13 @@ Run a workflow with OpenRouter:
 OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter fixtures/workflows/support-triage.toml
 ```
 
+For a real-provider smoke path with the lowest setup friction, start with
+OpenRouter's `openrouter/free` default, Gemini's documented free API tier, or
+Hugging Face's routed Inference Providers credits. Groq also publishes
+free-plan rate limits for supported models. Provider terms and limits change,
+so verify the linked provider docs before relying on any free tier for
+deployment.
+
 The default OpenAI-compatible base URL is Hugging Face Inference Providers'
 OpenAI-compatible router, and the default model is
 `openai/gpt-oss-120b:fastest`. Override both for OpenRouter or another
