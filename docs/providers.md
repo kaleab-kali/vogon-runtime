@@ -22,9 +22,10 @@ Use `vogon providers` to check which providers are enabled in the current
 binary and whether required credential environment variables are configured.
 The command reports only boolean credential status and never prints secret
 values. Its human and JSON output also includes provider documentation links so
-operators can route setup help without exposing credentials. `.env.example`
-lists all supported provider credential variable names with blank values for
-local setup reference.
+operators can route setup help without exposing credentials. Provider-backed
+entries also include public usage, pricing, or rate-limit links where a
+provider has a clear reference page. `.env.example` lists all supported
+provider credential variable names with blank values for local setup reference.
 
 ## Free and Low-Cost Real Provider Paths
 

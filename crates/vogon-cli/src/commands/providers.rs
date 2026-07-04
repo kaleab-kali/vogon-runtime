@@ -35,6 +35,7 @@ pub(crate) struct ProviderStatus {
     pub(crate) default_base_url: Option<&'static str>,
     pub(crate) default_model: Option<&'static str>,
     pub(crate) documentation_url: &'static str,
+    pub(crate) usage_url: Option<&'static str>,
 }
 
 pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
@@ -48,6 +49,7 @@ pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
             default_base_url: None,
             default_model: None,
             documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic",
+            usage_url: None,
         },
         gemini_status(),
         groq_status(),
@@ -68,6 +70,7 @@ fn gemini_status() -> ProviderStatus {
         default_base_url: None,
         default_model: Some("gemini-3.1-flash-lite"),
         documentation_url: "https://ai.google.dev/gemini-api/docs",
+        usage_url: Some("https://ai.google.dev/gemini-api/docs/pricing"),
     }
 }
 
@@ -82,6 +85,7 @@ fn gemini_status() -> ProviderStatus {
         default_base_url: None,
         default_model: Some("gemini-3.1-flash-lite"),
         documentation_url: "https://ai.google.dev/gemini-api/docs",
+        usage_url: Some("https://ai.google.dev/gemini-api/docs/pricing"),
     }
 }
 
@@ -96,6 +100,7 @@ fn groq_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_GROQ_BASE_URL),
         default_model: Some(DEFAULT_GROQ_MODEL),
         documentation_url: "https://console.groq.com/docs/openai",
+        usage_url: Some("https://console.groq.com/docs/rate-limits"),
     }
 }
 
@@ -110,6 +115,7 @@ fn groq_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_GROQ_BASE_URL),
         default_model: Some(DEFAULT_GROQ_MODEL),
         documentation_url: "https://console.groq.com/docs/openai",
+        usage_url: Some("https://console.groq.com/docs/rate-limits"),
     }
 }
 
@@ -124,6 +130,7 @@ fn hugging_face_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
         documentation_url: "https://huggingface.co/docs/inference-providers",
+        usage_url: Some("https://huggingface.co/docs/inference-providers/pricing"),
     }
 }
 
@@ -138,6 +145,7 @@ fn hugging_face_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_HUGGING_FACE_BASE_URL),
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
         documentation_url: "https://huggingface.co/docs/inference-providers",
+        usage_url: Some("https://huggingface.co/docs/inference-providers/pricing"),
     }
 }
 
@@ -152,6 +160,7 @@ fn openrouter_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
         default_model: Some(DEFAULT_OPENROUTER_MODEL),
         documentation_url: "https://openrouter.ai/docs",
+        usage_url: Some("https://openrouter.ai/pricing"),
     }
 }
 
@@ -166,6 +175,7 @@ fn openrouter_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_OPENROUTER_BASE_URL),
         default_model: Some(DEFAULT_OPENROUTER_MODEL),
         documentation_url: "https://openrouter.ai/docs",
+        usage_url: Some("https://openrouter.ai/pricing"),
     }
 }
 
@@ -180,6 +190,7 @@ fn openai_compatible_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_OPENAI_COMPATIBLE_BASE_URL),
         default_model: Some(DEFAULT_OPENAI_COMPATIBLE_MODEL),
         documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+        usage_url: None,
     }
 }
 
@@ -194,6 +205,7 @@ fn openai_compatible_status() -> ProviderStatus {
         default_base_url: Some(DEFAULT_OPENAI_COMPATIBLE_BASE_URL),
         default_model: Some(DEFAULT_OPENAI_COMPATIBLE_MODEL),
         documentation_url: "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+        usage_url: None,
     }
 }
 
@@ -233,5 +245,9 @@ fn print_human(report: &ProviderDiagnostics) {
         }
 
         println!("  documentation: {}", provider.documentation_url);
+
+        if let Some(usage_url) = provider.usage_url {
+            println!("  usage and limits: {usage_url}");
+        }
     }
 }
