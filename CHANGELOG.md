@@ -109,6 +109,8 @@ and this project follows semantic versioning once the first release is tagged.
   in human-readable output.
 - Release and container smoke checks now validate provider usage links in
   `doctor --json` output.
+- Manual release artifact smoke checks now check out repository scripts before
+  validating downloaded artifacts.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 

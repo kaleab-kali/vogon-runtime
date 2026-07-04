@@ -47,6 +47,7 @@ REQUIRED_SNIPPETS = {
 }
 
 REQUIRED_COUNTS = {
+    "uses: actions/checkout@v7": 4,
     "uses: actions/attest@v4": 3,
     "uses: actions/upload-artifact@v7": 3,
     "uses: actions/download-artifact@v8": 2,

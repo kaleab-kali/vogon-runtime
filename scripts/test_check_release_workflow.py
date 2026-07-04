@@ -81,6 +81,7 @@ permissions:
 jobs:
   linux-cli:
     steps:
+      - uses: actions/checkout@v7
       - run: cargo build --release -p vogon-cli --locked
       - run: |
           cargo metadata --locked --format-version 1
@@ -100,6 +101,7 @@ jobs:
           if-no-files-found: error
   windows-cli:
     steps:
+      - uses: actions/checkout@v7
       - run: |
           sha256sum -c vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip
@@ -110,6 +112,7 @@ jobs:
           if-no-files-found: error
   container-image:
     steps:
+      - uses: actions/checkout@v7
       - run: |
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
@@ -125,6 +128,7 @@ jobs:
           if-no-files-found: error
   release-artifact-smoke:
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
   publish-release:
     steps:
