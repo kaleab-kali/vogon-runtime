@@ -145,6 +145,15 @@ jobs:
       {provider.secret_env}: ${{{{ secrets.{provider.secret_env} }}}}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
       - name: Run workflow smoke
         run: |
           if [ -z "${{{provider.secret_env}:-}}" ]; then

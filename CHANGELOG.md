@@ -111,6 +111,8 @@ and this project follows semantic versioning once the first release is tagged.
   `doctor --json` output.
 - Manual release artifact smoke checks now check out repository scripts before
   validating downloaded artifacts.
+- Live provider smoke workflow validation now requires checkout, toolchain, and
+  release CLI build steps.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
