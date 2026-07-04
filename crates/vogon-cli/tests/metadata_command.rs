@@ -135,6 +135,97 @@ fn doctor_command_reports_json_without_secret_values() {
                     && provider["usage_url"].is_null()
             })
     );
+    assert!(
+        report["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|provider| {
+                provider["name"] == "gemini"
+                    && provider["credential_configured"] == true
+                    && provider["usage_url"] == "https://ai.google.dev/gemini-api/docs/pricing"
+            })
+    );
+    assert!(
+        report["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|provider| {
+                provider["name"] == "groq"
+                    && provider["credential_configured"] == true
+                    && provider["default_base_url"] == "https://api.groq.com/openai/v1"
+                    && provider["usage_url"] == "https://console.groq.com/docs/rate-limits"
+            })
+    );
+    assert!(
+        report["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|provider| {
+                provider["name"] == "hugging-face"
+                    && provider["credential_configured"] == true
+                    && provider["usage_url"]
+                        == "https://huggingface.co/docs/inference-providers/pricing"
+            })
+    );
+    assert!(
+        report["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|provider| {
+                provider["name"] == "openrouter"
+                    && provider["credential_configured"] == true
+                    && provider["usage_url"] == "https://openrouter.ai/pricing"
+            })
+    );
+}
+
+#[test]
+fn doctor_command_prints_provider_metadata_links() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("doctor")
+        .env("GEMINI_API_KEY", "secret-gemini-key")
+        .env("GROQ_API_KEY", "secret-groq-key")
+        .env("HF_TOKEN", "secret-hugging-face-token")
+        .env("OPENROUTER_API_KEY", "secret-openrouter-key")
+        .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
+        .output()
+        .expect("doctor command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("secret-gemini-key"));
+    assert!(!stdout.contains("secret-groq-key"));
+    assert!(!stdout.contains("secret-hugging-face-token"));
+    assert!(!stdout.contains("secret-openrouter-key"));
+    assert!(!stdout.contains("secret-openai-compatible-key"));
+
+    for expected in [
+        "Doctor status: ok",
+        "default base URL: https://api.groq.com/openai/v1",
+        "default model: llama-3.1-8b-instant",
+        "documentation: https://ai.google.dev/gemini-api/docs",
+        "documentation: https://console.groq.com/docs/openai",
+        "documentation: https://huggingface.co/docs/inference-providers",
+        "documentation: https://openrouter.ai/docs",
+        "usage and limits: https://ai.google.dev/gemini-api/docs/pricing",
+        "usage and limits: https://console.groq.com/docs/rate-limits",
+        "usage and limits: https://huggingface.co/docs/inference-providers/pricing",
+        "usage and limits: https://openrouter.ai/pricing",
+    ] {
+        assert!(
+            stdout.contains(expected),
+            "stdout should contain `{expected}`:\n{stdout}"
+        );
+    }
 }
 
 #[test]

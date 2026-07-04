@@ -217,37 +217,41 @@ fn env_is_configured(name: &str) -> bool {
 fn print_human(report: &ProviderDiagnostics) {
     println!("Providers:");
     for provider in &report.providers {
-        let enabled = if provider.enabled {
-            "enabled"
-        } else {
-            "disabled"
+        print_provider_human(provider);
+    }
+}
+
+pub(crate) fn print_provider_human(provider: &ProviderStatus) {
+    let enabled = if provider.enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
+    let default = if provider.default { " default" } else { "" };
+    println!("- {}: {enabled}{default}", provider.name);
+
+    if let Some(env_name) = provider.credential_env {
+        let configured = match provider.credential_configured {
+            Some(true) => "configured",
+            Some(false) => "missing",
+            None => "not checked because provider support is disabled",
         };
-        let default = if provider.default { " default" } else { "" };
-        println!("- {}: {enabled}{default}", provider.name);
+        println!("  credential: {env_name} ({configured})");
+    } else {
+        println!("  credential: not required");
+    }
 
-        if let Some(env_name) = provider.credential_env {
-            let configured = match provider.credential_configured {
-                Some(true) => "configured",
-                Some(false) => "missing",
-                None => "not checked because provider support is disabled",
-            };
-            println!("  credential: {env_name} ({configured})");
-        } else {
-            println!("  credential: not required");
-        }
+    if let Some(base_url) = provider.default_base_url {
+        println!("  default base URL: {base_url}");
+    }
 
-        if let Some(base_url) = provider.default_base_url {
-            println!("  default base URL: {base_url}");
-        }
+    if let Some(model) = provider.default_model {
+        println!("  default model: {model}");
+    }
 
-        if let Some(model) = provider.default_model {
-            println!("  default model: {model}");
-        }
+    println!("  documentation: {}", provider.documentation_url);
 
-        println!("  documentation: {}", provider.documentation_url);
-
-        if let Some(usage_url) = provider.usage_url {
-            println!("  usage and limits: {usage_url}");
-        }
+    if let Some(usage_url) = provider.usage_url {
+        println!("  usage and limits: {usage_url}");
     }
 }

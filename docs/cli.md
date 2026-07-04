@@ -76,8 +76,8 @@ entries that do not have a single external pricing or limits page.
 
 Runs local installation diagnostics without making network calls. The command
 executes a deterministic one-step workflow self-check and reports provider
-credential status, default endpoint/model metadata, and documentation links
-without printing secret values.
+credential status, default endpoint/model metadata, provider documentation
+links, and public usage or rate-limit links without printing secret values.
 
 ```sh
 cargo run -p vogon-cli -- doctor
