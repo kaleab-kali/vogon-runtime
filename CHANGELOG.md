@@ -113,6 +113,8 @@ and this project follows semantic versioning once the first release is tagged.
   validating downloaded artifacts.
 - Live provider smoke workflow validation now requires checkout, toolchain, and
   release CLI build steps.
+- Repository agent instructions now preserve merged branches unless deletion is
+  explicitly requested.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
