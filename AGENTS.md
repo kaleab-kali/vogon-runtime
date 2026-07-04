@@ -21,8 +21,7 @@ These instructions apply to the entire repository.
 - Use pull requests for changes to `main`.
 - Merge pull requests with regular merge commits only.
 - Do not squash merge.
-- Do not delete local or remote branches unless the user explicitly asks for
-  branch deletion.
+- After a pull request is merged, delete the merged local and remote branch.
 
 ## Commit Metadata
 
