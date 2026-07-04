@@ -35,6 +35,7 @@
 - [ ] `python -m unittest scripts.test_check_release_checklist`
 - [ ] `python -m unittest scripts.test_check_release_workflow`
 - [ ] `python -m unittest scripts.test_check_secrets`
+- [ ] `python -m unittest scripts.test_check_security_workflows`
 - [ ] `python -m unittest scripts.test_check_workflow_policies`
 - [ ] `python scripts/check_cargo_manifests.py --root .`
 - [ ] `python scripts/check_changelog.py --root .`
@@ -50,6 +51,7 @@
 - [ ] `python scripts/check_release_checklist.py --root .`
 - [ ] `python scripts/check_release_workflow.py --root .`
 - [ ] `python scripts/check_secrets.py --root .`
+- [ ] `python scripts/check_security_workflows.py --root .`
 - [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
 - [ ] `cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100`
