@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 MAX_TEXT_BYTES = 1_000_000
+SENSITIVE_ARTIFACT_SUFFIXES = (".cache.json",)
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,8 @@ def main() -> int:
 def check_repository(root: Path) -> list[str]:
     findings: list[str] = []
     for path in tracked_files(root):
+        if is_sensitive_artifact(path):
+            findings.append(format_file_finding(root, path, "committed sensitive cache artifact"))
         text = read_text_file(path)
         if text is None:
             continue
@@ -92,6 +95,11 @@ def check_repository(root: Path) -> list[str]:
             if provider_assignment:
                 findings.append(format_finding(root, path, line_number, provider_assignment))
     return findings
+
+
+def is_sensitive_artifact(path: Path) -> bool:
+    name = path.name.lower()
+    return any(name.endswith(suffix) for suffix in SENSITIVE_ARTIFACT_SUFFIXES)
 
 
 def find_provider_secret_assignment(line: str) -> str | None:
@@ -157,6 +165,11 @@ def read_text_file(path: Path) -> str | None:
 def format_finding(root: Path, path: Path, line_number: int, pattern_name: str) -> str:
     relative_path = path.relative_to(root).as_posix()
     return f"{relative_path}:{line_number}: possible {pattern_name}"
+
+
+def format_file_finding(root: Path, path: Path, pattern_name: str) -> str:
+    relative_path = path.relative_to(root).as_posix()
+    return f"{relative_path}: possible {pattern_name}"
 
 
 if __name__ == "__main__":

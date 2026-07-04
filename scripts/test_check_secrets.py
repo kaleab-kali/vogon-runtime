@@ -92,6 +92,31 @@ class CheckSecretsTests(unittest.TestCase):
 
             self.assertEqual(findings, [])
 
+    def test_reports_committed_cache_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache_file = root / "target-output.cache.json"
+            cache_file.write_text('{"outputs": {}}', encoding="utf-8")
+
+            with mock.patch.object(check_secrets, "tracked_files", return_value=[cache_file]):
+                findings = check_secrets.check_repository(root)
+
+            self.assertEqual(
+                findings,
+                ["target-output.cache.json: possible committed sensitive cache artifact"],
+            )
+
+    def test_accepts_non_cache_json_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            json_file = root / "fixture.replay.json"
+            json_file.write_text('{"outputs": {}}', encoding="utf-8")
+
+            with mock.patch.object(check_secrets, "tracked_files", return_value=[json_file]):
+                findings = check_secrets.check_repository(root)
+
+            self.assertEqual(findings, [])
+
     def test_skips_binary_and_large_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
