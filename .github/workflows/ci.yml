@@ -75,6 +75,11 @@ jobs:
           python3 -m unittest scripts.test_check_release_checklist
           python3 scripts/check_release_checklist.py --root .
 
+      - name: Check package verification docs
+        run: |
+          python3 -m unittest scripts.test_check_package_verification_docs
+          python3 scripts/check_package_verification_docs.py --root .
+
       - name: Check release workflow
         run: |
           python3 -m unittest scripts.test_check_release_workflow
