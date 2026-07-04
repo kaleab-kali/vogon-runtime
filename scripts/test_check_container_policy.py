@@ -71,7 +71,11 @@ class CheckContainerPolicyTests(unittest.TestCase):
 
             self.assertEqual(
                 errors,
-                [".dockerignore: missing /.github", ".dockerignore: missing /target"],
+                [
+                    ".dockerignore: missing *.cache.json",
+                    ".dockerignore: missing /.github",
+                    ".dockerignore: missing /target",
+                ],
             )
 
 
@@ -110,7 +114,7 @@ def write_container_files(root: Path, *, dockerignore: str | None = None) -> Non
         encoding="utf-8",
     )
     (root / ".dockerignore").write_text(
-        dockerignore or "/.git\n/.github\n/target\n",
+        dockerignore or "/.git\n/.github\n/target\n*.cache.json\n",
         encoding="utf-8",
     )
 
