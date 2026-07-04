@@ -26,6 +26,7 @@ REQUIRED_SNIPPETS = {
     "dependency metadata validator": "scripts/check_cargo_metadata_json.py",
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
+    "SHA-256 checksum validator": "scripts/check_sha256_file.py",
     "doctor JSON validator": "scripts/check_doctor_json.py",
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",
@@ -57,6 +58,7 @@ REQUIRED_COUNTS = {
     "uses: actions/upload-artifact@v7": 3,
     "uses: actions/download-artifact@v8": 2,
     "sha256sum -c": 5,
+    "scripts/check_sha256_file.py": 10,
 }
 
 

@@ -88,6 +88,9 @@ jobs:
           python3 scripts/check_cargo_metadata_json.py
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_spdx_sbom_json.py
+          python3 scripts/check_sha256_file.py
+          python3 scripts/check_sha256_file.py
+          python3 scripts/check_sha256_file.py
           python3 scripts/check_doctor_json.py
           python3 scripts/check_cache_json.py
           python3 scripts/check_workflow_json.py
@@ -96,6 +99,9 @@ jobs:
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-spdx.json.sha256
+          python3 scripts/check_sha256_file.py
+          python3 scripts/check_sha256_file.py
+          python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           echo vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
@@ -108,7 +114,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: |
+          python3 scripts/check_sha256_file.py
           sha256sum -c vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
+          python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
       - uses: actions/attest@v4
@@ -119,8 +127,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: |
+          python3 scripts/check_sha256_file.py
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
+          python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-container-image.tar.gz
           echo vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           echo 'index .Config.Labels "org.opencontainers.image.source"'

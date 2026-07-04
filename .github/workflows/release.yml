@@ -68,12 +68,14 @@ jobs:
           cp README.md LICENSE dist/
           tar -C dist -czf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" vogon README.md LICENSE
           sha256sum "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" > "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
+          python3 scripts/check_sha256_file.py "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz"
 
       - name: Write dependency metadata
         run: |
           cargo metadata --locked --format-version 1 > "vogon-${{ github.ref_name }}-cargo-metadata.json"
           python3 scripts/check_cargo_metadata_json.py "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
           sha256sum "vogon-${{ github.ref_name }}-cargo-metadata.json" > "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
+          python3 scripts/check_sha256_file.py "vogon-${{ github.ref_name }}-cargo-metadata.json"
 
       - name: Write SPDX SBOM
         run: |
@@ -83,6 +85,7 @@ jobs:
             --document-name "vogon-runtime ${{ github.ref_name }}" \
             --namespace "https://github.com/kaleab-kali/vogon-runtime/releases/${{ github.ref_name }}/sbom/${{ github.run_id }}"
           sha256sum "vogon-${{ github.ref_name }}-cargo-spdx.json" > "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
+          python3 scripts/check_sha256_file.py "vogon-${{ github.ref_name }}-cargo-spdx.json"
           python3 scripts/check_spdx_sbom_json.py "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
 
       - name: Smoke test packaged archive
@@ -174,6 +177,7 @@ jobs:
           Compress-Archive -Path dist\vogon.exe, dist\README.md, dist\LICENSE -DestinationPath "vogon-${{ github.ref_name }}-windows-x86_64.zip" -Force
           $hash = Get-FileHash -Algorithm SHA256 "vogon-${{ github.ref_name }}-windows-x86_64.zip"
           "$($hash.Hash.ToLowerInvariant())  vogon-${{ github.ref_name }}-windows-x86_64.zip" | Set-Content "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256" -NoNewline
+          python scripts/check_sha256_file.py "vogon-${{ github.ref_name }}-windows-x86_64.zip"
 
       - name: Smoke test packaged archive
         run: |
@@ -256,6 +260,7 @@ jobs:
         run: |
           docker save "vogon-runtime:${{ github.ref_name }}" | gzip > "vogon-${{ github.ref_name }}-container-image.tar.gz"
           sha256sum "vogon-${{ github.ref_name }}-container-image.tar.gz" > "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
+          python3 scripts/check_sha256_file.py "vogon-${{ github.ref_name }}-container-image.tar.gz"
 
       - name: Smoke test packaged image archive
         run: |
@@ -327,17 +332,22 @@ jobs:
             sha256sum -c "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256"
             sha256sum -c "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
             sha256sum -c "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256"
+            python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz"
+            python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-cargo-metadata.json"
+            python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-cargo-spdx.json"
             python3 "$GITHUB_WORKSPACE/scripts/check_cargo_metadata_json.py" "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
             python3 "$GITHUB_WORKSPACE/scripts/check_spdx_sbom_json.py" "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
           )
           (
             cd release-artifacts/vogon-windows-x86_64
             sha256sum -c "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256"
+            python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-windows-x86_64.zip"
           )
           (
             cd release-artifacts/vogon-container-image
             image="vogon-runtime:${{ github.ref_name }}"
             sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
+            python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-container-image.tar.gz"
             gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
             docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
             test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
