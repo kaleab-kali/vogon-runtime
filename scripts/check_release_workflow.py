@@ -27,6 +27,7 @@ REQUIRED_SNIPPETS = {
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
     "SHA-256 checksum validator": "scripts/check_sha256_file.py",
+    "archive contents validator": "scripts/check_archive_contents.py",
     "doctor JSON validator": "scripts/check_doctor_json.py",
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",
@@ -59,6 +60,7 @@ REQUIRED_COUNTS = {
     "uses: actions/download-artifact@v8": 2,
     "sha256sum -c": 5,
     "scripts/check_sha256_file.py": 10,
+    "scripts/check_archive_contents.py": 2,
 }
 
 

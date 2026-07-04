@@ -98,8 +98,7 @@ jobs:
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
           python3 scripts/check_cache_json.py archive-smoke/cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
-          test -f archive-smoke/README.md
-          test -f archive-smoke/LICENSE
+          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
 
       - name: Attest CLI archive
         uses: actions/attest@v4
@@ -189,12 +188,7 @@ jobs:
           .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           python scripts\check_cache_json.py archive-smoke\cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
-          if (-not (Test-Path archive-smoke\README.md)) {
-            throw "Packaged archive is missing README.md"
-          }
-          if (-not (Test-Path archive-smoke\LICENSE)) {
-            throw "Packaged archive is missing LICENSE"
-          }
+          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
 
       - name: Attest CLI archive
         uses: actions/attest@v4
