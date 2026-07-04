@@ -92,6 +92,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Dependabot update checks for Cargo dependencies and GitHub Actions.
 - Runtime benchmark smoke target and CI check.
 - Persistent `vogon run --cache-file` support for bounded provider output caches.
+- Committed secret scanning now rejects tracked `*.cache.json` cache artifacts.
 - CLI verification safety checks for redacted replay labels.
 - Minimum supported Rust version CI testing for Rust 1.85.0.
 - Cargo manifest metadata validation for open-source package readiness.
