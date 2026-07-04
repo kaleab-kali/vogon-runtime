@@ -96,6 +96,8 @@ and this project follows semantic versioning once the first release is tagged.
   reusable script.
 - Release artifact download smoke tests now extract downloaded CLI archives and
   validate their packaged contents.
+- Container smoke tests now validate OCI labels and the non-root runtime user
+  with a reusable script.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

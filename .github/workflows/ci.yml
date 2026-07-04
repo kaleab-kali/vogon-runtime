@@ -39,6 +39,7 @@ jobs:
           python3 -m unittest scripts.test_check_spdx_sbom_json
           python3 -m unittest scripts.test_check_sha256_file
           python3 -m unittest scripts.test_check_archive_contents
+          python3 -m unittest scripts.test_check_container_image
 
       - name: Check Cargo manifests
         run: |
@@ -238,11 +239,8 @@ jobs:
       - name: Smoke test container CLI
         run: |
           image="vogon-runtime:ci"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.title" }}')" = "Vogon Runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+          python3 scripts/check_container_image.py "$image"
           docker run --rm "$image" --version
-          test "$(docker run --rm --entrypoint id "$image" -u)" = "10001"
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"

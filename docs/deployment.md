@@ -86,10 +86,8 @@ Before publishing or deploying an image, run:
 
 ```sh
 docker build --tag vogon-runtime:smoke .
-test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+python scripts/check_container_image.py vogon-runtime:smoke
 docker run --rm vogon-runtime:smoke --version
-test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
@@ -109,10 +107,8 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
-test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+python scripts/check_container_image.py vogon-runtime:v0.1.0
 docker run --rm vogon-runtime:v0.1.0 --version
-test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke

@@ -135,9 +135,9 @@ jobs:
           python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-container-image.tar.gz
           echo vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
-          echo 'index .Config.Labels "org.opencontainers.image.source"'
-          echo 'index .Config.Labels "org.opencontainers.image.licenses"'
-          docker run --rm --entrypoint id "$image" -u
+          python3 scripts/check_container_image.py
+          python3 scripts/check_container_image.py
+          python3 scripts/check_container_image.py
           docker run --rm --read-only "$image" --version
       - uses: actions/attest@v4
       - uses: actions/upload-artifact@v7

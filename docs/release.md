@@ -20,6 +20,7 @@ python -m unittest scripts.test_check_cargo_manifests
 python -m unittest scripts.test_check_changelog
 python -m unittest scripts.test_check_contributing_checklist
 python -m unittest scripts.test_check_container_policy
+python -m unittest scripts.test_check_container_image
 python -m unittest scripts.test_check_deployment_checklist
 python -m unittest scripts.test_check_doctor_json
 python -m unittest scripts.test_check_cache_json
@@ -76,10 +77,8 @@ python scripts/check_cache_json.py target/install-smoke.cache.json --expected-ma
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 docker build --tag vogon-runtime:smoke .
-test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-test "$(docker image inspect vogon-runtime:smoke --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+python scripts/check_container_image.py vogon-runtime:smoke
 docker run --rm vogon-runtime:smoke --version
-test "$(docker run --rm --entrypoint id vogon-runtime:smoke -u)" = "10001"
 docker run --rm --read-only vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
@@ -239,10 +238,8 @@ The release also publishes a container image archive and checksum:
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
-test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.source" }}')" = "https://github.com/kaleab-kali/vogon-runtime"
-test "$(docker image inspect vogon-runtime:v0.1.0 --format '{{ index .Config.Labels "org.opencontainers.image.licenses" }}')" = "MIT"
+python scripts/check_container_image.py vogon-runtime:v0.1.0
 docker run --rm vogon-runtime:v0.1.0 --version
-test "$(docker run --rm --entrypoint id vogon-runtime:v0.1.0 -u)" = "10001"
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke

@@ -33,6 +33,7 @@ REQUIRED_SNIPPETS = {
     "workflow check JSON validator": "scripts/check_workflow_json.py",
     "verify JSON validator": "scripts/check_verify_json.py",
     "trace JSONL validator": "scripts/check_trace_jsonl.py",
+    "container image validator": "scripts/check_container_image.py",
     "Linux checksum": "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256",
     "Windows checksum": "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256",
     "container checksum": "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256",
@@ -43,13 +44,6 @@ REQUIRED_SNIPPETS = {
     "artifact download": "uses: actions/download-artifact@v8",
     "missing artifact failure": "if-no-files-found: error",
     "GitHub release creation": "gh release create",
-    "container OCI source label smoke": (
-        'index .Config.Labels "org.opencontainers.image.source"'
-    ),
-    "container OCI license label smoke": (
-        'index .Config.Labels "org.opencontainers.image.licenses"'
-    ),
-    "non-root container smoke": 'docker run --rm --entrypoint id "$image" -u',
     "read-only container smoke": "docker run --rm --read-only",
 }
 
@@ -61,6 +55,7 @@ REQUIRED_COUNTS = {
     "sha256sum -c": 5,
     "scripts/check_sha256_file.py": 10,
     "scripts/check_archive_contents.py": 4,
+    "scripts/check_container_image.py": 3,
 }
 
 
