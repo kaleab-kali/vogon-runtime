@@ -103,6 +103,7 @@ and this project follows semantic versioning once the first release is tagged.
 - Container build context policy now excludes persistent run cache artifacts.
 - Package verification rationale validation in CI.
 - Contributor verification docs now include package verification rationale checks.
+- Free and low-cost real provider path guidance.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
