@@ -2,7 +2,7 @@ use serde::Serialize;
 use vogon_adapters::DeterministicEchoModel;
 use vogon_core::{Runtime, Step, StepId, Workflow};
 
-use crate::commands::providers::{ProviderStatus, provider_statuses};
+use crate::commands::providers::{ProviderStatus, print_provider_human, provider_statuses};
 
 pub fn run(json: bool) -> Result<(), Box<dyn std::error::Error>> {
     let report = DoctorReport::new()?;
@@ -78,23 +78,6 @@ fn print_human(report: &DoctorReport) {
     }
     println!("Providers:");
     for provider in &report.providers {
-        let enabled = if provider.enabled {
-            "enabled"
-        } else {
-            "disabled"
-        };
-        let default = if provider.default { " default" } else { "" };
-        println!("- {}: {enabled}{default}", provider.name);
-
-        if let Some(env_name) = provider.credential_env {
-            let configured = match provider.credential_configured {
-                Some(true) => "configured",
-                Some(false) => "missing",
-                None => "not checked because provider support is disabled",
-            };
-            println!("  credential: {env_name} ({configured})");
-        } else {
-            println!("  credential: not required");
-        }
+        print_provider_human(provider);
     }
 }

@@ -105,6 +105,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Contributor verification docs now include package verification rationale checks.
 - Free and low-cost real provider path guidance.
 - Provider diagnostics now include public usage and rate-limit links.
+- Doctor diagnostics now print provider documentation, defaults, and usage links
+  in human-readable output.
 - Issue template validation in CI.
 - Pull request verification checklist validation in CI.
 
