@@ -26,7 +26,9 @@ provider SDKs or credentials.
 
 Runtime execution can emit `RuntimeEvent` values through observer callbacks.
 This keeps observability provider-neutral: callers can log, count, or export
-events without coupling `vogon-core` to a tracing backend.
+events without coupling `vogon-core` to a tracing backend. Runtime events cover
+step start/finish, replay mismatches, and cache hit/miss status for calls that
+use a `RunCache`.
 
 Runtime calls can also use an optional `RunCache`. Runtime cache keys combine
 the adapter cache identity with each stable step input hash, then hash that

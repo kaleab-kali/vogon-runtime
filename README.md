@@ -395,13 +395,15 @@ Already available:
 - Provider-aware replay verification with structured mismatch errors.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
+- Provider-neutral runtime observer events for step lifecycle, replay mismatch,
+  and cache hit/miss status.
 
 Planned:
 
 - Add more provider-backed adapters behind feature flags.
 - Add workflow graph support after the linear runtime API is stable.
 - Add richer provider configuration policies.
-- Add richer observability events for hosted runtime deployments.
+- Add hosted runtime observability export integrations.
 
 ## License
 
