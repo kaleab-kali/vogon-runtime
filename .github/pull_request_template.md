@@ -16,6 +16,7 @@
 - [ ] `python -m unittest scripts.test_check_container_policy`
 - [ ] `python -m unittest scripts.test_check_deployment_checklist`
 - [ ] `python -m unittest scripts.test_check_doctor_json`
+- [ ] `python -m unittest scripts.test_check_workflow_json`
 - [ ] `python -m unittest scripts.test_check_trace_jsonl`
 - [ ] `python -m unittest scripts.test_check_docs_links`
 - [ ] `python -m unittest scripts.test_check_env_example`
@@ -48,8 +49,8 @@
 - [ ] `cargo build --release --workspace --all-features`
 - [ ] `cargo run --release -p vogon-cli -- doctor --json | python scripts/check_doctor_json.py`
 - [ ] `cargo run --release -p vogon-cli -- init --force --output target/vogon-init-smoke/workflow.toml`
-- [ ] `cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml`
-- [ ] `cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml`
+- [ ] `cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2`
+- [ ] `cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2`
 - [ ] `cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json`
@@ -60,8 +61,8 @@
 - [ ] `target/install-smoke/bin/vogon --version`
 - [ ] `target/install-smoke/bin/vogon doctor --json | python scripts/check_doctor_json.py`
 - [ ] `target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml`
-- [ ] `target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml`
-- [ ] `target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml`
+- [ ] `target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2`
+- [ ] `target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2`
 - [ ] `target/install-smoke/bin/vogon run --cache-file target/install-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml`
 - [ ] `python -c "import json; data = json.load(open('target/install-smoke.cache.json', encoding='utf-8')); assert data['max_entries'] == 1; assert len(data['outputs']) == 1; assert len(data['insertion_order']) == 1"`
 - [ ] `target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
@@ -76,8 +77,8 @@
 - [ ] `mkdir -p target/container-smoke`
 - [ ] `chmod 777 target/container-smoke`
 - [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml`
-- [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml`
-- [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml`
+- [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2`
+- [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json`
 - [ ] `docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2`
 - [ ] `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps`
