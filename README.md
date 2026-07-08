@@ -256,7 +256,6 @@ cargo check -p vogon-cli --no-default-features --locked
 python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_cargo_metadata_json
 python -m unittest scripts.test_check_spdx_sbom_json
-python -m unittest scripts.test_check_benchmark_output
 python -m unittest scripts.test_check_container_image
 python -m unittest scripts.test_check_doctor_json
 python -m unittest scripts.test_check_providers_json
@@ -290,7 +289,7 @@ cargo run -p vogon-xtask -- check-ci-workflow --root .
 cargo run -p vogon-xtask -- check-security-workflows --root .
 cargo run -p vogon-xtask -- check-workflow-policies --root .
 cargo +1.85.0 test --workspace --all-features --locked
-cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
 cargo build --release --workspace --all-features --locked
 cargo run --release -p vogon-cli -- doctor --json | python scripts/check_doctor_json.py
 cargo run --release -p vogon-cli -- providers --json | python scripts/check_providers_json.py
