@@ -88,9 +88,7 @@ jobs:
           python3 scripts/check_deployment_docs.py --root .
 
       - name: Check issue templates
-        run: |
-          python3 -m unittest scripts.test_check_issue_templates
-          python3 scripts/check_issue_templates.py --root .
+        run: cargo run -p vogon-xtask -- check-issue-templates --root .
 
       - name: Check schema files
         run: |

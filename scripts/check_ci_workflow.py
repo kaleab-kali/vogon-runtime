@@ -44,6 +44,9 @@ REQUIRED_SNIPPETS = {
     "documentation link checker": (
         "cargo run -p vogon-xtask -- check-docs-links --root ."
     ),
+    "issue template validator": (
+        "cargo run -p vogon-xtask -- check-issue-templates --root ."
+    ),
     "release checklist validator": (
         "cargo run -p vogon-xtask -- check-release-checklist --root ."
     ),

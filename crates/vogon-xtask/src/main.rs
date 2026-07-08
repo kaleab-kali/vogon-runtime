@@ -16,6 +16,27 @@ const EXPECTED_ENV_VARS: &[&str] = &[
 const REPO_OWNER: &str = "kaleab-kali";
 const REPO_NAME: &str = "vogon-runtime";
 const MARKDOWN_SUFFIXES: &[&str] = &["md", "markdown"];
+const BUG_ISSUE_REQUIRED_FIELDS: &[&str] = &[
+    "actual",
+    "checks",
+    "component",
+    "environment",
+    "expected",
+    "reproduce",
+    "version",
+];
+const FEATURE_ISSUE_REQUIRED_FIELDS: &[&str] = &["area", "checks", "problem", "proposal"];
+const REQUIRED_ISSUE_AREAS: &[&str] = &[
+    "CLI",
+    "Documentation",
+    "Other",
+    "Provider adapter",
+    "Release artifact",
+    "Replay verification",
+    "Runtime",
+];
+const REQUIRED_ISSUE_CHECK_LABELS: &[&str] = &["removed secrets", "searched existing issues"];
+const REQUIRED_BUG_VERSION_PLACEHOLDER: &str = "placeholder: \"vogon 0.1.1\"";
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
 const RELEASE_VERIFICATION_MARKER: &str = "Run the full local verification set:";
@@ -285,6 +306,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_docs_links(&root)
         }
+        "check-issue-templates" => {
+            let root = parse_root(args.collect());
+            check_issue_templates(&root)
+        }
         "check-contributing-checklist" => {
             let root = parse_root(args.collect());
             check_contributing_checklist(&root)
@@ -339,7 +364,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -853,6 +878,211 @@ fn percent_decode(value: &str) -> String {
         index += 1;
     }
     String::from_utf8_lossy(&decoded).into_owned()
+}
+
+fn check_issue_templates(root: &Path) -> Result<(), Vec<String>> {
+    let template_dir = root.join(".github").join("ISSUE_TEMPLATE");
+    let config_path = template_dir.join("config.yml");
+    let bug_path = template_dir.join("bug_report.yml");
+    let feature_path = template_dir.join("feature_request.yml");
+    let mut errors = Vec::new();
+
+    errors.extend(check_issue_template_config(root, &config_path));
+    errors.extend(check_issue_form(
+        root,
+        &bug_path,
+        "Bug report",
+        "title: \"Bug: \"",
+        "- bug",
+        BUG_ISSUE_REQUIRED_FIELDS,
+    ));
+    errors.extend(check_bug_version_placeholder(root, &bug_path));
+    errors.extend(check_issue_form(
+        root,
+        &feature_path,
+        "Feature request",
+        "title: \"Feature: \"",
+        "- enhancement",
+        FEATURE_ISSUE_REQUIRED_FIELDS,
+    ));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_issue_template_config(root: &Path, path: &Path) -> Vec<String> {
+    let relative = issue_relative_path(root, path);
+    if !path.exists() {
+        return vec![format!("{relative}: missing issue template config")];
+    }
+
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!("{relative}: {error}")],
+    };
+    let mut errors = Vec::new();
+    if !text.contains("blank_issues_enabled: false") {
+        errors.push(format!("{relative}: blank issues must stay disabled"));
+    }
+    if !text.contains("https://github.com/kaleab-kali/vogon-runtime/security/advisories/new") {
+        errors.push(format!(
+            "{relative}: missing private vulnerability reporting link"
+        ));
+    }
+    errors
+}
+
+fn check_bug_version_placeholder(root: &Path, path: &Path) -> Vec<String> {
+    if !path.exists() {
+        return Vec::new();
+    }
+    let relative = issue_relative_path(root, path);
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!("{relative}: {error}")],
+    };
+    if text.contains(REQUIRED_BUG_VERSION_PLACEHOLDER) {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{relative}: version placeholder must match the latest public release"
+        )]
+    }
+}
+
+fn check_issue_form(
+    root: &Path,
+    path: &Path,
+    expected_name: &str,
+    expected_title: &str,
+    expected_label: &str,
+    required_fields: &[&str],
+) -> Vec<String> {
+    let relative = issue_relative_path(root, path);
+    if !path.exists() {
+        return vec![format!("{relative}: missing issue form")];
+    }
+
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!("{relative}: {error}")],
+    };
+    let lines = text.lines().collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    if !text.contains(&format!("name: {expected_name}")) {
+        errors.push(format!(
+            "{relative}: missing expected name `{expected_name}`"
+        ));
+    }
+    if !text.contains(expected_title) {
+        errors.push(format!("{relative}: missing expected title prefix"));
+    }
+    if !text.contains(expected_label) {
+        errors.push(format!(
+            "{relative}: missing expected label `{expected_label}`"
+        ));
+    }
+
+    let field_ids = issue_field_ids(&lines);
+    for field_id in required_fields {
+        if !field_ids.contains(*field_id) {
+            errors.push(format!("{relative}: missing required field `{field_id}`"));
+        }
+    }
+
+    errors.extend(check_issue_dropdown_options(&relative, &lines));
+    errors.extend(check_issue_before_submit(&relative, &lines));
+    errors
+}
+
+fn issue_field_ids(lines: &[&str]) -> BTreeSet<String> {
+    let mut ids = BTreeSet::new();
+    for line in lines {
+        let stripped = line.trim();
+        if let Some(id) = stripped.strip_prefix("id: ") {
+            ids.insert(id.trim().to_owned());
+        }
+    }
+    ids
+}
+
+fn check_issue_dropdown_options(relative: &str, lines: &[&str]) -> Vec<String> {
+    let options = issue_dropdown_options(lines, &["component", "area"]);
+    if options.is_empty() {
+        return vec![format!(
+            "{relative}: missing component or area dropdown options"
+        )];
+    }
+
+    let missing = REQUIRED_ISSUE_AREAS
+        .iter()
+        .filter(|area| !options.contains(**area))
+        .copied()
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{relative}: dropdown options missing {}",
+            missing.join(", ")
+        )]
+    }
+}
+
+fn issue_dropdown_options(lines: &[&str], field_ids: &[&str]) -> BTreeSet<String> {
+    let mut options = BTreeSet::new();
+    let mut in_target_dropdown = false;
+    let mut in_options = false;
+
+    for line in lines {
+        let stripped = line.trim();
+        if let Some(id) = stripped.strip_prefix("id: ") {
+            in_target_dropdown = field_ids.contains(&id.trim());
+            in_options = false;
+            continue;
+        }
+        if in_target_dropdown && stripped == "options:" {
+            in_options = true;
+            continue;
+        }
+        if in_options && stripped.starts_with("- ") {
+            options.insert(stripped.trim_start_matches("- ").trim().to_owned());
+            continue;
+        }
+        if in_options && !stripped.is_empty() && !line.starts_with("        ") {
+            in_options = false;
+        }
+    }
+
+    options
+}
+
+fn check_issue_before_submit(relative: &str, lines: &[&str]) -> Vec<String> {
+    let labels = lines
+        .iter()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix("- label: ")
+                .map(|label| label.to_ascii_lowercase())
+        })
+        .collect::<Vec<_>>();
+    let mut errors = Vec::new();
+    for required_label in REQUIRED_ISSUE_CHECK_LABELS {
+        if !labels.iter().any(|label| label.contains(required_label)) {
+            errors.push(format!(
+                "{relative}: missing required before-submit check `{required_label}`"
+            ));
+        }
+    }
+    errors
+}
+
+fn issue_relative_path(root: &Path, path: &Path) -> String {
+    relative_path(root, path).unwrap_or_else(|| slash_path(path))
 }
 
 fn check_package_verification_docs(root: &Path) -> Result<(), Vec<String>> {
@@ -2406,6 +2636,148 @@ mod tests {
     }
 
     #[test]
+    fn accepts_valid_issue_templates() {
+        let root = temp_root("issue-template-accepts");
+        write_issue_templates(&root);
+
+        assert_eq!(check_issue_templates(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_issue_template_config_guards() {
+        let root = temp_root("issue-template-config");
+        write_issue_templates(&root);
+        fs::write(
+            root.join(".github")
+                .join("ISSUE_TEMPLATE")
+                .join("config.yml"),
+            "blank_issues_enabled: true\n",
+        )
+        .unwrap();
+
+        let errors = check_issue_templates(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/ISSUE_TEMPLATE/config.yml: blank issues must stay disabled",
+                ".github/ISSUE_TEMPLATE/config.yml: missing private vulnerability reporting link",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_bug_reproduction_field_and_secret_check() {
+        let root = temp_root("issue-template-bug-fields");
+        write_issue_templates(&root);
+        fs::write(
+            root.join(".github")
+                .join("ISSUE_TEMPLATE")
+                .join("bug_report.yml"),
+            valid_issue_form(
+                "Bug report",
+                "title: \"Bug: \"",
+                "- bug",
+                &[
+                    "version",
+                    "component",
+                    "expected",
+                    "actual",
+                    "environment",
+                    "checks",
+                ],
+                false,
+                None,
+                "vogon 0.1.1",
+            ),
+        )
+        .unwrap();
+
+        let errors = check_issue_templates(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/ISSUE_TEMPLATE/bug_report.yml: missing required field `reproduce`",
+                ".github/ISSUE_TEMPLATE/bug_report.yml: missing required before-submit check `removed secrets`",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_feature_dropdown_option() {
+        let root = temp_root("issue-template-feature-options");
+        write_issue_templates(&root);
+        fs::write(
+            root.join(".github")
+                .join("ISSUE_TEMPLATE")
+                .join("feature_request.yml"),
+            valid_issue_form(
+                "Feature request",
+                "title: \"Feature: \"",
+                "- enhancement",
+                &["problem", "proposal", "area", "checks"],
+                true,
+                Some(&["CLI", "Runtime"]),
+                "vogon 0.1.1",
+            ),
+        )
+        .unwrap();
+
+        let errors = check_issue_templates(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/ISSUE_TEMPLATE/feature_request.yml: dropdown options missing Documentation, Other, Provider adapter, Release artifact, Replay verification",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_stale_bug_version_placeholder() {
+        let root = temp_root("issue-template-stale-version");
+        write_issue_templates(&root);
+        fs::write(
+            root.join(".github")
+                .join("ISSUE_TEMPLATE")
+                .join("bug_report.yml"),
+            valid_issue_form(
+                "Bug report",
+                "title: \"Bug: \"",
+                "- bug",
+                &[
+                    "version",
+                    "component",
+                    "expected",
+                    "actual",
+                    "reproduce",
+                    "environment",
+                    "checks",
+                ],
+                true,
+                None,
+                "vogon 0.1.0",
+            ),
+        )
+        .unwrap();
+
+        let errors = check_issue_templates(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/ISSUE_TEMPLATE/bug_report.yml: version placeholder must match the latest public release",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -2976,6 +3348,145 @@ updates:\n\
     commit-message:\n\
       prefix: deps\n"
             .to_owned()
+    }
+
+    fn write_issue_templates(root: &Path) {
+        let template_dir = root.join(".github").join("ISSUE_TEMPLATE");
+        fs::create_dir_all(&template_dir).unwrap();
+        fs::write(
+            template_dir.join("config.yml"),
+            [
+                "blank_issues_enabled: false",
+                "contact_links:",
+                "  - name: Security vulnerability",
+                "    url: https://github.com/kaleab-kali/vogon-runtime/security/advisories/new",
+            ]
+            .join("\n")
+                + "\n",
+        )
+        .unwrap();
+        fs::write(
+            template_dir.join("bug_report.yml"),
+            valid_issue_form(
+                "Bug report",
+                "title: \"Bug: \"",
+                "- bug",
+                &[
+                    "version",
+                    "component",
+                    "expected",
+                    "actual",
+                    "reproduce",
+                    "environment",
+                    "checks",
+                ],
+                true,
+                None,
+                "vogon 0.1.1",
+            ),
+        )
+        .unwrap();
+        fs::write(
+            template_dir.join("feature_request.yml"),
+            valid_issue_form(
+                "Feature request",
+                "title: \"Feature: \"",
+                "- enhancement",
+                &["problem", "proposal", "area", "checks"],
+                true,
+                None,
+                "vogon 0.1.1",
+            ),
+        )
+        .unwrap();
+    }
+
+    fn valid_issue_form(
+        name: &str,
+        title: &str,
+        label: &str,
+        fields: &[&str],
+        include_secret_check: bool,
+        options: Option<&[&str]>,
+        version_placeholder: &str,
+    ) -> String {
+        let dropdown_options = options.unwrap_or(&[
+            "CLI",
+            "Runtime",
+            "Replay verification",
+            "Provider adapter",
+            "Documentation",
+            "Release artifact",
+            "Other",
+        ]);
+        let mut lines = vec![
+            format!("name: {name}"),
+            "description: Example form.".to_owned(),
+            title.to_owned(),
+            "labels:".to_owned(),
+            format!("  {label}"),
+            "body:".to_owned(),
+        ];
+
+        for field in fields {
+            if matches!(*field, "component" | "area") {
+                lines.extend([
+                    "  - type: dropdown".to_owned(),
+                    format!("    id: {field}"),
+                    "    attributes:".to_owned(),
+                    "      label: Area".to_owned(),
+                    "      options:".to_owned(),
+                ]);
+                lines.extend(
+                    dropdown_options
+                        .iter()
+                        .map(|option| format!("        - {option}")),
+                );
+                lines.extend([
+                    "    validations:".to_owned(),
+                    "      required: true".to_owned(),
+                ]);
+            } else if *field == "checks" {
+                lines.extend([
+                    "  - type: checkboxes".to_owned(),
+                    "    id: checks".to_owned(),
+                    "    attributes:".to_owned(),
+                    "      label: Before submitting".to_owned(),
+                    "      options:".to_owned(),
+                ]);
+                if include_secret_check {
+                    lines.extend([
+                        "        - label: I have removed secrets, API keys, private prompts, and sensitive replay data.".to_owned(),
+                        "          required: true".to_owned(),
+                    ]);
+                }
+                lines.extend([
+                    "        - label: I searched existing issues for a similar report.".to_owned(),
+                    "          required: true".to_owned(),
+                ]);
+            } else if *field == "version" {
+                lines.extend([
+                    "  - type: input".to_owned(),
+                    "    id: version".to_owned(),
+                    "    attributes:".to_owned(),
+                    "      label: version".to_owned(),
+                    format!("      placeholder: \"{version_placeholder}\""),
+                    "    validations:".to_owned(),
+                    "      required: true".to_owned(),
+                ]);
+            } else {
+                lines.extend([
+                    "  - type: textarea".to_owned(),
+                    format!("    id: {field}"),
+                    "    attributes:".to_owned(),
+                    format!("      label: {field}"),
+                    "    validations:".to_owned(),
+                    "      required: true".to_owned(),
+                ]);
+            }
+        }
+
+        lines.join("\n") + "\n"
     }
 
     fn write_contributing_docs(
