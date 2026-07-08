@@ -55,14 +55,30 @@ class CheckDependabotConfigTests(unittest.TestCase):
             write_dependabot_config(
                 root,
                 dependabot_config_text().replace(
-                    "package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly\n    open-pull-requests-limit: 5\n    commit-message:\n      prefix: ci",
-                    "package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly\n    open-pull-requests-limit: 5\n    commit-message:\n      prefix: deps",
+                    "      prefix: ci",
+                    "      prefix: deps",
                 ),
             )
 
             self.assertEqual(
                 check_dependabot_config.check_repository(root),
                 [".github/dependabot.yml: github-actions `commit-message.prefix` must be 'ci'"],
+            )
+
+    def test_reports_missing_update_group(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_dependabot_config(
+                root,
+                dependabot_config_text().replace(cargo_group_text(), ""),
+            )
+
+            self.assertEqual(
+                check_dependabot_config.check_repository(root),
+                [
+                    ".github/dependabot.yml: cargo `groups.cargo-minor-patch.patterns` must be '*'",
+                    ".github/dependabot.yml: cargo `groups.cargo-minor-patch.update-types` must be 'minor,patch'",
+                ],
             )
 
 
@@ -84,16 +100,36 @@ def dependabot_config_text() -> str:
         "    schedule:\n"
         "      interval: weekly\n"
         "    open-pull-requests-limit: 5\n"
-        "    commit-message:\n"
+        + cargo_group_text()
+        + "    commit-message:\n"
         "      prefix: deps\n\n"
         "  - package-ecosystem: github-actions\n"
         "    directory: /\n"
         "    schedule:\n"
         "      interval: weekly\n"
         "    open-pull-requests-limit: 5\n"
+        "    groups:\n"
+        "      github-actions-minor-patch:\n"
+        "        patterns:\n"
+        "          - \"*\"\n"
+        "        update-types:\n"
+        "          - minor\n"
+        "          - patch\n"
         "    commit-message:\n"
         "      prefix: ci\n\n"
         + docker_update_text()
+    )
+
+
+def cargo_group_text() -> str:
+    return (
+        "    groups:\n"
+        "      cargo-minor-patch:\n"
+        "        patterns:\n"
+        "          - \"*\"\n"
+        "        update-types:\n"
+        "          - minor\n"
+        "          - patch\n"
     )
 
 
@@ -104,6 +140,13 @@ def docker_update_text() -> str:
         "    schedule:\n"
         "      interval: weekly\n"
         "    open-pull-requests-limit: 5\n"
+        "    groups:\n"
+        "      docker-minor-patch:\n"
+        "        patterns:\n"
+        "          - \"*\"\n"
+        "        update-types:\n"
+        "          - minor\n"
+        "          - patch\n"
         "    commit-message:\n"
         "      prefix: deps\n"
     )
