@@ -22,6 +22,7 @@ REQUIRED_DOCKERIGNORE_ENTRIES = {
     "*.cache.json",
 }
 REQUIRED_DOCKERFILE_SNIPPETS = {
+    "current Rust build image": "FROM rust:1.96.1-bookworm AS build",
     "cargo incremental builds disabled": "ENV CARGO_INCREMENTAL=0",
     "cargo network retries configured": "ENV CARGO_NET_RETRY=10",
     "runtime stage": "FROM debian:bookworm-slim AS runtime",

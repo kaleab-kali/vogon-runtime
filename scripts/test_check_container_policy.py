@@ -32,7 +32,7 @@ class CheckContainerPolicyTests(unittest.TestCase):
             dockerfile = root / "Dockerfile"
             dockerfile.write_text(
                 dockerfile.read_text(encoding="utf-8")
-                .replace("rust:1.85.0-bookworm", "rust")
+                .replace("rust:1.96.1-bookworm", "rust")
                 .replace("debian:bookworm-slim", "debian:latest"),
                 encoding="utf-8",
             )
@@ -107,7 +107,7 @@ def write_container_files(root: Path, *, dockerignore: str | None = None) -> Non
             [
                 "# syntax=docker/dockerfile:1",
                 "",
-                "FROM rust:1.85.0-bookworm AS build",
+                "FROM rust:1.96.1-bookworm AS build",
                 "",
                 "WORKDIR /workspace",
                 "",
