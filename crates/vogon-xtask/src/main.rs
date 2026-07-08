@@ -311,6 +311,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "./target/release/vogon verify",
     ),
     (
+        "verify JSON validator",
+        "cargo run -p vogon-xtask -- check-verify-json",
+    ),
+    (
         "workflow check JSON validator",
         "cargo run -p vogon-xtask -- check-workflow-json",
     ),
@@ -788,6 +792,10 @@ fn main() {
             let options = parse_workflow_json_args(args.collect());
             check_workflow_json_from_stdin(&options)
         }
+        "check-verify-json" => {
+            let options = parse_verify_json_args(args.collect());
+            check_verify_json_from_stdin(&options)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -864,7 +872,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -881,6 +889,11 @@ struct CargoMetadataJsonOptions {
 struct WorkflowJsonOptions {
     expected_workflow_name: Option<String>,
     expected_step_count: Option<i64>,
+}
+
+struct VerifyJsonOptions {
+    expected_workflow_name: Option<String>,
+    expected_match: Option<bool>,
 }
 
 struct Sha256FileOptions {
@@ -998,6 +1011,48 @@ fn parse_workflow_json_args(args: Vec<String>) -> WorkflowJsonOptions {
 fn print_workflow_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-workflow-json [--expected-workflow-name NAME] [--expected-step-count COUNT]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_verify_json_args(args: Vec<String>) -> VerifyJsonOptions {
+    let mut expected_workflow_name = None;
+    let mut expected_match = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--expected-workflow-name" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_verify_json_usage_and_exit();
+                };
+                expected_workflow_name = Some(value.clone());
+                index += 2;
+            }
+            "--expect-match" => {
+                if expected_match.replace(true).is_some() {
+                    print_verify_json_usage_and_exit();
+                }
+                index += 1;
+            }
+            "--expect-mismatch" => {
+                if expected_match.replace(false).is_some() {
+                    print_verify_json_usage_and_exit();
+                }
+                index += 1;
+            }
+            _ => print_verify_json_usage_and_exit(),
+        }
+    }
+
+    VerifyJsonOptions {
+        expected_workflow_name,
+        expected_match,
+    }
+}
+
+fn print_verify_json_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-verify-json [--expected-workflow-name NAME] [--expect-match|--expect-mismatch]"
     );
     std::process::exit(2);
 }
@@ -1593,6 +1648,85 @@ fn check_workflow_json(
             }
         }
         _ => errors.push("workflow check JSON step_count must be a positive integer".to_owned()),
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_verify_json_from_stdin(options: &VerifyJsonOptions) -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin()
+        .read_to_string(&mut output)
+        .map_err(|error| vec![format!("failed to read verify JSON from stdin: {error}")])?;
+    check_verify_json(
+        &output,
+        options.expected_workflow_name.as_deref(),
+        options.expected_match,
+    )
+}
+
+fn check_verify_json(
+    output: &str,
+    expected_workflow_name: Option<&str>,
+    expected_match: Option<bool>,
+) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("verify JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec!["verify JSON root must be an object".to_owned()]);
+    };
+
+    let mut errors = Vec::new();
+    let workflow_name = data.get("workflow_name");
+    match workflow_name.and_then(JsonValue::as_str) {
+        Some(name) if !name.is_empty() => {
+            if let Some(expected) = expected_workflow_name.filter(|expected| name != *expected) {
+                errors.push(format!(
+                    "verify JSON workflow_name mismatch: expected {}, got {}",
+                    expected,
+                    json_value_display(workflow_name)
+                ));
+            }
+        }
+        _ => errors.push("verify JSON workflow_name must be a non-empty string".to_owned()),
+    }
+
+    let is_match_value = data.get("is_match");
+    let is_match = match is_match_value {
+        Some(JsonValue::Bool(value)) => {
+            if let Some(expected) = expected_match.filter(|expected| *value != *expected) {
+                errors.push(format!(
+                    "verify JSON is_match mismatch: expected {}, got {}",
+                    JsonValue::Bool(expected),
+                    json_value_display(is_match_value)
+                ));
+            }
+            Some(*value)
+        }
+        _ => {
+            errors.push("verify JSON is_match must be a boolean".to_owned());
+            None
+        }
+    };
+
+    match data.get("mismatches").and_then(JsonValue::as_array) {
+        Some(mismatches) => {
+            if is_match == Some(true) && !mismatches.is_empty() {
+                errors
+                    .push("verify JSON mismatches must be empty when is_match is true".to_owned());
+            } else if expected_match == Some(true) && !mismatches.is_empty() {
+                errors.push("verify JSON mismatches must be empty for expected matches".to_owned());
+            } else if expected_match == Some(false) && mismatches.is_empty() {
+                errors.push(
+                    "verify JSON mismatches must be non-empty for expected mismatches".to_owned(),
+                );
+            }
+        }
+        None => errors.push("verify JSON mismatches must be an array".to_owned()),
     }
 
     if errors.is_empty() {
@@ -7232,6 +7366,116 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_verify_json_match() {
+        let output = serde_json::json!({
+            "workflow_name": "support-triage",
+            "is_match": true,
+            "mismatches": []
+        })
+        .to_string();
+
+        assert_eq!(
+            check_verify_json(&output, Some("support-triage"), Some(true)),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_expected_verify_json_mismatch() {
+        let output = serde_json::json!({
+            "workflow_name": "support-triage",
+            "is_match": false,
+            "mismatches": [{"step_id": "classify"}]
+        })
+        .to_string();
+
+        assert_eq!(check_verify_json(&output, None, Some(false)), Ok(()));
+    }
+
+    #[test]
+    fn reports_invalid_verify_json() {
+        let errors = check_verify_json("{", None, None).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("verify JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_malformed_verify_json_fields() {
+        let output = serde_json::json!({
+            "workflow_name": "",
+            "is_match": "yes",
+            "mismatches": {}
+        })
+        .to_string();
+
+        let errors = check_verify_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "verify JSON workflow_name must be a non-empty string",
+                "verify JSON is_match must be a boolean",
+                "verify JSON mismatches must be an array",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_expected_verify_json_match_mismatches() {
+        let output = serde_json::json!({
+            "workflow_name": "writing-pipeline",
+            "is_match": false,
+            "mismatches": []
+        })
+        .to_string();
+
+        let errors = check_verify_json(&output, Some("support-triage"), Some(true)).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "verify JSON workflow_name mismatch: expected support-triage, got \"writing-pipeline\"",
+                "verify JSON is_match mismatch: expected true, got false",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_verify_json_match_with_mismatches() {
+        let output = serde_json::json!({
+            "workflow_name": "support-triage",
+            "is_match": true,
+            "mismatches": [{"step_id": "classify"}]
+        })
+        .to_string();
+
+        let errors = check_verify_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["verify JSON mismatches must be empty when is_match is true"]
+        );
+    }
+
+    #[test]
+    fn reports_expected_verify_json_mismatch_without_mismatches() {
+        let output = serde_json::json!({
+            "workflow_name": "support-triage",
+            "is_match": false,
+            "mismatches": []
+        })
+        .to_string();
+
+        let errors = check_verify_json(&output, None, Some(false)).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["verify JSON mismatches must be non-empty for expected mismatches"]
+        );
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -7525,6 +7769,7 @@ jobs:
           ./target/release/vogon providers --json
           cargo run -p vogon-xtask -- check-providers-json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+          cargo run -p vogon-xtask -- check-verify-json
           cargo run -p vogon-xtask -- check-workflow-json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked

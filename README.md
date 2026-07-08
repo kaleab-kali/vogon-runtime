@@ -257,7 +257,6 @@ python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_spdx_sbom_json
 python -m unittest scripts.test_check_container_image
 python -m unittest scripts.test_check_cache_json
-python -m unittest scripts.test_check_verify_json
 python -m unittest scripts.test_check_trace_jsonl
 cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
@@ -292,7 +291,7 @@ cargo run --release -p vogon-cli -- providers --json | cargo run -p vogon-xtask 
 cargo run --release -p vogon-cli -- init --force --output target/vogon-init-smoke/workflow.toml
 cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
 cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
-cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | python scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
+cargo run --release -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | cargo run -p vogon-xtask -- check-verify-json --expected-workflow-name support-triage --expect-match
 cargo run --release -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 cargo run --release -p vogon-cli -- verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 cargo run --release -p vogon-cli -- trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
@@ -320,7 +319,7 @@ chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
-docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | python scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | cargo run -p vogon-xtask -- check-verify-json --expected-workflow-name support-triage --expect-match
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
 cargo package -p vogon-core --allow-dirty --offline --locked
