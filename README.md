@@ -260,7 +260,6 @@ python -m unittest scripts.test_check_sha256_file
 python -m unittest scripts.test_check_archive_contents
 python -m unittest scripts.test_check_benchmark_output
 python -m unittest scripts.test_check_container_image
-python -m unittest scripts.test_check_dependabot_config
 python -m unittest scripts.test_check_doctor_json
 python -m unittest scripts.test_check_providers_json
 python -m unittest scripts.test_check_cache_json
@@ -286,7 +285,7 @@ cargo run -p vogon-xtask -- check-public-status-docs --root .
 cargo run -p vogon-xtask -- check-env-example --root .
 python scripts/check_issue_templates.py --root .
 cargo run -p vogon-xtask -- check-container-policy --root .
-python scripts/check_dependabot_config.py --root .
+cargo run -p vogon-xtask -- check-dependabot-config --root .
 python scripts/check_live_workflows.py --root .
 cargo run -p vogon-xtask -- check-package-verification-docs --root .
 cargo run -p vogon-xtask -- check-pr-template --root .
