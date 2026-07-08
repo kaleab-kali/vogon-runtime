@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Show Rust toolchain
         run: rustup show
@@ -135,6 +137,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Show Rust toolchain
         run: rustup show
@@ -222,6 +226,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Build container image
         run: docker build --tag "vogon-runtime:${{ github.ref_name }}" .
@@ -304,6 +310,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Download CLI artifacts
         uses: actions/download-artifact@v8
