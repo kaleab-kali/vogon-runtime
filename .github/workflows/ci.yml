@@ -47,9 +47,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-cargo-manifests --root .
 
       - name: Check changelog
-        run: |
-          python3 -m unittest scripts.test_check_changelog
-          python3 scripts/check_changelog.py --root .
+        run: cargo run -p vogon-xtask -- check-changelog --root .
 
       - name: Check contributing checklist
         run: |

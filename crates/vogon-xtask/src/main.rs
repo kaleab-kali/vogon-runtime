@@ -13,6 +13,15 @@ const EXPECTED_ENV_VARS: &[&str] = &[
     "OPENAI_COMPATIBLE_API_KEY",
     "OPENROUTER_API_KEY",
 ];
+const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
+    "Added",
+    "Changed",
+    "Deprecated",
+    "Removed",
+    "Fixed",
+    "Security",
+    "Documentation",
+];
 const EXPECTED_WORKSPACE_PACKAGE: &[(&str, ExpectedValue)] = &[
     ("edition", ExpectedValue::String("2024")),
     ("rust-version", ExpectedValue::String("1.85")),
@@ -85,6 +94,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_cargo_manifests(&root)
         }
+        "check-changelog" => {
+            let root = parse_root(args.collect());
+            check_changelog(&root)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -115,9 +128,125 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-env-example> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-env-example> [--root PATH]"
     );
     std::process::exit(2);
+}
+
+fn check_changelog(root: &Path) -> Result<(), Vec<String>> {
+    let path = root.join("CHANGELOG.md");
+    if !path.is_file() {
+        return Err(vec!["CHANGELOG.md: missing changelog".to_owned()]);
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return Err(vec![format!("{}: {error}", path.display())]),
+    };
+    let lines = text.lines().map(str::to_owned).collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    if lines.first().map(String::as_str) != Some("# Changelog") {
+        errors.push("CHANGELOG.md: first line must be `# Changelog`".to_owned());
+    }
+    if !text.contains("https://keepachangelog.com/en/1.1.0/") {
+        errors.push("CHANGELOG.md: missing Keep a Changelog 1.1.0 reference".to_owned());
+    }
+    if !text.to_lowercase().contains("semantic versioning") {
+        errors.push("CHANGELOG.md: missing semantic versioning note".to_owned());
+    }
+
+    let Some(unreleased_start) = lines.iter().position(|line| line == "## [Unreleased]") else {
+        errors.push("CHANGELOG.md: missing `## [Unreleased]` section".to_owned());
+        return Err(errors);
+    };
+
+    let next_heading = next_release_heading(&lines, unreleased_start + 1);
+    let unreleased_lines = &lines[unreleased_start + 1..next_heading];
+    errors.extend(check_unreleased_changelog_section(
+        unreleased_lines,
+        next_heading < lines.len(),
+    ));
+    errors.extend(check_changelog_release_headings(&lines[next_heading..]));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn next_release_heading(lines: &[String], start: usize) -> usize {
+    for (index, line) in lines.iter().enumerate().skip(start) {
+        if line.starts_with("## ") && line != "## [Unreleased]" {
+            return index;
+        }
+    }
+    lines.len()
+}
+
+fn check_unreleased_changelog_section(lines: &[String], has_release: bool) -> Vec<String> {
+    let section_names = lines
+        .iter()
+        .filter_map(|line| line.strip_prefix("### "))
+        .collect::<Vec<_>>();
+
+    if section_names.is_empty() {
+        if has_release && !lines.iter().any(|line| !line.trim().is_empty()) {
+            return Vec::new();
+        }
+        return vec![
+            "CHANGELOG.md: `## [Unreleased]` must contain at least one subsection".to_owned(),
+        ];
+    }
+
+    let mut errors = Vec::new();
+    for section_name in &section_names {
+        if !ALLOWED_UNRELEASED_CHANGELOG_SECTIONS.contains(section_name) {
+            errors.push(format!(
+                "CHANGELOG.md: unsupported Unreleased subsection `{section_name}`"
+            ));
+        }
+    }
+    for section_name in section_names {
+        if !changelog_section_has_entry(lines, section_name) {
+            errors.push(format!(
+                "CHANGELOG.md: Unreleased `{section_name}` subsection has no entries"
+            ));
+        }
+    }
+
+    errors
+}
+
+fn check_changelog_release_headings(lines: &[String]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for line in lines {
+        if line.starts_with("## ") && (!line.starts_with("## [") || !line.contains(" - ")) {
+            errors.push(format!(
+                "CHANGELOG.md: release heading `{line}` must include a version and date"
+            ));
+        }
+    }
+    errors
+}
+
+fn changelog_section_has_entry(lines: &[String], section_name: &str) -> bool {
+    let heading = format!("### {section_name}");
+    let mut in_section = false;
+    for line in lines {
+        if line == &heading {
+            in_section = true;
+            continue;
+        }
+        if in_section && line.starts_with("### ") {
+            return false;
+        }
+        if in_section && line.starts_with("- ") {
+            return true;
+        }
+    }
+    false
 }
 
 fn check_cargo_manifests(root: &Path) -> Result<(), Vec<String>> {
@@ -506,6 +635,137 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
+    fn accepts_valid_changelog() {
+        let root = temp_root("changelog-accepts");
+        write_changelog(
+            &root,
+            r#"# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+### Added
+
+- Initial feature.
+"#,
+        );
+
+        assert_eq!(check_changelog(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_empty_unreleased_after_dated_release() {
+        let root = temp_root("changelog-empty-unreleased");
+        write_changelog(
+            &root,
+            r#"# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+## [0.1.0] - 2026-07-08
+
+### Added
+
+- Initial feature.
+"#,
+        );
+
+        assert_eq!(check_changelog(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_changelog_structure() {
+        let root = temp_root("changelog-missing-structure");
+        write_changelog(&root, "# Changes\n\n## Next\n");
+
+        let errors = check_changelog(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "CHANGELOG.md: first line must be `# Changelog`",
+                "CHANGELOG.md: missing Keep a Changelog 1.1.0 reference",
+                "CHANGELOG.md: missing semantic versioning note",
+                "CHANGELOG.md: missing `## [Unreleased]` section",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_empty_and_unsupported_unreleased_subsections() {
+        let root = temp_root("changelog-empty-subsections");
+        write_changelog(
+            &root,
+            r#"# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+### Internal
+
+### Fixed
+
+## [0.1.0] - 2026-07-08
+"#,
+        );
+
+        let errors = check_changelog(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "CHANGELOG.md: unsupported Unreleased subsection `Internal`",
+                "CHANGELOG.md: Unreleased `Internal` subsection has no entries",
+                "CHANGELOG.md: Unreleased `Fixed` subsection has no entries",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_release_heading_without_date() {
+        let root = temp_root("changelog-release-heading");
+        write_changelog(
+            &root,
+            r#"# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+## [0.1.0]
+
+### Added
+
+- Initial feature.
+"#,
+        );
+
+        let errors = check_changelog(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["CHANGELOG.md: release heading `## [0.1.0]` must include a version and date",]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_workspace_manifests() {
         let root = temp_root("cargo-accepts");
         write_workspace(&root, WorkspaceOptions::default());
@@ -698,6 +958,10 @@ mod tests {
             env::temp_dir().join(format!("vogon-xtask-{name}-{}-{nonce}", std::process::id()));
         fs::create_dir(&path).unwrap();
         path
+    }
+
+    fn write_changelog(root: &Path, text: &str) {
+        fs::write(root.join("CHANGELOG.md"), text).unwrap();
     }
 
     #[derive(Default)]
