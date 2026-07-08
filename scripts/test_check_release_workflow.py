@@ -111,6 +111,52 @@ class CheckReleaseWorkflowTests(unittest.TestCase):
                 errors,
             )
 
+    def test_reports_missing_publish_release_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_release_workflow(
+                root,
+                release_workflow_text().replace(
+                    "  publish-release:\n"
+                    "    name: Publish GitHub release\n"
+                    "    if: github.ref_type == 'tag'\n"
+                    "    runs-on: ubuntu-24.04\n"
+                    "    timeout-minutes: 10\n"
+                    "    permissions:\n"
+                    "      contents: write\n"
+                    "    needs:\n"
+                    "      - linux-cli\n"
+                    "      - windows-cli\n"
+                    "      - container-image\n"
+                    "\n"
+                    "    steps:\n"
+                    "      - name: Checkout\n"
+                    "        uses: actions/checkout@v7\n"
+                    "        with:\n"
+                    "          persist-credentials: false\n",
+                    "  publish-release:\n"
+                    "    name: Publish GitHub release\n"
+                    "    if: github.ref_type == 'tag'\n"
+                    "    runs-on: ubuntu-24.04\n"
+                    "    timeout-minutes: 10\n"
+                    "    permissions:\n"
+                    "      contents: write\n"
+                    "    needs:\n"
+                    "      - linux-cli\n"
+                    "      - windows-cli\n"
+                    "      - container-image\n"
+                    "\n"
+                    "    steps:\n",
+                ),
+            )
+
+            errors = check_release_workflow.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/release.yml: missing publish release checkout",
+                errors,
+            )
+
 
 def write_release_workflow(root: Path, text: str) -> None:
     workflows = root / ".github" / "workflows"
@@ -236,7 +282,22 @@ jobs:
           python3 scripts/check_archive_contents.py
           python3 scripts/check_archive_contents.py
   publish-release:
+    name: Publish GitHub release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    needs:
+      - linux-cli
+      - windows-cli
+      - container-image
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v8
       - run: gh release create "${{ github.ref_name }}"
 """
