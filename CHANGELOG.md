@@ -106,6 +106,8 @@ and this project follows semantic versioning once the first release is tagged.
   checked-out repository path after changing artifact directories.
 - Release archive smoke checks now reject unexpected extracted files before
   generating temporary smoke-test outputs.
+- Docker build contexts now exclude local environment files and Python cache
+  artifacts while preserving the public `.env.example`.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
