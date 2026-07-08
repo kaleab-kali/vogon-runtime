@@ -12,6 +12,8 @@ and this project follows semantic versioning.
 - The provider environment example check moved from Python scripts into the
   Rust `vogon-xtask` tool as the first step toward Rust-first repository
   tooling.
+- The Cargo manifest metadata check moved from Python scripts into the Rust
+  `vogon-xtask` tool to keep long-lived repository validators Rust-first.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
