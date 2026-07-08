@@ -122,9 +122,7 @@ jobs:
           python3 scripts/check_workflow_policies.py --root .
 
       - name: Check security workflows
-        run: |
-          python3 -m unittest scripts.test_check_security_workflows
-          python3 scripts/check_security_workflows.py --root .
+        run: cargo run -p vogon-xtask -- check-security-workflows --root .
 
       - name: Check live provider smoke workflows
         run: |
