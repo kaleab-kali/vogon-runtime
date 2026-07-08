@@ -104,9 +104,7 @@ jobs:
           python3 scripts/check_schema_files.py --root .
 
       - name: Check release checklist
-        run: |
-          python3 -m unittest scripts.test_check_release_checklist
-          python3 scripts/check_release_checklist.py --root .
+        run: cargo run -p vogon-xtask -- check-release-checklist --root .
 
       - name: Check package verification docs
         run: |

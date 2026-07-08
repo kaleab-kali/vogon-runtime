@@ -38,6 +38,9 @@ REQUIRED_SNIPPETS = {
     "pull request template validator": (
         "cargo run -p vogon-xtask -- check-pr-template --root ."
     ),
+    "release checklist validator": (
+        "cargo run -p vogon-xtask -- check-release-checklist --root ."
+    ),
     "Cargo manifest validator": (
         "cargo run -p vogon-xtask -- check-cargo-manifests --root ."
     ),
