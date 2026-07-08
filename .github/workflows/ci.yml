@@ -114,9 +114,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-env-example --root .
 
       - name: Check container policy
-        run: |
-          python3 -m unittest scripts.test_check_container_policy
-          python3 scripts/check_container_policy.py --root .
+        run: cargo run -p vogon-xtask -- check-container-policy --root .
 
       - name: Check Dependabot configuration
         run: |

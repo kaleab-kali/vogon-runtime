@@ -15,7 +15,6 @@
 - [ ] `python -m unittest scripts.test_check_archive_contents`
 - [ ] `python -m unittest scripts.test_check_container_image`
 - [ ] `python -m unittest scripts.test_check_benchmark_output`
-- [ ] `python -m unittest scripts.test_check_container_policy`
 - [ ] `python -m unittest scripts.test_check_dependabot_config`
 - [ ] `python -m unittest scripts.test_check_doctor_json`
 - [ ] `python -m unittest scripts.test_check_providers_json`
@@ -41,7 +40,7 @@
 - [ ] `cargo run -p vogon-xtask -- check-public-status-docs --root .`
 - [ ] `cargo run -p vogon-xtask -- check-env-example --root .`
 - [ ] `python scripts/check_issue_templates.py --root .`
-- [ ] `python scripts/check_container_policy.py --root .`
+- [ ] `cargo run -p vogon-xtask -- check-container-policy --root .`
 - [ ] `python scripts/check_dependabot_config.py --root .`
 - [ ] `python scripts/check_live_workflows.py --root .`
 - [ ] `cargo run -p vogon-xtask -- check-package-verification-docs --root .`

@@ -93,7 +93,7 @@ jobs:
           python3 scripts/check_ci_workflow.py --root .
           python3 scripts/check_workflow_policies.py --root .
           python3 scripts/check_security_workflows.py --root .
-          python3 scripts/check_container_policy.py --root .
+          cargo run -p vogon-xtask -- check-container-policy --root .
           python3 scripts/check_release_workflow.py --root .
           cargo run -p vogon-xtask -- check-changelog --root .
           cargo run -p vogon-xtask -- check-contributing-checklist --root .
