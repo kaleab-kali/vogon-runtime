@@ -28,6 +28,16 @@ REQUIRED_SNIPPETS = {
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
     "SHA-256 checksum validator": "scripts/check_sha256_file.py",
     "archive contents validator": "scripts/check_archive_contents.py",
+    "linux archive contents before smoke outputs": (
+        "tar -xzf \"vogon-${{ github.ref_name }}-linux-x86_64.tar.gz\" -C archive-smoke\n"
+        "          python3 scripts/check_archive_contents.py archive-smoke --binary vogon\n"
+        "          ./archive-smoke/vogon --version"
+    ),
+    "windows archive contents before smoke outputs": (
+        "Expand-Archive \"vogon-${{ github.ref_name }}-windows-x86_64.zip\" -DestinationPath archive-smoke -Force\n"
+        "          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe\n"
+        "          .\\archive-smoke\\vogon.exe --version"
+    ),
     "doctor JSON validator": "scripts/check_doctor_json.py",
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",

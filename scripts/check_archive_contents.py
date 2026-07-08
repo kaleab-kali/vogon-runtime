@@ -55,6 +55,7 @@ def check_directory(
 
     errors: list[str] = []
     required_files = required_files or DEFAULT_REQUIRED_FILES
+    expected_entries = {binary, *required_files}
 
     binary_path = archive_directory / binary
     if not binary_path.exists():
@@ -70,6 +71,10 @@ def check_directory(
             errors.append(
                 f"Packaged archive required file is not a regular file: {required_file}"
             )
+
+    for path in sorted(archive_directory.iterdir(), key=lambda item: item.name):
+        if path.name not in expected_entries:
+            errors.append(f"Packaged archive contains unexpected entry: {path.name}")
 
     return errors
 

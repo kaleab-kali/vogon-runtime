@@ -88,6 +88,23 @@ class CheckArchiveContentsTests(unittest.TestCase):
                 ],
             )
 
+    def test_reports_unexpected_archive_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory)
+            (archive / "vogon").write_text("binary", encoding="utf-8")
+            (archive / "README.md").write_text("readme", encoding="utf-8")
+            (archive / "LICENSE").write_text("license", encoding="utf-8")
+            (archive / ".env").write_text("SECRET=value", encoding="utf-8")
+            (archive / "docs").mkdir()
+
+            self.assertEqual(
+                check_archive_contents.check_directory(archive, binary="vogon"),
+                [
+                    "Packaged archive contains unexpected entry: .env",
+                    "Packaged archive contains unexpected entry: docs",
+                ],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

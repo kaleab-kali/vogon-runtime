@@ -103,6 +103,9 @@ jobs:
           python3 scripts/check_sha256_file.py
           python3 scripts/check_sha256_file.py
           python3 scripts/check_sha256_file.py
+          tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
+          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
+          ./archive-smoke/vogon --version
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           echo vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
@@ -119,6 +122,9 @@ jobs:
           python3 scripts/check_archive_contents.py
           sha256sum -c vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           python3 scripts/check_sha256_file.py
+          Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
+          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
+          .\\archive-smoke\\vogon.exe --version
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
       - uses: actions/attest@v4

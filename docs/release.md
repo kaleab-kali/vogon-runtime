@@ -185,7 +185,7 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Packages the CLI container image as a `.tar.gz` archive.
 - Verifies OCI source and license labels on the built and packaged container
   image.
-- Includes `README.md` and `LICENSE` in each CLI archive.
+- Includes only the CLI binary, `README.md`, and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
   `vogon-v0.1.0-cargo-metadata.json`.
 - Writes an SPDX 2.3 JSON SBOM as `vogon-v0.1.0-cargo-spdx.json`.
