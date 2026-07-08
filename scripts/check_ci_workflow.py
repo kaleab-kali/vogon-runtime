@@ -31,6 +31,10 @@ REQUIRED_SNIPPETS = {
     "security workflow validator": "python3 scripts/check_security_workflows.py --root .",
     "container policy validator": "python3 scripts/check_container_policy.py --root .",
     "release workflow validator": "python3 scripts/check_release_workflow.py --root .",
+    "public status docs validator unit test": (
+        "python3 -m unittest scripts.test_check_public_status_docs"
+    ),
+    "public status docs validator": "python3 scripts/check_public_status_docs.py --root .",
     "live workflow validator": "python3 scripts/check_live_workflows.py --root .",
     "format check": "cargo fmt --all -- --check",
     "clippy check": "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings",

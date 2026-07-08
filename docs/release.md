@@ -31,6 +31,7 @@ python -m unittest scripts.test_check_workflow_json
 python -m unittest scripts.test_check_verify_json
 python -m unittest scripts.test_check_trace_jsonl
 python -m unittest scripts.test_check_docs_links
+python -m unittest scripts.test_check_public_status_docs
 python -m unittest scripts.test_check_env_example
 python -m unittest scripts.test_check_issue_templates
 python -m unittest scripts.test_check_live_replay
@@ -49,6 +50,7 @@ python scripts/check_changelog.py --root .
 python scripts/check_contributing_checklist.py --root .
 python scripts/check_deployment_checklist.py --root .
 python scripts/check_docs_links.py --root .
+python scripts/check_public_status_docs.py --root .
 python scripts/check_env_example.py --root .
 python scripts/check_issue_templates.py --root .
 python scripts/check_container_policy.py --root .
@@ -283,5 +285,5 @@ gh attestation verify .\vogon-v0.1.0-windows-x86_64.zip -R kaleab-kali/vogon-run
 ## Manual Publishing
 
 Crate publishing to crates.io is intentionally manual while the public API is
-pre-release. Before publishing, verify package contents locally and publish the
-workspace crates in dependency order.
+still in the `0.x` series. Before publishing, verify package contents locally
+and publish the workspace crates in dependency order.

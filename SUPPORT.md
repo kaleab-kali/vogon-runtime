@@ -1,7 +1,7 @@
 # Support
 
-Vogon Runtime is pre-release open-source software. The best support channel
-depends on the kind of request.
+Vogon Runtime is released open-source software in the `0.x` series. The best
+support channel depends on the kind of request.
 
 ## Questions
 
