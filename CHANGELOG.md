@@ -108,6 +108,8 @@ and this project follows semantic versioning once the first release is tagged.
   generating temporary smoke-test outputs.
 - Docker build contexts now exclude local environment files and Python cache
   artifacts while preserving the public `.env.example`.
+- Dependabot now tracks Docker base images alongside Cargo dependencies and
+  GitHub Actions, with CI validation for the dependency update configuration.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
