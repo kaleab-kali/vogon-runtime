@@ -138,6 +138,8 @@ and this project follows semantic versioning once the first release is tagged.
   validates the setting for every workflow.
 - CI now verifies the `vogon-core` package archive in addition to smoke testing
   workspace package archive generation.
+- CI and public verification checklists now run reproducible Cargo checks with
+  `--locked` wherever dependency resolution is part of the command.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

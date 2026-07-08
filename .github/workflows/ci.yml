@@ -160,23 +160,23 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
       - name: Test
-        run: cargo test --workspace --all-features
+        run: cargo test --workspace --all-features --locked
 
       - name: Check deterministic-only CLI build
-        run: cargo check -p vogon-cli --no-default-features
+        run: cargo check -p vogon-cli --no-default-features --locked
 
       - name: Benchmark smoke
         run: |
           python3 -m unittest scripts.test_check_benchmark_output
-          benchmark_output="$(cargo bench -p vogon-core --bench runtime -- --iterations 100)"
+          benchmark_output="$(cargo bench -p vogon-core --bench runtime --locked -- --iterations 100)"
           echo "$benchmark_output"
           printf '%s\n' "$benchmark_output" | python3 scripts/check_benchmark_output.py --expected-iterations 100
 
       - name: Build release artifacts
-        run: cargo build --release --workspace --all-features
+        run: cargo build --release --workspace --all-features --locked
 
       - name: Smoke test release CLI
         run: |
@@ -226,12 +226,12 @@ jobs:
       - name: Build docs
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --all-features --no-deps
+        run: cargo doc --workspace --all-features --no-deps --locked
 
       - name: Package
         run: |
-          cargo package -p vogon-core --allow-dirty --offline
-          cargo package --workspace --allow-dirty --no-verify --offline
+          cargo package -p vogon-core --allow-dirty --offline --locked
+          cargo package --workspace --allow-dirty --no-verify --offline --locked
 
   msrv:
     name: Minimum supported Rust
