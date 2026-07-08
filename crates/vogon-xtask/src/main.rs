@@ -319,6 +319,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "cargo run -p vogon-xtask -- check-trace-jsonl",
     ),
     (
+        "cache JSON validator",
+        "cargo run -p vogon-xtask -- check-cache-json",
+    ),
+    (
         "workflow check JSON validator",
         "cargo run -p vogon-xtask -- check-workflow-json",
     ),
@@ -752,6 +756,10 @@ fn main() {
             let options = parse_cargo_metadata_json_args(args.collect());
             check_cargo_metadata_json_file(&options.metadata_file, &options.expected_packages)
         }
+        "check-cache-json" => {
+            let options = parse_cache_json_args(args.collect());
+            check_cache_json_file(&options.cache_file, &options)
+        }
         "check-ci-workflow" => {
             let root = parse_root(args.collect());
             check_ci_workflow(&root)
@@ -880,7 +888,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -892,6 +900,12 @@ struct BenchmarkOutputOptions {
 struct CargoMetadataJsonOptions {
     metadata_file: PathBuf,
     expected_packages: Vec<String>,
+}
+
+struct CacheJsonOptions {
+    cache_file: PathBuf,
+    expected_max_entries: Option<i64>,
+    expected_entry_count: Option<i64>,
 }
 
 struct WorkflowJsonOptions {
@@ -985,6 +999,54 @@ fn parse_cargo_metadata_json_args(args: Vec<String>) -> CargoMetadataJsonOptions
 fn print_cargo_metadata_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-cargo-metadata-json METADATA_FILE [--expected-workspace-package NAME ...]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_cache_json_args(args: Vec<String>) -> CacheJsonOptions {
+    let Some((cache_file, rest)) = args.split_first() else {
+        print_cache_json_usage_and_exit();
+    };
+
+    let mut expected_max_entries = None;
+    let mut expected_entry_count = None;
+    let mut index = 0;
+    while index < rest.len() {
+        match rest[index].as_str() {
+            "--expected-max-entries" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_cache_json_usage_and_exit();
+                };
+                expected_max_entries = Some(value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--expected-max-entries must be an integer");
+                    std::process::exit(2);
+                }));
+                index += 2;
+            }
+            "--expected-entry-count" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_cache_json_usage_and_exit();
+                };
+                expected_entry_count = Some(value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--expected-entry-count must be an integer");
+                    std::process::exit(2);
+                }));
+                index += 2;
+            }
+            _ => print_cache_json_usage_and_exit(),
+        }
+    }
+
+    CacheJsonOptions {
+        cache_file: PathBuf::from(cache_file),
+        expected_max_entries,
+        expected_entry_count,
+    }
+}
+
+fn print_cache_json_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-cache-json CACHE_FILE [--expected-max-entries COUNT] [--expected-entry-count COUNT]"
     );
     std::process::exit(2);
 }
@@ -1957,6 +2019,111 @@ fn check_trace_jsonl_step_event(
                 "trace JSONL step {expected_index} field {field} must be a non-empty string"
             ));
         }
+    }
+}
+
+fn check_cache_json_file(path: &Path, options: &CacheJsonOptions) -> Result<(), Vec<String>> {
+    let output = fs::read_to_string(path)
+        .map_err(|error| vec![format!("cache JSON file cannot be read: {error}")])?;
+    check_cache_json(
+        &output,
+        options.expected_max_entries,
+        options.expected_entry_count,
+    )
+}
+
+fn check_cache_json(
+    output: &str,
+    expected_max_entries: Option<i64>,
+    expected_entry_count: Option<i64>,
+) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("cache JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec!["cache JSON root must be an object".to_owned()]);
+    };
+
+    let mut errors = Vec::new();
+    let empty_outputs = serde_json::Map::new();
+    let empty_insertion_order = Vec::new();
+    let outputs = match data.get("outputs").and_then(JsonValue::as_object) {
+        Some(outputs) => outputs,
+        None => {
+            errors.push("cache JSON outputs must be an object".to_owned());
+            &empty_outputs
+        }
+    };
+    let insertion_order = match data.get("insertion_order").and_then(JsonValue::as_array) {
+        Some(insertion_order) => insertion_order,
+        None => {
+            errors.push("cache JSON insertion_order must be an array".to_owned());
+            &empty_insertion_order
+        }
+    };
+
+    let max_entries = data.get("max_entries");
+    match max_entries.and_then(JsonValue::as_i64) {
+        Some(max_entries) if max_entries >= 0 => {
+            if let Some(expected) = expected_max_entries.filter(|expected| max_entries != *expected)
+            {
+                errors.push(format!(
+                    "cache JSON max_entries mismatch: expected {expected}, got {}",
+                    json_value_display(data.get("max_entries"))
+                ));
+            }
+        }
+        _ => errors.push("cache JSON max_entries must be a non-negative integer".to_owned()),
+    }
+
+    if let Some(expected) =
+        expected_entry_count.filter(|expected| outputs.len() as i64 != *expected)
+    {
+        errors.push(format!(
+            "cache JSON output count mismatch: expected {expected}, got {}",
+            outputs.len()
+        ));
+    }
+
+    if insertion_order.len() != outputs.len() {
+        errors.push(format!(
+            "cache JSON insertion_order length must match outputs: expected {}, got {}",
+            outputs.len(),
+            insertion_order.len()
+        ));
+    }
+
+    for (index, cache_key) in insertion_order.iter().enumerate() {
+        match cache_key.as_str() {
+            Some(cache_key) if !cache_key.is_empty() => {
+                if !outputs.contains_key(cache_key) {
+                    errors.push(format!(
+                        "cache JSON insertion_order entry {} is missing from outputs",
+                        index + 1
+                    ));
+                }
+            }
+            _ => errors.push(format!(
+                "cache JSON insertion_order entry {} must be a non-empty string",
+                index + 1
+            )),
+        }
+    }
+
+    for (cache_key, cached_output) in outputs {
+        if cache_key.is_empty() {
+            errors.push("cache JSON output keys must be non-empty strings".to_owned());
+        }
+        if cached_output.as_str().is_none_or(str::is_empty) {
+            errors.push(format!(
+                "cache JSON output {cache_key} must be a non-empty string"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
     }
 }
 
@@ -7803,6 +7970,135 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_cache_json() {
+        assert_eq!(
+            check_cache_json(&valid_cache_json(), Some(1), Some(1)),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_cache_json_file_path() {
+        let root = temp_root("cache-json-accepts-file");
+        let cache_file = root.join("vogon.cache.json");
+        fs::write(&cache_file, valid_cache_json()).unwrap();
+
+        assert_eq!(
+            check_cache_json_file(
+                &cache_file,
+                &CacheJsonOptions {
+                    cache_file: cache_file.clone(),
+                    expected_max_entries: Some(1),
+                    expected_entry_count: Some(1),
+                },
+            ),
+            Ok(())
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_invalid_cache_json() {
+        let errors = check_cache_json("{", None, None).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("cache JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_malformed_cache_json_fields() {
+        let output = serde_json::json!({
+            "outputs": [],
+            "insertion_order": {},
+            "max_entries": -1,
+        })
+        .to_string();
+
+        let errors = check_cache_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "cache JSON outputs must be an object",
+                "cache JSON insertion_order must be an array",
+                "cache JSON max_entries must be a non-negative integer",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_expected_cache_json_value_mismatches() {
+        let output = serde_json::json!({
+            "outputs": {
+                "abc": "cached output",
+                "def": "other output",
+            },
+            "insertion_order": ["abc", "def"],
+            "max_entries": 2,
+        })
+        .to_string();
+
+        let errors = check_cache_json(&output, Some(1), Some(1)).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "cache JSON max_entries mismatch: expected 1, got 2",
+                "cache JSON output count mismatch: expected 1, got 2",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_cache_json_order_mismatches() {
+        let output = serde_json::json!({
+            "outputs": {
+                "abc": "cached output",
+            },
+            "insertion_order": ["abc", "missing"],
+            "max_entries": 2,
+        })
+        .to_string();
+
+        let errors = check_cache_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "cache JSON insertion_order length must match outputs: expected 1, got 2",
+                "cache JSON insertion_order entry 2 is missing from outputs",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_empty_cache_json_output_values() {
+        let output = serde_json::json!({
+            "outputs": {
+                "": "",
+                "abc": "",
+            },
+            "insertion_order": [""],
+            "max_entries": 2,
+        })
+        .to_string();
+
+        let errors = check_cache_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "cache JSON insertion_order length must match outputs: expected 2, got 1",
+                "cache JSON insertion_order entry 1 must be a non-empty string",
+                "cache JSON output keys must be non-empty strings",
+                "cache JSON output  must be a non-empty string",
+                "cache JSON output abc must be a non-empty string",
+            ]
+        );
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -8041,6 +8337,17 @@ and this project follows semantic versioning once the first release is tagged.
         }
     }
 
+    fn valid_cache_json() -> String {
+        serde_json::json!({
+            "outputs": {
+                "abc": "cached output",
+            },
+            "insertion_order": ["abc"],
+            "max_entries": 1,
+        })
+        .to_string()
+    }
+
     fn valid_trace_jsonl() -> String {
         [
             serde_json::json!({
@@ -8143,6 +8450,7 @@ jobs:
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           cargo run -p vogon-xtask -- check-verify-json
           cargo run -p vogon-xtask -- check-trace-jsonl
+          cargo run -p vogon-xtask -- check-cache-json
           cargo run -p vogon-xtask -- check-workflow-json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked
