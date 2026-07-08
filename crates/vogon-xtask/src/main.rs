@@ -117,7 +117,7 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ),
     (
         "security workflow validator",
-        "python3 scripts/check_security_workflows.py --root .",
+        "cargo run -p vogon-xtask -- check-security-workflows --root .",
     ),
     (
         "container policy validator",
@@ -263,6 +263,113 @@ const REQUIRED_CI_WORKFLOW_COUNTS: &[(&str, usize)] = &[
     ("uses: actions/checkout@v7", 4),
     ("runs-on: ubuntu-24.04", 3),
     ("timeout-minutes: 30", 3),
+];
+const SECURITY_WORKFLOW_REQUIREMENTS: &[(&str, &[(&str, &str)])] = &[
+    (
+        ".github/workflows/codeql.yml",
+        &[
+            ("workflow name", "name: CodeQL"),
+            ("pull request trigger", "  pull_request:"),
+            ("push main trigger", "  push:"),
+            ("scheduled scan", r#"    - cron: "31 5 * * 2""#),
+            ("manual dispatch trigger", "  workflow_dispatch:"),
+            ("read-only contents permission", "  contents: read"),
+            (
+                "security events write permission",
+                "  security-events: write",
+            ),
+            (
+                "concurrency group",
+                "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+            ),
+            ("stale run cancellation", "  cancel-in-progress: true"),
+            ("cargo network retry env", "env:\n  CARGO_NET_RETRY: 10"),
+            ("ubuntu runner", "    runs-on: ubuntu-24.04"),
+            ("job timeout", "    timeout-minutes: 30"),
+            ("checkout action", "uses: actions/checkout@v7"),
+            ("CodeQL init action", "uses: github/codeql-action/init@v4"),
+            ("Rust language configuration", "          languages: rust"),
+            ("no-build analysis mode", "          build-mode: none"),
+            (
+                "extended security queries",
+                "          queries: security-extended,security-and-quality",
+            ),
+            (
+                "CodeQL analyze action",
+                "uses: github/codeql-action/analyze@v4",
+            ),
+        ],
+    ),
+    (
+        ".github/workflows/security-audit.yml",
+        &[
+            ("workflow name", "name: Security Audit"),
+            ("pull request trigger", "  pull_request:"),
+            ("push main trigger", "  push:"),
+            ("scheduled audit", r#"    - cron: "17 4 * * 1""#),
+            ("manual dispatch trigger", "  workflow_dispatch:"),
+            (
+                "read-only contents permission",
+                "permissions:\n  contents: read",
+            ),
+            (
+                "concurrency group",
+                "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+            ),
+            ("dependency lockfile path", "      - Cargo.lock"),
+            ("workspace manifest path", "      - Cargo.toml"),
+            ("crate manifest path", r#"      - "crates/**/Cargo.toml""#),
+            (
+                "audit workflow path",
+                "      - .github/workflows/security-audit.yml",
+            ),
+            ("ubuntu runner", "    runs-on: ubuntu-24.04"),
+            ("job timeout", "    timeout-minutes: 10"),
+            ("checkout action", "uses: actions/checkout@v7"),
+            ("RustSec audit action", "uses: actions-rust-lang/audit@v1"),
+            ("no issue creation", "          createIssues: false"),
+        ],
+    ),
+    (
+        ".github/workflows/dependency-review.yml",
+        &[
+            ("workflow name", "name: Dependency Review"),
+            ("pull request trigger", "  pull_request:"),
+            (
+                "read-only contents permission",
+                "permissions:\n  contents: read",
+            ),
+            (
+                "concurrency group",
+                "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+            ),
+            ("stale run cancellation", "  cancel-in-progress: true"),
+            ("ubuntu runner", "    runs-on: ubuntu-24.04"),
+            ("job timeout", "    timeout-minutes: 10"),
+            ("checkout action", "uses: actions/checkout@v7"),
+            (
+                "dependency review action",
+                "uses: actions/dependency-review-action@v5",
+            ),
+            (
+                "dependency review config file",
+                "          config-file: ./.github/dependency-review-config.yml",
+            ),
+        ],
+    ),
+];
+const DEPENDENCY_REVIEW_CONFIG_REQUIREMENTS: &[(&str, &str)] = &[
+    ("high severity failure", "fail-on-severity: high"),
+    ("license checks enabled", "license-check: true"),
+    ("vulnerability checks enabled", "vulnerability-check: true"),
+    ("license allowlist", "allow-licenses:"),
+    ("Apache license allowed", "  - Apache-2.0"),
+    ("BSD license allowed", "  - BSD-3-Clause"),
+    ("CDLA permissive license allowed", "  - CDLA-Permissive-2.0"),
+    ("ISC license allowed", "  - ISC"),
+    ("MIT license allowed", "  - MIT"),
+    ("Unicode license allowed", "  - Unicode-3.0"),
+    ("Unlicense allowed", "  - Unlicense"),
 ];
 const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
     "Added",
@@ -586,6 +693,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_schema_files(&root)
         }
+        "check-security-workflows" => {
+            let root = parse_root(args.collect());
+            check_security_workflows(&root)
+        }
         "check-secrets" => {
             let root = parse_root(args.collect());
             check_secrets(&root)
@@ -620,7 +731,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -2662,6 +2773,58 @@ fn check_ci_workflow(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_security_workflows(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    for (relative_path, requirements) in SECURITY_WORKFLOW_REQUIREMENTS {
+        let path = root.join(relative_path);
+        if !path.is_file() {
+            errors.push(format!("{relative_path}: missing security workflow"));
+            continue;
+        }
+
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+        for (description, snippet) in *requirements {
+            if !text.contains(snippet) {
+                errors.push(format!("{relative_path}: missing {description}"));
+            }
+        }
+    }
+
+    let config_path = root.join(".github").join("dependency-review-config.yml");
+    if !config_path.is_file() {
+        errors.push(
+            ".github/dependency-review-config.yml: missing dependency review policy".to_owned(),
+        );
+    } else {
+        let config_text = match fs::read_to_string(&config_path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!(".github/dependency-review-config.yml: {error}"));
+                String::new()
+            }
+        };
+        for (description, snippet) in DEPENDENCY_REVIEW_CONFIG_REQUIREMENTS {
+            if !config_text.contains(snippet) {
+                errors.push(format!(
+                    ".github/dependency-review-config.yml: missing {description}"
+                ));
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn check_archive_contents(
     archive_directory: &Path,
     binary: &str,
@@ -3405,6 +3568,156 @@ mod tests {
 
         assert!(errors.iter().any(|error| error
             == ".github/workflows/ci.yml: expected at least 4 occurrence(s) of `uses: actions/checkout@v7`, found 0"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_expected_security_workflows() {
+        let root = temp_root("security-workflows-accepts");
+        write_security_workflows(&root, None, None, None, None);
+
+        assert_eq!(check_security_workflows(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_security_workflows() {
+        let root = temp_root("security-workflows-missing");
+
+        let errors = check_security_workflows(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/workflows/codeql.yml: missing security workflow",
+                ".github/workflows/security-audit.yml: missing security workflow",
+                ".github/workflows/dependency-review.yml: missing security workflow",
+                ".github/dependency-review-config.yml: missing dependency review policy",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_codeql_extended_queries() {
+        let root = temp_root("security-workflows-missing-codeql-query");
+        write_security_workflows(
+            &root,
+            Some(codeql_workflow_text().replace(
+                "          queries: security-extended,security-and-quality\n",
+                "",
+            )),
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [".github/workflows/codeql.yml: missing extended security queries"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_rustsec_schedule() {
+        let root = temp_root("security-workflows-missing-rustsec-schedule");
+        write_security_workflows(
+            &root,
+            None,
+            Some(security_audit_workflow_text().replace("    - cron: \"17 4 * * 1\"\n", "")),
+            None,
+            None,
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [".github/workflows/security-audit.yml: missing scheduled audit"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_dependency_review_config_reference() {
+        let root = temp_root("security-workflows-missing-review-config-reference");
+        write_security_workflows(
+            &root,
+            None,
+            None,
+            Some(dependency_review_workflow_text().replace(
+                "          config-file: ./.github/dependency-review-config.yml",
+                "          fail-on-severity: high",
+            )),
+            None,
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [".github/workflows/dependency-review.yml: missing dependency review config file"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_dependency_review_concurrency() {
+        let root = temp_root("security-workflows-missing-review-concurrency");
+        write_security_workflows(
+            &root,
+            None,
+            None,
+            Some(dependency_review_workflow_text().replace(
+                "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n\n",
+                "",
+            )),
+            None,
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [
+                ".github/workflows/dependency-review.yml: missing concurrency group",
+                ".github/workflows/dependency-review.yml: missing stale run cancellation",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_disabled_dependency_review_license_check() {
+        let root = temp_root("security-workflows-disabled-license-check");
+        write_security_workflows(
+            &root,
+            None,
+            None,
+            None,
+            Some(
+                dependency_review_config_text()
+                    .replace("license-check: true", "license-check: false"),
+            ),
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [".github/dependency-review-config.yml: missing license checks enabled"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_removed_dependency_review_license_allowlist_entry() {
+        let root = temp_root("security-workflows-missing-license");
+        write_security_workflows(
+            &root,
+            None,
+            None,
+            None,
+            Some(dependency_review_config_text().replace("  - CDLA-Permissive-2.0\n", "")),
+        );
+
+        assert_eq!(
+            check_security_workflows(&root).unwrap_err(),
+            [".github/dependency-review-config.yml: missing CDLA permissive license allowed"]
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -4849,7 +5162,7 @@ jobs:
       - run: |
           cargo run -p vogon-xtask -- check-ci-workflow --root .
           python3 scripts/check_workflow_policies.py --root .
-          python3 scripts/check_security_workflows.py --root .
+          cargo run -p vogon-xtask -- check-security-workflows --root .
           cargo run -p vogon-xtask -- check-container-policy --root .
           cargo run -p vogon-xtask -- check-secrets --root .
           python3 scripts/check_release_workflow.py --root .
@@ -4909,6 +5222,173 @@ jobs:
       - run: |
           cargo build --release -p vogon-cli --locked
           .\target\release\vogon.exe verify fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json
+"#
+    }
+
+    fn write_security_workflows(
+        root: &Path,
+        codeql: Option<String>,
+        security_audit: Option<String>,
+        dependency_review: Option<String>,
+        dependency_review_config: Option<String>,
+    ) {
+        let workflows = root.join(".github").join("workflows");
+        fs::create_dir_all(&workflows).unwrap();
+        fs::write(
+            workflows.join("codeql.yml"),
+            codeql.unwrap_or_else(|| codeql_workflow_text().to_owned()),
+        )
+        .unwrap();
+        fs::write(
+            workflows.join("security-audit.yml"),
+            security_audit.unwrap_or_else(|| security_audit_workflow_text().to_owned()),
+        )
+        .unwrap();
+        fs::write(
+            workflows.join("dependency-review.yml"),
+            dependency_review.unwrap_or_else(|| dependency_review_workflow_text().to_owned()),
+        )
+        .unwrap();
+        fs::write(
+            root.join(".github").join("dependency-review-config.yml"),
+            dependency_review_config.unwrap_or_else(|| dependency_review_config_text().to_owned()),
+        )
+        .unwrap();
+    }
+
+    fn codeql_workflow_text() -> &'static str {
+        r#"name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "31 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  analyze:
+    name: CodeQL Rust analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+          build-mode: none
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+"#
+    }
+
+    fn security_audit_workflow_text() -> &'static str {
+        r#"name: Security Audit
+
+on:
+  pull_request:
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - "crates/**/Cargo.toml"
+      - .github/workflows/security-audit.yml
+  push:
+    branches:
+      - main
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - "crates/**/Cargo.toml"
+      - .github/workflows/security-audit.yml
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rustsec:
+    name: RustSec advisory audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Audit Cargo.lock
+        uses: actions-rust-lang/audit@v1
+        with:
+          createIssues: false
+"#
+    }
+
+    fn dependency_review_workflow_text() -> &'static str {
+        r#"name: Dependency Review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          config-file: ./.github/dependency-review-config.yml
+"#
+    }
+
+    fn dependency_review_config_text() -> &'static str {
+        r#"fail-on-severity: high
+license-check: true
+vulnerability-check: true
+allow-licenses:
+  - Apache-2.0
+  - BSD-3-Clause
+  - CDLA-Permissive-2.0
+  - ISC
+  - MIT
+  - Unicode-3.0
+  - Unlicense
 "#
     }
 
