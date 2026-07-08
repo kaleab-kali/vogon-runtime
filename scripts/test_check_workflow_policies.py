@@ -19,6 +19,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  workflow_dispatch:",
                         "permissions:",
                         "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  publish:",
                         "    runs-on: ubuntu-24.04",
@@ -66,6 +69,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "on:",
                         "  pull_request_target:",
                         "permissions: write-all",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  test:",
                         "    runs-on: ubuntu-24.04",
@@ -100,6 +106,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "permissions:",
                         "  contents: write",
                         "  security-events: write",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  test:",
                         "    runs-on: ubuntu-24.04",
@@ -137,6 +146,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  pull_request:",
                         "permissions:",
                         "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  test:",
                         "    runs-on: ubuntu-latest",
@@ -148,11 +160,11 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             errors = check_workflow_policies.check_repository(root)
 
             self.assertIn(
-                ".github/workflows/ci.yml:8: job `test` uses floating runner `ubuntu-latest`",
+                ".github/workflows/ci.yml:11: job `test` uses floating runner `ubuntu-latest`",
                 errors,
             )
             self.assertIn(
-                ".github/workflows/ci.yml:7: job `test` missing timeout-minutes",
+                ".github/workflows/ci.yml:10: job `test` missing timeout-minutes",
                 errors,
             )
 
@@ -169,6 +181,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  pull_request:",
                         "permissions:",
                         "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  slow:",
                         "    runs-on: ubuntu-24.04",
@@ -184,11 +199,11 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             errors = check_workflow_policies.check_repository(root)
 
             self.assertIn(
-                ".github/workflows/ci.yml:9: job `slow` timeout-minutes must be between 1 and 60",
+                ".github/workflows/ci.yml:12: job `slow` timeout-minutes must be between 1 and 60",
                 errors,
             )
             self.assertIn(
-                ".github/workflows/ci.yml:12: job `invalid` timeout-minutes must be an integer",
+                ".github/workflows/ci.yml:15: job `invalid` timeout-minutes must be an integer",
                 errors,
             )
 
@@ -205,6 +220,9 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "  pull_request:",
                         "permissions:",
                         "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
                         "jobs:",
                         "  test:",
                         "    runs-on: ubuntu-24.04",
@@ -222,19 +240,93 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             errors = check_workflow_policies.check_repository(root)
 
             self.assertIn(
-                ".github/workflows/ci.yml:11: external action references must include an explicit ref",
+                ".github/workflows/ci.yml:14: external action references must include an explicit ref",
                 errors,
             )
             self.assertIn(
-                ".github/workflows/ci.yml:12: action reference `github/codeql-action/analyze@main` uses a mutable ref",
+                ".github/workflows/ci.yml:15: action reference `github/codeql-action/analyze@main` uses a mutable ref",
                 errors,
             )
             self.assertIn(
-                ".github/workflows/ci.yml:13: action reference `actions/cache@refs/heads/main` uses a mutable ref",
+                ".github/workflows/ci.yml:16: action reference `actions/cache@refs/heads/main` uses a mutable ref",
                 errors,
             )
             self.assertIn(
-                ".github/workflows/ci.yml:14: action references must not use expressions",
+                ".github/workflows/ci.yml:17: action references must not use expressions",
+                errors,
+            )
+
+    def test_rejects_missing_and_incomplete_concurrency_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "missing.yml").write_text(
+                "\n".join(
+                    [
+                        "name: Missing",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (workflows / "incomplete.yml").write_text(
+                "\n".join(
+                    [
+                        "name: Incomplete",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            (workflows / "late.yml").write_text(
+                "\n".join(
+                    [
+                        "name: Late",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "jobs:",
+                        "  test:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_workflow_policies.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/missing.yml: missing top-level concurrency block",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/incomplete.yml:6: top-level concurrency must include cancel-in-progress",
+                errors,
+            )
+            self.assertIn(
+                ".github/workflows/late.yml:10: top-level concurrency must be before jobs",
                 errors,
             )
 

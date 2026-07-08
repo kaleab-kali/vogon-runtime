@@ -132,6 +132,8 @@ and this project follows semantic versioning once the first release is tagged.
   install, benchmark, container, and Windows smoke commands.
 - Release workflow validation now enforces job-scoped OIDC and attestation
   permissions for all attested artifacts.
+- Workflow policy validation now enforces explicit concurrency groups and
+  cancellation settings for every GitHub Actions workflow.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

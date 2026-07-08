@@ -13,6 +13,7 @@ from pathlib import Path
 WORKFLOW_SUFFIXES = {".yml", ".yaml"}
 BROAD_PERMISSION_RE = re.compile(r"^\s*permissions:\s*(?:read-all|write-all)\s*$")
 PERMISSION_VALUE_RE = re.compile(r"^\s+([A-Za-z0-9_-]+):\s*([A-Za-z-]+)\s*$")
+CONCURRENCY_VALUE_RE = re.compile(r"^\s+([A-Za-z0-9_-]+):\s*(.+?)\s*$")
 TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z0-9_-]+:")
 JOB_KEY_RE = re.compile(r"^\s{2}([A-Za-z0-9_-]+):\s*$")
 RUNS_ON_RE = re.compile(r"^\s{4}runs-on:\s*(.+?)\s*$")
@@ -25,6 +26,12 @@ MUTABLE_ACTION_REFS = {"main", "master", "latest", "head", "trunk"}
 
 @dataclass(frozen=True)
 class TopLevelPermissions:
+    line: int
+    entries: dict[str, tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class TopLevelConcurrency:
     line: int
     entries: dict[str, tuple[str, int]]
 
@@ -103,6 +110,25 @@ def check_workflow_file(root: Path, path: Path) -> list[str]:
     if permissions is None:
         errors.append(f"{relative_path}: missing top-level permissions block")
         return errors
+
+    concurrency = parse_top_level_concurrency(lines)
+    if concurrency is None:
+        errors.append(f"{relative_path}: missing top-level concurrency block")
+    else:
+        jobs_line = first_top_level_key_line(lines, "jobs:")
+        if jobs_line is not None and concurrency.line > jobs_line:
+            errors.append(
+                f"{relative_path}:{concurrency.line}: top-level concurrency must be before jobs"
+            )
+
+        if "group" not in concurrency.entries:
+            errors.append(
+                f"{relative_path}:{concurrency.line}: top-level concurrency must include group"
+            )
+        if "cancel-in-progress" not in concurrency.entries:
+            errors.append(
+                f"{relative_path}:{concurrency.line}: top-level concurrency must include cancel-in-progress"
+            )
 
     errors.extend(check_jobs(relative_path, lines))
 
@@ -266,6 +292,22 @@ def parse_top_level_permissions(lines: list[str]) -> TopLevelPermissions | None:
                     scope, level = match.groups()
                     entries[scope] = (level, child_index + 1)
             return TopLevelPermissions(line=index + 1, entries=entries)
+    return None
+
+
+def parse_top_level_concurrency(lines: list[str]) -> TopLevelConcurrency | None:
+    for index, line in enumerate(lines):
+        if line == "concurrency:":
+            entries: dict[str, tuple[str, int]] = {}
+            for child_index in range(index + 1, len(lines)):
+                child = lines[child_index]
+                if is_top_level_key(child):
+                    break
+                match = CONCURRENCY_VALUE_RE.match(child)
+                if match:
+                    key, value = match.groups()
+                    entries[key] = (value, child_index + 1)
+            return TopLevelConcurrency(line=index + 1, entries=entries)
     return None
 
 
