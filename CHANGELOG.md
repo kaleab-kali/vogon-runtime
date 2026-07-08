@@ -110,6 +110,8 @@ and this project follows semantic versioning once the first release is tagged.
   artifacts while preserving the public `.env.example`.
 - Dependabot now tracks Docker base images alongside Cargo dependencies and
   GitHub Actions, with CI validation for the dependency update configuration.
+- Dependency Review now uses a checked-in policy for high-severity dependency
+  changes and permissive-license enforcement.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

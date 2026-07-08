@@ -35,8 +35,24 @@ WORKFLOW_REQUIREMENTS = {
         "job timeout": "    timeout-minutes: 10",
         "checkout action": "uses: actions/checkout@v7",
         "dependency review action": "uses: actions/dependency-review-action@v5",
-        "high severity failure": "          fail-on-severity: high",
+        "dependency review config file": (
+            "          config-file: ./.github/dependency-review-config.yml"
+        ),
     },
+}
+
+DEPENDENCY_REVIEW_CONFIG_REQUIREMENTS = {
+    "high severity failure": "fail-on-severity: high",
+    "license checks enabled": "license-check: true",
+    "vulnerability checks enabled": "vulnerability-check: true",
+    "license allowlist": "allow-licenses:",
+    "Apache license allowed": "  - Apache-2.0",
+    "BSD license allowed": "  - BSD-3-Clause",
+    "CDLA permissive license allowed": "  - CDLA-Permissive-2.0",
+    "ISC license allowed": "  - ISC",
+    "MIT license allowed": "  - MIT",
+    "Unicode license allowed": "  - Unicode-3.0",
+    "Unlicense allowed": "  - Unlicense",
 }
 
 
@@ -68,6 +84,19 @@ def check_repository(root: Path) -> list[str]:
         for description, snippet in requirements.items():
             if snippet not in text:
                 errors.append(f"{relative_path}: missing {description}")
+
+    config_path = root / ".github" / "dependency-review-config.yml"
+    if not config_path.exists():
+        errors.append(
+            ".github/dependency-review-config.yml: missing dependency review policy"
+        )
+    else:
+        config_text = config_path.read_text(encoding="utf-8")
+        for description, snippet in DEPENDENCY_REVIEW_CONFIG_REQUIREMENTS.items():
+            if snippet not in config_text:
+                errors.append(
+                    f".github/dependency-review-config.yml: missing {description}"
+                )
 
     return errors
 

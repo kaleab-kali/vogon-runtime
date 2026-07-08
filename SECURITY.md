@@ -26,7 +26,9 @@ documented before merge.
 
 Dependabot is configured for Cargo dependencies, GitHub Actions, and Docker
 base images so runtime and deployment dependency updates are visible as pull
-requests.
+requests. Dependency Review blocks high-severity dependency changes and enforces
+the checked-in permissive-license policy in
+`.github/dependency-review-config.yml`.
 
 ## Static Analysis
 
