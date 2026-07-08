@@ -105,6 +105,9 @@ jobs:
           cargo bench -p vogon-core --bench runtime --locked -- --iterations 100
           cargo build --release --workspace --all-features --locked
           ./target/release/vogon doctor --json
+          ./target/release/vogon providers --json
+          python3 -m unittest scripts.test_check_providers_json
+          python3 scripts/check_providers_json.py
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked

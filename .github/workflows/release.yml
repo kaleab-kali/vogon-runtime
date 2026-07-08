@@ -44,6 +44,9 @@ jobs:
           doctor_json="$(./target/release/vogon doctor --json)"
           echo "$doctor_json"
           printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          providers_json="$(./target/release/vogon providers --json)"
+          echo "$providers_json"
+          printf '%s\n' "$providers_json" | python3 scripts/check_providers_json.py
           init_workflow="$RUNNER_TEMP/vogon-init-smoke.toml"
           ./target/release/vogon init --force --output "$init_workflow"
           init_check_json="$(./target/release/vogon check --json "$init_workflow")"
@@ -101,6 +104,7 @@ jobs:
           python3 scripts/check_archive_contents.py archive-smoke --binary vogon
           ./archive-smoke/vogon --version
           ./archive-smoke/vogon doctor --json | python3 scripts/check_doctor_json.py
+          ./archive-smoke/vogon providers --json | python3 scripts/check_providers_json.py
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
@@ -152,6 +156,9 @@ jobs:
           $doctorJson = (& .\target\release\vogon.exe doctor --json) -join "`n"
           $doctorJson
           $doctorJson | python scripts\check_doctor_json.py
+          $providersJson = (& .\target\release\vogon.exe providers --json) -join "`n"
+          $providersJson
+          $providersJson | python scripts\check_providers_json.py
           $initWorkflow = Join-Path $env:RUNNER_TEMP 'vogon-init-smoke.toml'
           .\target\release\vogon.exe init --force --output $initWorkflow
           $initCheckJson = (& .\target\release\vogon.exe check --json $initWorkflow) -join "`n"
@@ -194,6 +201,8 @@ jobs:
           .\archive-smoke\vogon.exe --version
           $archiveDoctorJson = (& .\archive-smoke\vogon.exe doctor --json) -join "`n"
           $archiveDoctorJson | python scripts\check_doctor_json.py
+          $archiveProvidersJson = (& .\archive-smoke\vogon.exe providers --json) -join "`n"
+          $archiveProvidersJson | python scripts\check_providers_json.py
           .\archive-smoke\vogon.exe init --force --output archive-smoke\starter.toml
           .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
@@ -246,6 +255,9 @@ jobs:
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"
           printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          providers_json="$(docker run --rm --read-only "$image" providers --json)"
+          echo "$providers_json"
+          printf '%s\n' "$providers_json" | python3 scripts/check_providers_json.py
           mkdir -p "${{ runner.temp }}/vogon-container-smoke"
           chmod 777 "${{ runner.temp }}/vogon-container-smoke"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" init --force --output /work/starter.toml
@@ -280,6 +292,7 @@ jobs:
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
+          docker run --rm --read-only "$image" providers --json | python3 scripts/check_providers_json.py
           mkdir -p "${{ runner.temp }}/vogon-packaged-container-smoke"
           chmod 777 "${{ runner.temp }}/vogon-packaged-container-smoke"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" init --force --output /work/starter.toml
@@ -368,6 +381,7 @@ jobs:
             docker run --rm "$image" --version
             docker run --rm --read-only "$image" --version
             docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
+            docker run --rm --read-only "$image" providers --json | python3 "$GITHUB_WORKSPACE/scripts/check_providers_json.py"
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
             chmod 777 "${{ runner.temp }}/vogon-downloaded-container-smoke"
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" init --force --output /work/starter.toml

@@ -22,6 +22,7 @@
 - [ ] `python -m unittest scripts.test_check_dependabot_config`
 - [ ] `python -m unittest scripts.test_check_deployment_checklist`
 - [ ] `python -m unittest scripts.test_check_doctor_json`
+- [ ] `python -m unittest scripts.test_check_providers_json`
 - [ ] `python -m unittest scripts.test_check_cache_json`
 - [ ] `python -m unittest scripts.test_check_workflow_json`
 - [ ] `python -m unittest scripts.test_check_verify_json`
@@ -65,6 +66,7 @@
 - [ ] `cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100`
 - [ ] `cargo build --release --workspace --all-features --locked`
 - [ ] `cargo run --release -p vogon-cli -- doctor --json | python scripts/check_doctor_json.py`
+- [ ] `cargo run --release -p vogon-cli -- providers --json | python scripts/check_providers_json.py`
 - [ ] `cargo run --release -p vogon-cli -- init --force --output target/vogon-init-smoke/workflow.toml`
 - [ ] `cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2`
 - [ ] `cargo run --release -p vogon-cli -- check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2`
@@ -77,6 +79,7 @@
 - [ ] `cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force`
 - [ ] `target/install-smoke/bin/vogon --version`
 - [ ] `target/install-smoke/bin/vogon doctor --json | python scripts/check_doctor_json.py`
+- [ ] `target/install-smoke/bin/vogon providers --json | python scripts/check_providers_json.py`
 - [ ] `target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml`
 - [ ] `target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2`
 - [ ] `target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2`
@@ -89,6 +92,7 @@
 - [ ] `docker run --rm vogon-runtime:smoke --version`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke --version`
 - [ ] `docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py`
+- [ ] `docker run --rm --read-only vogon-runtime:smoke providers --json | python scripts/check_providers_json.py`
 - [ ] `mkdir -p target/container-smoke`
 - [ ] `chmod 777 target/container-smoke`
 - [ ] `docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml`
