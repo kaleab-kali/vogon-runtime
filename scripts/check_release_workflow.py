@@ -24,6 +24,12 @@ REQUIRED_SNIPPETS = {
     "linux archive": "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz",
     "windows archive": "vogon-${{ github.ref_name }}-windows-x86_64.zip",
     "container archive": "vogon-${{ github.ref_name }}-container-image.tar.gz",
+    "container version build argument": (
+        '--build-arg "VOGON_IMAGE_VERSION=${{ github.ref_name }}"'
+    ),
+    "container revision build argument": (
+        '--build-arg "VOGON_IMAGE_REVISION=${{ github.sha }}"'
+    ),
     "dependency metadata": "cargo metadata --locked --format-version 1",
     "dependency metadata validator": "scripts/check_cargo_metadata_json.py",
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
@@ -46,6 +52,8 @@ REQUIRED_SNIPPETS = {
     "verify JSON validator": "scripts/check_verify_json.py",
     "trace JSONL validator": "scripts/check_trace_jsonl.py",
     "container image validator": "scripts/check_container_image.py",
+    "container version label validation": '--expected-version "${{ github.ref_name }}"',
+    "container revision label validation": '--expected-revision "${{ github.sha }}"',
     "Linux checksum": "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256",
     "Windows checksum": "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256",
     "container checksum": "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256",

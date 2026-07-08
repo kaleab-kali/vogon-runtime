@@ -22,6 +22,24 @@ class CheckReleaseWorkflowTests(unittest.TestCase):
                 [".github/workflows/release.yml: missing release workflow"],
             )
 
+    def test_reports_missing_container_provenance_labels(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_release_workflow(
+                root,
+                release_workflow_text().replace(
+                    '            --build-arg "VOGON_IMAGE_REVISION=${{ github.sha }}" \\\n',
+                    "",
+                ),
+            )
+
+            errors = check_release_workflow.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/release.yml: missing container revision build argument",
+                errors,
+            )
+
     def test_reports_missing_required_snippet(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -187,15 +205,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: |
+          docker build \\
+            --build-arg "VOGON_IMAGE_VERSION=${{ github.ref_name }}" \\
+            --build-arg "VOGON_IMAGE_REVISION=${{ github.sha }}" \\
+            --tag "vogon-runtime:${{ github.ref_name }}" \\
+            .
           python3 scripts/check_sha256_file.py
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           python3 scripts/check_sha256_file.py
           echo vogon-${{ github.ref_name }}-container-image.tar.gz
           echo vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
-          python3 scripts/check_container_image.py
-          python3 scripts/check_container_image.py
-          python3 scripts/check_container_image.py
+          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py"

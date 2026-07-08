@@ -39,6 +39,10 @@ REQUIRED_DOCKERFILE_SNIPPETS = {
         'org.opencontainers.image.documentation="https://github.com/kaleab-kali/vogon-runtime#readme"'
     ),
     "OCI license label": 'org.opencontainers.image.licenses="MIT"',
+    "OCI version label": 'org.opencontainers.image.version="${VOGON_IMAGE_VERSION}"',
+    "OCI revision label": 'org.opencontainers.image.revision="${VOGON_IMAGE_REVISION}"',
+    "default image version argument": "ARG VOGON_IMAGE_VERSION=dev",
+    "default image revision argument": "ARG VOGON_IMAGE_REVISION=unknown",
     "apt package list cleanup": "rm -rf /var/lib/apt/lists/*",
     "non-root runtime user": "useradd --create-home --uid 10001 vogon",
     "release binary copy": (

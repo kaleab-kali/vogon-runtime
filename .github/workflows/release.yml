@@ -230,12 +230,17 @@ jobs:
           persist-credentials: false
 
       - name: Build container image
-        run: docker build --tag "vogon-runtime:${{ github.ref_name }}" .
+        run: |
+          docker build \
+            --build-arg "VOGON_IMAGE_VERSION=${{ github.ref_name }}" \
+            --build-arg "VOGON_IMAGE_REVISION=${{ github.sha }}" \
+            --tag "vogon-runtime:${{ github.ref_name }}" \
+            .
 
       - name: Smoke test container image
         run: |
           image="vogon-runtime:${{ github.ref_name }}"
-          python3 scripts/check_container_image.py "$image"
+          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
@@ -271,7 +276,7 @@ jobs:
           sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
           gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
           docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-          python3 scripts/check_container_image.py "$image"
+          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
@@ -359,7 +364,7 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-container-image.tar.gz"
             gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
             docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-            python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image"
+            python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
             docker run --rm "$image" --version
             docker run --rm --read-only "$image" --version
             docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
