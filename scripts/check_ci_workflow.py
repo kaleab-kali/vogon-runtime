@@ -35,6 +35,9 @@ REQUIRED_SNIPPETS = {
     "contributing checklist validator": (
         "cargo run -p vogon-xtask -- check-contributing-checklist --root ."
     ),
+    "deployment checklist validator": (
+        "cargo run -p vogon-xtask -- check-deployment-checklist --root ."
+    ),
     "pull request template validator": (
         "cargo run -p vogon-xtask -- check-pr-template --root ."
     ),

@@ -17,7 +17,6 @@
 - [ ] `python -m unittest scripts.test_check_benchmark_output`
 - [ ] `python -m unittest scripts.test_check_container_policy`
 - [ ] `python -m unittest scripts.test_check_dependabot_config`
-- [ ] `python -m unittest scripts.test_check_deployment_checklist`
 - [ ] `python -m unittest scripts.test_check_doctor_json`
 - [ ] `python -m unittest scripts.test_check_providers_json`
 - [ ] `python -m unittest scripts.test_check_cache_json`
@@ -39,7 +38,7 @@
 - [ ] `cargo run -p vogon-xtask -- check-cargo-manifests --root .`
 - [ ] `cargo run -p vogon-xtask -- check-changelog --root .`
 - [ ] `cargo run -p vogon-xtask -- check-contributing-checklist --root .`
-- [ ] `python scripts/check_deployment_checklist.py --root .`
+- [ ] `cargo run -p vogon-xtask -- check-deployment-checklist --root .`
 - [ ] `python scripts/check_docs_links.py --root .`
 - [ ] `python scripts/check_public_status_docs.py --root .`
 - [ ] `cargo run -p vogon-xtask -- check-env-example --root .`
