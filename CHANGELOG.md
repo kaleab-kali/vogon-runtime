@@ -19,6 +19,11 @@ and this project follows semantic versioning.
 - Secret scanning now detects raw Groq API key-looking values in tracked text
   files.
 
+### Documentation
+
+- Deployment documentation now includes container credential examples for every
+  supported provider, enforced by CI.
+
 ## [0.1.0] - 2026-07-08
 
 ### Added
