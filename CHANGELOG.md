@@ -128,6 +128,8 @@ and this project follows semantic versioning once the first release is tagged.
   description, source, documentation, and license.
 - Security workflow validation now enforces the CodeQL Rust scan trigger,
   permissions, query suite, and analysis steps.
+- CI workflow validation now enforces core jobs, policy checks, and release,
+  install, benchmark, container, and Windows smoke commands.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
