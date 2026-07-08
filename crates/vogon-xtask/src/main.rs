@@ -48,6 +48,14 @@ const LIVE_WORKFLOW_GUIDANCE: &[(&str, &str)] = &[
     ("Live OpenAI-Compatible Smoke", "OPENAI_COMPATIBLE_API_KEY"),
     ("Live OpenRouter Smoke", "OPENROUTER_API_KEY"),
 ];
+const PROVIDER_CREDENTIALS_MARKER: &str = "## Provider Credentials";
+const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
+    ("gemini", "GEMINI_API_KEY"),
+    ("openai-compatible", "OPENAI_COMPATIBLE_API_KEY"),
+    ("groq", "GROQ_API_KEY"),
+    ("hugging-face", "HF_TOKEN"),
+    ("openrouter", "OPENROUTER_API_KEY"),
+];
 const REQUIRED_README_COMMANDS: &[&str] = &[
     "python -m unittest scripts.test_check_sha256_file",
     "python -m unittest scripts.test_check_archive_contents",
@@ -318,6 +326,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_deployment_checklist(&root)
         }
+        "check-deployment-docs" => {
+            let root = parse_root(args.collect());
+            check_deployment_docs(&root)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -364,7 +376,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -529,6 +541,46 @@ fn check_deployment_checklist(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_deployment_docs(root: &Path) -> Result<(), Vec<String>> {
+    let path = root.join("docs").join("deployment.md");
+    if !path.exists() {
+        return Err(vec![
+            "docs/deployment.md: missing deployment documentation".to_owned(),
+        ]);
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return Err(vec![format!("docs/deployment.md: {error}")]),
+    };
+    let provider_section = markdown_section(&text, PROVIDER_CREDENTIALS_MARKER);
+    if provider_section.is_empty() {
+        return Err(vec![
+            "docs/deployment.md: missing Provider Credentials section".to_owned(),
+        ]);
+    }
+
+    let mut errors = Vec::new();
+    for (provider, env_var) in DEPLOYMENT_PROVIDER_EXAMPLES {
+        if !provider_section.contains(&format!("-e {env_var}")) {
+            errors.push(format!(
+                "docs/deployment.md: missing container env example for {env_var}"
+            ));
+        }
+        if !provider_section.contains(&format!("--provider {provider}")) {
+            errors.push(format!(
+                "docs/deployment.md: missing container run example for provider `{provider}`"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn check_release_checklist(root: &Path) -> Result<(), Vec<String>> {
     let readme = root.join("README.md");
     let release_doc = root.join("docs").join("release.md");
@@ -608,6 +660,22 @@ fn check_public_status_docs(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn markdown_section(text: &str, marker: &str) -> String {
+    let lines = text.lines().collect::<Vec<_>>();
+    let Some(start) = lines.iter().position(|line| *line == marker) else {
+        return String::new();
+    };
+
+    let mut section_lines = Vec::new();
+    for line in lines.iter().skip(start + 1) {
+        if line.starts_with("## ") {
+            break;
+        }
+        section_lines.push(*line);
+    }
+    section_lines.join("\n")
 }
 
 fn check_docs_links(root: &Path) -> Result<(), Vec<String>> {
@@ -2289,6 +2357,53 @@ mod tests {
     }
 
     #[test]
+    fn accepts_all_provider_deployment_examples() {
+        let root = temp_root("deployment-docs-accepts");
+        write_deployment_doc(&root, &provider_credentials_section());
+
+        assert_eq!(check_deployment_docs(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_provider_credentials_section() {
+        let root = temp_root("deployment-docs-missing-section");
+        write_deployment_doc(&root, "## Runtime Notes\n");
+
+        let errors = check_deployment_docs(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["docs/deployment.md: missing Provider Credentials section"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_provider_env_and_run_example() {
+        let root = temp_root("deployment-docs-missing-example");
+        write_deployment_doc(
+            &root,
+            &provider_credentials_section()
+                .replace("-e GROQ_API_KEY", "-e OTHER_KEY")
+                .replace("--provider openrouter", "--provider deterministic"),
+        );
+
+        let errors = check_deployment_docs(&root).unwrap_err();
+
+        assert!(errors.contains(
+            &"docs/deployment.md: missing container env example for GROQ_API_KEY".to_owned()
+        ));
+        assert!(
+            errors.contains(
+                &"docs/deployment.md: missing container run example for provider `openrouter`"
+                    .to_owned()
+            )
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_current_public_status_docs() {
         let root = temp_root("public-status-accepts");
         write_status_docs(&root, None, None);
@@ -3182,6 +3297,33 @@ and this project follows semantic versioning once the first release is tagged.
             ),
         )
         .unwrap();
+    }
+
+    fn write_deployment_doc(root: &Path, body: &str) {
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(
+            root.join("docs").join("deployment.md"),
+            format!("# Deployment\n\n{body}\n"),
+        )
+        .unwrap();
+    }
+
+    fn provider_credentials_section() -> String {
+        let mut lines = vec!["## Provider Credentials".to_owned()];
+        for (provider, env_var) in DEPLOYMENT_PROVIDER_EXAMPLES {
+            lines.extend([
+                String::new(),
+                "```sh".to_owned(),
+                "docker run --rm \\".to_owned(),
+                format!("  -e {env_var} \\"),
+                "  -v \"$PWD:/work\" \\".to_owned(),
+                format!(
+                    "  vogon-runtime:local run --provider {provider} fixtures/workflows/support-triage.toml"
+                ),
+                "```".to_owned(),
+            ]);
+        }
+        lines.join("\n")
     }
 
     fn write_status_docs(root: &Path, readme: Option<&str>, security: Option<&str>) {

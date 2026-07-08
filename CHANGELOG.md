@@ -36,6 +36,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving repository-local link validation.
 - The issue template check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving open-source reporting guardrails.
+- The deployment docs check moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving provider credential examples.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while

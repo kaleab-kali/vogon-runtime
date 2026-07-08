@@ -83,9 +83,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-deployment-checklist --root .
 
       - name: Check deployment docs
-        run: |
-          python3 -m unittest scripts.test_check_deployment_docs
-          python3 scripts/check_deployment_docs.py --root .
+        run: cargo run -p vogon-xtask -- check-deployment-docs --root .
 
       - name: Check issue templates
         run: cargo run -p vogon-xtask -- check-issue-templates --root .
