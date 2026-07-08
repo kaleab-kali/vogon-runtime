@@ -130,6 +130,81 @@ const PACKAGE_VERIFICATION_RATIONALE_SNIPPETS: &[&str] = &[
     "preceding build, test, docs, install, and smoke commands",
 ];
 const PACKAGE_VERIFICATION_DOCS: &[&str] = &["README.md", "docs/release.md"];
+const REQUIRED_DOCKERIGNORE_ENTRIES: &[&str] = &[
+    "/.git",
+    "/.github",
+    "/target",
+    ".env",
+    ".env.*",
+    "!.env.example",
+    "__pycache__/",
+    "*.py[cod]",
+    "*.cache.json",
+];
+const REQUIRED_DOCKERFILE_SNIPPETS: &[(&str, &str)] = &[
+    (
+        "current Rust build image",
+        "FROM rust:1.96.1-bookworm AS build",
+    ),
+    (
+        "cargo incremental builds disabled",
+        "ENV CARGO_INCREMENTAL=0",
+    ),
+    ("cargo network retries configured", "ENV CARGO_NET_RETRY=10"),
+    ("runtime stage", "FROM debian:bookworm-slim AS runtime"),
+    (
+        "minimal certificate install",
+        "apt-get install -y --no-install-recommends ca-certificates",
+    ),
+    (
+        "OCI title label",
+        "org.opencontainers.image.title=\"Vogon Runtime\"",
+    ),
+    (
+        "OCI description label",
+        "org.opencontainers.image.description=\"Deterministic, replayable AI workflow runtime CLI.\"",
+    ),
+    (
+        "OCI source label",
+        "org.opencontainers.image.source=\"https://github.com/kaleab-kali/vogon-runtime\"",
+    ),
+    (
+        "OCI documentation label",
+        "org.opencontainers.image.documentation=\"https://github.com/kaleab-kali/vogon-runtime#readme\"",
+    ),
+    (
+        "OCI license label",
+        "org.opencontainers.image.licenses=\"MIT\"",
+    ),
+    (
+        "OCI version label",
+        "org.opencontainers.image.version=\"${VOGON_IMAGE_VERSION}\"",
+    ),
+    (
+        "OCI revision label",
+        "org.opencontainers.image.revision=\"${VOGON_IMAGE_REVISION}\"",
+    ),
+    (
+        "default image version argument",
+        "ARG VOGON_IMAGE_VERSION=dev",
+    ),
+    (
+        "default image revision argument",
+        "ARG VOGON_IMAGE_REVISION=unknown",
+    ),
+    ("apt package list cleanup", "rm -rf /var/lib/apt/lists/*"),
+    (
+        "non-root runtime user",
+        "useradd --create-home --uid 10001 vogon",
+    ),
+    (
+        "release binary copy",
+        "COPY --from=build /workspace/target/release/vogon /usr/local/bin/vogon",
+    ),
+    ("non-root user activation", "USER vogon"),
+    ("runtime workdir", "WORKDIR /work"),
+    ("exec entrypoint", "ENTRYPOINT [\"vogon\"]"),
+];
 
 #[derive(Clone, Copy)]
 enum ExpectedValue {
@@ -156,6 +231,10 @@ fn main() {
         "check-changelog" => {
             let root = parse_root(args.collect());
             check_changelog(&root)
+        }
+        "check-container-policy" => {
+            let root = parse_root(args.collect());
+            check_container_policy(&root)
         }
         "check-contributing-checklist" => {
             let root = parse_root(args.collect());
@@ -211,7 +290,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -494,6 +573,111 @@ fn check_package_verification_docs(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn check_container_policy(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    errors.extend(check_dockerfile(root));
+    errors.extend(check_dockerignore(root));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_dockerfile(root: &Path) -> Vec<String> {
+    let path = root.join("Dockerfile");
+    if !path.is_file() {
+        return vec!["Dockerfile: missing container build file".to_owned()];
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!("Dockerfile: {error}")],
+    };
+    let lines = text.lines().collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    for (description, snippet) in REQUIRED_DOCKERFILE_SNIPPETS {
+        if !text.contains(snippet) {
+            errors.push(format!("Dockerfile: missing {description}"));
+        }
+    }
+
+    for (index, line) in lines.iter().enumerate() {
+        let stripped = line.trim();
+        let Some(image) = dockerfile_from_image(stripped) else {
+            continue;
+        };
+        if image_reference_uses_latest(image) {
+            errors.push(format!(
+                "Dockerfile:{}: base image `{image}` must not use latest",
+                index + 1
+            ));
+        }
+        if !image_reference_has_tag_or_digest(image) {
+            errors.push(format!(
+                "Dockerfile:{}: base image `{image}` must include a tag or digest",
+                index + 1
+            ));
+        }
+    }
+
+    errors
+}
+
+fn dockerfile_from_image(line: &str) -> Option<&str> {
+    let mut parts = line.split_whitespace();
+    let directive = parts.next()?;
+    if !directive.eq_ignore_ascii_case("FROM") {
+        return None;
+    }
+    parts.next()
+}
+
+fn image_reference_uses_latest(image: &str) -> bool {
+    let image = image.split_once('@').map_or(image, |(name, _)| name);
+    image
+        .rsplit_once('/')
+        .map_or(image, |(_, last_segment)| last_segment)
+        .rsplit_once(':')
+        .is_some_and(|(_, tag)| tag == "latest")
+}
+
+fn image_reference_has_tag_or_digest(image: &str) -> bool {
+    if image.contains('@') {
+        return true;
+    }
+    image
+        .rsplit_once('/')
+        .map_or(image, |(_, last_segment)| last_segment)
+        .contains(':')
+}
+
+fn check_dockerignore(root: &Path) -> Vec<String> {
+    let path = root.join(".dockerignore");
+    if !path.is_file() {
+        return vec![".dockerignore: missing container build context ignore file".to_owned()];
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!(".dockerignore: {error}")],
+    };
+    let entries = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.trim_start().starts_with('#'))
+        .collect::<BTreeSet<_>>();
+    REQUIRED_DOCKERIGNORE_ENTRIES
+        .iter()
+        .filter(|entry| !entries.contains(**entry))
+        .map(|entry| format!(".dockerignore: missing {entry}"))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn single_line(text: &str) -> String {
@@ -1457,6 +1641,121 @@ mod tests {
     }
 
     #[test]
+    fn accepts_hardened_container_files() {
+        let root = temp_root("container-policy-accepts");
+        write_container_files(&root, None);
+
+        assert_eq!(check_container_policy(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_container_files() {
+        let root = temp_root("container-policy-missing-files");
+
+        let errors = check_container_policy(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Dockerfile: missing container build file",
+                ".dockerignore: missing container build context ignore file",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_latest_and_untagged_base_images() {
+        let root = temp_root("container-policy-base-images");
+        write_container_files(&root, None);
+        let dockerfile = root.join("Dockerfile");
+        fs::write(
+            &dockerfile,
+            fs::read_to_string(&dockerfile)
+                .unwrap()
+                .replace("rust:1.96.1-bookworm", "rust")
+                .replace("debian:bookworm-slim", "debian:latest"),
+        )
+        .unwrap();
+
+        let errors = check_container_policy(&root).unwrap_err();
+
+        assert!(
+            errors.contains(
+                &"Dockerfile:3: base image `rust` must include a tag or digest".to_owned()
+            )
+        );
+        assert!(
+            errors.contains(
+                &"Dockerfile:15: base image `debian:latest` must not use latest".to_owned()
+            )
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_runtime_hardening() {
+        let root = temp_root("container-policy-runtime-hardening");
+        write_container_files(&root, None);
+        let dockerfile = root.join("Dockerfile");
+        fs::write(
+            &dockerfile,
+            fs::read_to_string(&dockerfile)
+                .unwrap()
+                .replace("USER vogon", ""),
+        )
+        .unwrap();
+
+        let errors = check_container_policy(&root).unwrap_err();
+
+        assert_eq!(errors, ["Dockerfile: missing non-root user activation"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_oci_metadata_label() {
+        let root = temp_root("container-policy-oci-label");
+        write_container_files(&root, None);
+        let dockerfile = root.join("Dockerfile");
+        fs::write(
+            &dockerfile,
+            fs::read_to_string(&dockerfile)
+                .unwrap()
+                .replace("    org.opencontainers.image.licenses=\"MIT\" \\\n", ""),
+        )
+        .unwrap();
+
+        let errors = check_container_policy(&root).unwrap_err();
+
+        assert_eq!(errors, ["Dockerfile: missing OCI license label"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_build_context_ignores() {
+        let root = temp_root("container-policy-dockerignore");
+        write_container_files(&root, Some("/.git\n"));
+
+        let errors = check_container_policy(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".dockerignore: missing !.env.example",
+                ".dockerignore: missing *.cache.json",
+                ".dockerignore: missing *.py[cod]",
+                ".dockerignore: missing .env",
+                ".dockerignore: missing .env.*",
+                ".dockerignore: missing /.github",
+                ".dockerignore: missing /target",
+                ".dockerignore: missing __pycache__/",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -1908,6 +2207,60 @@ and this project follows semantic versioning once the first release is tagged.
         let text = format!("{package_command}\n\n{rationale}\n");
         fs::write(root.join("README.md"), &text).unwrap();
         fs::write(root.join("docs").join("release.md"), text).unwrap();
+    }
+
+    fn write_container_files(root: &Path, dockerignore: Option<&str>) {
+        fs::write(
+            root.join("Dockerfile"),
+            [
+                "# syntax=docker/dockerfile:1",
+                "",
+                "FROM rust:1.96.1-bookworm AS build",
+                "",
+                "WORKDIR /workspace",
+                "",
+                "ENV CARGO_INCREMENTAL=0",
+                "ENV CARGO_NET_RETRY=10",
+                "",
+                "COPY Cargo.toml Cargo.lock rust-toolchain.toml ./",
+                "COPY crates ./crates",
+                "",
+                "RUN cargo build --release --locked -p vogon-cli",
+                "",
+                "FROM debian:bookworm-slim AS runtime",
+                "",
+                "ARG VOGON_IMAGE_VERSION=dev",
+                "ARG VOGON_IMAGE_REVISION=unknown",
+                "",
+                "LABEL org.opencontainers.image.title=\"Vogon Runtime\" \\",
+                "    org.opencontainers.image.description=\"Deterministic, replayable AI workflow runtime CLI.\" \\",
+                "    org.opencontainers.image.source=\"https://github.com/kaleab-kali/vogon-runtime\" \\",
+                "    org.opencontainers.image.documentation=\"https://github.com/kaleab-kali/vogon-runtime#readme\" \\",
+                "    org.opencontainers.image.licenses=\"MIT\" \\",
+                "    org.opencontainers.image.version=\"${VOGON_IMAGE_VERSION}\" \\",
+                "    org.opencontainers.image.revision=\"${VOGON_IMAGE_REVISION}\"",
+                "",
+                "RUN apt-get update \\",
+                "    && apt-get install -y --no-install-recommends ca-certificates \\",
+                "    && rm -rf /var/lib/apt/lists/* \\",
+                "    && useradd --create-home --uid 10001 vogon",
+                "",
+                "COPY --from=build /workspace/target/release/vogon /usr/local/bin/vogon",
+                "",
+                "USER vogon",
+                "WORKDIR /work",
+                "ENTRYPOINT [\"vogon\"]",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join(".dockerignore"),
+            dockerignore.unwrap_or(
+                "/.git\n/.github\n/target\n.env\n.env.*\n!.env.example\n__pycache__/\n*.py[cod]\n*.cache.json\n",
+            ),
+        )
+        .unwrap();
     }
 
     fn write_contributing_docs(
