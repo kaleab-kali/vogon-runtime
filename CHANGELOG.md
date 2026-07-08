@@ -120,6 +120,8 @@ and this project follows semantic versioning once the first release is tagged.
   the published schema constraints.
 - Release workflow runs now use a per-ref concurrency guard to avoid overlapping
   artifact publishing for the same tag or manual ref.
+- Release workflow artifacts now use an explicit 30-day retention window, and
+  CI validates that each release upload keeps it.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
