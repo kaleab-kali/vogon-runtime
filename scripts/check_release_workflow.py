@@ -35,15 +35,15 @@ REQUIRED_SNIPPETS = {
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
     "SHA-256 checksum validator": "scripts/check_sha256_file.py",
-    "archive contents validator": "scripts/check_archive_contents.py",
+    "archive contents validator": "check-archive-contents",
     "linux archive contents before smoke outputs": (
         "tar -xzf \"vogon-${{ github.ref_name }}-linux-x86_64.tar.gz\" -C archive-smoke\n"
-        "          python3 scripts/check_archive_contents.py archive-smoke --binary vogon\n"
+        "          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon\n"
         "          ./archive-smoke/vogon --version"
     ),
     "windows archive contents before smoke outputs": (
         "Expand-Archive \"vogon-${{ github.ref_name }}-windows-x86_64.zip\" -DestinationPath archive-smoke -Force\n"
-        "          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe\n"
+        "          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe\n"
         "          .\\archive-smoke\\vogon.exe --version"
     ),
     "doctor JSON validator": "scripts/check_doctor_json.py",
@@ -107,7 +107,7 @@ REQUIRED_COUNTS = {
     "retention-days: 30": 3,
     "sha256sum -c": 5,
     "scripts/check_sha256_file.py": 10,
-    "scripts/check_archive_contents.py": 4,
+    "check-archive-contents": 4,
     "scripts/check_providers_json.py": 5,
     "scripts/check_container_image.py": 3,
 }

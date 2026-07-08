@@ -82,10 +82,8 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
     ("hugging-face", "HF_TOKEN"),
     ("openrouter", "OPENROUTER_API_KEY"),
 ];
-const REQUIRED_README_COMMANDS: &[&str] = &[
-    "python -m unittest scripts.test_check_sha256_file",
-    "python -m unittest scripts.test_check_archive_contents",
-];
+const REQUIRED_README_COMMANDS: &[&str] = &["python -m unittest scripts.test_check_sha256_file"];
+const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
 const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
     "Added",
     "Changed",
@@ -336,6 +334,14 @@ fn main() {
     };
 
     let result = match command.as_str() {
+        "check-archive-contents" => {
+            let options = parse_archive_contents_args(args.collect());
+            check_archive_contents(
+                &options.archive_directory,
+                &options.binary,
+                &options.required_files,
+            )
+        }
         "check-env-example" => {
             let root = parse_root(args.collect());
             check_env_example(&root)
@@ -430,7 +436,66 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
+    );
+    std::process::exit(2);
+}
+
+struct ArchiveContentsOptions {
+    archive_directory: PathBuf,
+    binary: String,
+    required_files: Vec<String>,
+}
+
+fn parse_archive_contents_args(args: Vec<String>) -> ArchiveContentsOptions {
+    let Some((directory, rest)) = args.split_first() else {
+        print_archive_contents_usage_and_exit();
+    };
+
+    let mut binary = None;
+    let mut required_files = Vec::new();
+    let mut index = 0;
+    while index < rest.len() {
+        match rest[index].as_str() {
+            "--binary" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_archive_contents_usage_and_exit();
+                };
+                binary = Some(value.clone());
+                index += 2;
+            }
+            "--required-file" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_archive_contents_usage_and_exit();
+                };
+                required_files.push(value.clone());
+                index += 2;
+            }
+            _ => print_archive_contents_usage_and_exit(),
+        }
+    }
+
+    let Some(binary) = binary else {
+        print_archive_contents_usage_and_exit();
+    };
+    if required_files.is_empty() {
+        required_files.extend(
+            DEFAULT_ARCHIVE_REQUIRED_FILES
+                .iter()
+                .map(|file| (*file).to_owned()),
+        );
+    }
+
+    ArchiveContentsOptions {
+        archive_directory: PathBuf::from(directory),
+        binary,
+        required_files,
+    }
+}
+
+fn print_archive_contents_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-archive-contents ARCHIVE_DIRECTORY --binary NAME [--required-file NAME ...]"
     );
     std::process::exit(2);
 }
@@ -2377,6 +2442,74 @@ fn check_env_example(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_archive_contents(
+    archive_directory: &Path,
+    binary: &str,
+    required_files: &[String],
+) -> Result<(), Vec<String>> {
+    if !archive_directory.is_dir() {
+        return Err(vec![format!(
+            "Archive directory is missing or is not a directory: {}",
+            archive_directory.display()
+        )]);
+    }
+
+    let mut errors = Vec::new();
+    let mut expected_entries = BTreeSet::new();
+    expected_entries.insert(binary.to_owned());
+    expected_entries.extend(required_files.iter().cloned());
+
+    let binary_path = archive_directory.join(binary);
+    if !binary_path.exists() {
+        errors.push(format!("Packaged archive binary is missing: {binary}"));
+    } else if !binary_path.is_file() {
+        errors.push(format!(
+            "Packaged archive binary is not a regular file: {binary}"
+        ));
+    }
+
+    for required_file in required_files {
+        let path = archive_directory.join(required_file);
+        if !path.exists() {
+            errors.push(format!(
+                "Packaged archive required file is missing: {required_file}"
+            ));
+        } else if !path.is_file() {
+            errors.push(format!(
+                "Packaged archive required file is not a regular file: {required_file}"
+            ));
+        }
+    }
+
+    let mut entries = match fs::read_dir(archive_directory) {
+        Ok(entries) => entries
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>(),
+        Err(error) => {
+            errors.push(format!(
+                "Archive directory cannot be read: {}: {error}",
+                archive_directory.display()
+            ));
+            Vec::new()
+        }
+    };
+    entries.sort();
+    for entry in entries {
+        if !expected_entries.contains(&entry) {
+            errors.push(format!(
+                "Packaged archive contains unexpected entry: {entry}"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn check_schema_files(root: &Path) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
@@ -2884,13 +3017,11 @@ mod tests {
             &[
                 "cargo test",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
                 "python scripts/check_docs_links.py --root .",
             ],
             &[
                 "cargo test",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
                 "python scripts/check_docs_links.py --root .",
                 "docker build --tag vogon-runtime:smoke .",
             ],
@@ -2910,12 +3041,10 @@ mod tests {
                 "cargo test",
                 "cargo clippy -- -D warnings",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
             ],
             &[
                 "cargo test",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
             ],
             live_guidance_text(),
         );
@@ -2945,7 +3074,6 @@ mod tests {
             errors,
             [
                 "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
-                "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
             ]
         );
         fs::remove_dir_all(root).unwrap();
@@ -2959,12 +3087,10 @@ mod tests {
             &[
                 "cargo test",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
             ],
             &[
                 "cargo test",
                 "python -m unittest scripts.test_check_sha256_file",
-                "python -m unittest scripts.test_check_archive_contents",
             ],
             &live_guidance_text().replace(
                 "- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n",
@@ -3002,7 +3128,6 @@ mod tests {
                 "README.md: missing local check command block",
                 "CONTRIBUTING.md: missing development command block",
                 "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
-                "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
             ]
         );
         fs::remove_dir_all(root).unwrap();
@@ -4171,6 +4296,124 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_linux_archive_contents() {
+        let root = temp_root("archive-linux");
+        write_archive_entry(&root, "vogon", "binary");
+        write_archive_entry(&root, "README.md", "readme");
+        write_archive_entry(&root, "LICENSE", "license");
+
+        assert_eq!(
+            check_archive_contents(&root, "vogon", &default_archive_required_files()),
+            Ok(())
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_expected_windows_archive_contents() {
+        let root = temp_root("archive-windows");
+        write_archive_entry(&root, "vogon.exe", "binary");
+        write_archive_entry(&root, "README.md", "readme");
+        write_archive_entry(&root, "LICENSE", "license");
+
+        assert_eq!(
+            check_archive_contents(&root, "vogon.exe", &default_archive_required_files()),
+            Ok(())
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_custom_required_archive_files() {
+        let root = temp_root("archive-custom");
+        write_archive_entry(&root, "vogon", "binary");
+        write_archive_entry(&root, "NOTICE", "notice");
+
+        assert_eq!(
+            check_archive_contents(&root, "vogon", &["NOTICE".to_owned()]),
+            Ok(())
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_archive_directory() {
+        let root = temp_root("archive-missing-dir");
+
+        let errors = check_archive_contents(
+            &root.join("missing"),
+            "vogon",
+            &default_archive_required_files(),
+        )
+        .unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("Archive directory is missing or is not a directory:"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_archive_binary_and_required_files() {
+        let root = temp_root("archive-missing-files");
+
+        let errors =
+            check_archive_contents(&root, "vogon", &default_archive_required_files()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Packaged archive binary is missing: vogon",
+                "Packaged archive required file is missing: README.md",
+                "Packaged archive required file is missing: LICENSE",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_archive_directories_where_files_are_expected() {
+        let root = temp_root("archive-directories");
+        fs::create_dir(root.join("vogon")).unwrap();
+        fs::create_dir(root.join("README.md")).unwrap();
+        fs::create_dir(root.join("LICENSE")).unwrap();
+
+        let errors =
+            check_archive_contents(&root, "vogon", &default_archive_required_files()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Packaged archive binary is not a regular file: vogon",
+                "Packaged archive required file is not a regular file: README.md",
+                "Packaged archive required file is not a regular file: LICENSE",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_unexpected_archive_entries() {
+        let root = temp_root("archive-unexpected");
+        write_archive_entry(&root, "vogon", "binary");
+        write_archive_entry(&root, "README.md", "readme");
+        write_archive_entry(&root, "LICENSE", "license");
+        write_archive_entry(&root, ".env", "SECRET=value");
+        fs::create_dir(root.join("docs")).unwrap();
+
+        let errors =
+            check_archive_contents(&root, "vogon", &default_archive_required_files()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Packaged archive contains unexpected entry: .env",
+                "Packaged archive contains unexpected entry: docs",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_expected_schema_files() {
         let root = temp_root("schema-accepts");
         write_schema_files(&root, None, None);
@@ -4284,6 +4527,17 @@ and this project follows semantic versioning once the first release is tagged.
             env::temp_dir().join(format!("vogon-xtask-{name}-{}-{nonce}", std::process::id()));
         fs::create_dir(&path).unwrap();
         path
+    }
+
+    fn default_archive_required_files() -> Vec<String> {
+        DEFAULT_ARCHIVE_REQUIRED_FILES
+            .iter()
+            .map(|file| (*file).to_owned())
+            .collect()
+    }
+
+    fn write_archive_entry(root: &Path, name: &str, contents: &str) {
+        fs::write(root.join(name), contents).unwrap();
     }
 
     fn write_schema_files(root: &Path, workflow_schema: Option<&str>, replay_schema: Option<&str>) {

@@ -195,7 +195,6 @@ jobs:
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_spdx_sbom_json.py
           python3 scripts/check_sha256_file.py
-          python3 scripts/check_archive_contents.py
           python3 scripts/check_sha256_file.py
           python3 scripts/check_sha256_file.py
           python3 scripts/check_doctor_json.py
@@ -214,7 +213,7 @@ jobs:
           python3 scripts/check_sha256_file.py
           python3 scripts/check_sha256_file.py
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
-          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
+          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon
           ./archive-smoke/vogon --version
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
           echo vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
@@ -234,11 +233,10 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           python3 scripts/check_sha256_file.py
-          python3 scripts/check_archive_contents.py
           sha256sum -c vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           python3 scripts/check_sha256_file.py
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
-          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
+          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe
           .\\archive-smoke\\vogon.exe --version
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip
           echo vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
@@ -284,8 +282,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
       - run: |
-          python3 scripts/check_archive_contents.py
-          python3 scripts/check_archive_contents.py
+          cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-archive-contents linux-archive-smoke --binary vogon
+          cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-archive-contents windows-archive-smoke --binary vogon.exe
   publish-release:
     name: Publish GitHub release
     if: github.ref_type == 'tag'

@@ -40,7 +40,6 @@ jobs:
           python3 -m unittest scripts.test_check_cargo_metadata_json
           python3 -m unittest scripts.test_check_spdx_sbom_json
           python3 -m unittest scripts.test_check_sha256_file
-          python3 -m unittest scripts.test_check_archive_contents
           python3 -m unittest scripts.test_check_container_image
 
       - name: Check Cargo manifests

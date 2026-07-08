@@ -101,7 +101,7 @@ jobs:
         run: |
           mkdir -p archive-smoke
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
-          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
+          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon
           ./archive-smoke/vogon --version
           ./archive-smoke/vogon doctor --json | python3 scripts/check_doctor_json.py
           ./archive-smoke/vogon providers --json | python3 scripts/check_providers_json.py
@@ -197,7 +197,7 @@ jobs:
       - name: Smoke test packaged archive
         run: |
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
-          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
+          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe
           .\archive-smoke\vogon.exe --version
           $archiveDoctorJson = (& .\archive-smoke\vogon.exe doctor --json) -join "`n"
           $archiveDoctorJson | python scripts\check_doctor_json.py
@@ -360,7 +360,7 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_spdx_sbom_json.py" "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
             mkdir -p linux-archive-smoke
             tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C linux-archive-smoke
-            python3 "$GITHUB_WORKSPACE/scripts/check_archive_contents.py" linux-archive-smoke --binary vogon
+            cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-archive-contents linux-archive-smoke --binary vogon
           )
           (
             cd release-artifacts/vogon-windows-x86_64
@@ -368,7 +368,7 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_sha256_file.py" "vogon-${{ github.ref_name }}-windows-x86_64.zip"
             mkdir -p windows-archive-smoke
             unzip -q "vogon-${{ github.ref_name }}-windows-x86_64.zip" -d windows-archive-smoke
-            python3 "$GITHUB_WORKSPACE/scripts/check_archive_contents.py" windows-archive-smoke --binary vogon.exe
+            cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-archive-contents windows-archive-smoke --binary vogon.exe
           )
           (
             cd release-artifacts/vogon-container-image
