@@ -44,6 +44,9 @@ EXPECTED_RELEASE_PROFILE = {
     "codegen-units": 1,
     "strip": "symbols",
 }
+EXPECTED_WORKSPACE_RUST_LINTS = {
+    "unsafe_code": "forbid",
+}
 
 
 def main() -> int:
@@ -88,6 +91,12 @@ def check_repository(root: Path) -> list[str]:
         release_profile = {}
     errors.extend(check_release_profile(release_profile))
 
+    workspace_rust_lints = workspace.get("workspace", {}).get("lints", {}).get("rust")
+    if not isinstance(workspace_rust_lints, dict):
+        errors.append("Cargo.toml: missing [workspace.lints.rust]")
+        workspace_rust_lints = {}
+    errors.extend(check_workspace_rust_lints(workspace_rust_lints))
+
     workspace_deps = workspace.get("workspace", {}).get("dependencies", {})
     if not isinstance(workspace_deps, dict):
         errors.append("Cargo.toml: missing [workspace.dependencies]")
@@ -105,6 +114,7 @@ def check_repository(root: Path) -> list[str]:
             errors.append(f"{crate_dir}/Cargo.toml: missing [package]")
             continue
         errors.extend(check_crate_package(root, manifest_path, crate_name, package))
+        errors.extend(check_crate_lints(root, manifest_path, manifest))
         version = package.get("version")
         if isinstance(version, str):
             crate_versions[crate_name] = version
@@ -142,6 +152,14 @@ def check_release_profile(profile: dict[str, Any]) -> list[str]:
     for key, expected in EXPECTED_RELEASE_PROFILE.items():
         if profile.get(key) != expected:
             errors.append(f"Cargo.toml: release profile `{key}` must be {expected!r}")
+    return errors
+
+
+def check_workspace_rust_lints(lints: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for key, expected in EXPECTED_WORKSPACE_RUST_LINTS.items():
+        if lints.get(key) != expected:
+            errors.append(f"Cargo.toml: workspace rust lint `{key}` must be {expected!r}")
     return errors
 
 
@@ -184,6 +202,14 @@ def check_crate_package(
         errors.append(f"{relative_path}: package `description` must not be empty")
 
     return errors
+
+
+def check_crate_lints(root: Path, manifest_path: Path, manifest: dict[str, Any]) -> list[str]:
+    relative_path = manifest_path.relative_to(root).as_posix()
+    lints = manifest.get("lints")
+    if not (isinstance(lints, dict) and lints.get("workspace") is True):
+        return [f"{relative_path}: crate lints must use workspace policy"]
+    return []
 
 
 if __name__ == "__main__":

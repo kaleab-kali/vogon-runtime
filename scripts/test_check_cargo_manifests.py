@@ -80,6 +80,31 @@ class CheckCargoManifestsTests(unittest.TestCase):
                 errors,
             )
 
+    def test_reports_missing_workspace_unsafe_lint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_workspace(root, workspace_lints="")
+
+            errors = check_cargo_manifests.check_repository(root)
+
+            self.assertIn("Cargo.toml: missing [workspace.lints.rust]", errors)
+            self.assertIn(
+                "Cargo.toml: workspace rust lint `unsafe_code` must be 'forbid'",
+                errors,
+            )
+
+    def test_reports_crate_that_does_not_use_workspace_lints(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_workspace(root, crate_lints="")
+
+            errors = check_cargo_manifests.check_repository(root)
+
+            self.assertIn(
+                "crates/vogon-core/Cargo.toml: crate lints must use workspace policy",
+                errors,
+            )
+
 
 def write_workspace(
     root: Path,
@@ -87,6 +112,8 @@ def write_workspace(
     workspace_package: str | None = None,
     adapters_dependency_version: str = "0.1.0",
     release_profile: str | None = None,
+    workspace_lints: str | None = None,
+    crate_lints: str | None = None,
 ) -> None:
     (root / "README.md").write_text("# Vogon Runtime\n", encoding="utf-8")
     (root / "Cargo.toml").write_text(
@@ -106,6 +133,7 @@ members = [
 vogon-adapters = {{ version = "{adapters_dependency_version}", path = "crates/vogon-adapters" }}
 vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
 """
+        + (workspace_lints if workspace_lints is not None else workspace_lints_text())
         + (release_profile or release_profile_text()),
         encoding="utf-8",
     )
@@ -115,6 +143,7 @@ vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
         "Core deterministic workflow runtime for Vogon Runtime.",
         ["ai", "workflow", "replay", "runtime"],
         ["development-tools"],
+        crate_lints=crate_lints,
     )
     write_crate_manifest(
         root,
@@ -122,6 +151,7 @@ vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
         "Model adapters for Vogon Runtime.",
         ["ai", "model-adapters", "workflow", "runtime"],
         ["development-tools"],
+        crate_lints=crate_lints,
     )
     write_crate_manifest(
         root,
@@ -129,6 +159,7 @@ vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
         "Command-line interface for Vogon Runtime.",
         ["ai", "workflow", "replay", "cli"],
         ["command-line-utilities", "development-tools"],
+        crate_lints=crate_lints,
     )
 
 
@@ -152,12 +183,21 @@ strip = "symbols"
 """
 
 
+def workspace_lints_text() -> str:
+    return """
+[workspace.lints.rust]
+unsafe_code = "forbid"
+"""
+
+
 def write_crate_manifest(
     root: Path,
     name: str,
     description: str,
     keywords: list[str],
     categories: list[str],
+    *,
+    crate_lints: str | None = None,
 ) -> None:
     crate_dir = root / "crates" / name
     crate_dir.mkdir(parents=True)
@@ -176,6 +216,14 @@ description = "{description}"
 readme = "../../README.md"
 keywords = {keywords!r}
 categories = {categories!r}
-""",
+"""
+        + (crate_lints if crate_lints is not None else crate_lints_text()),
         encoding="utf-8",
     )
+
+
+def crate_lints_text() -> str:
+    return """
+[lints]
+workspace = true
+"""
