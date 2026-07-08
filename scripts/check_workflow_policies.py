@@ -98,13 +98,21 @@ def check_workflow_file(root: Path, path: Path) -> list[str]:
             )
         uses_match = USES_RE.match(line)
         if uses_match:
+            raw_reference = uses_match.group(1)
             action_error = check_action_reference(
                 relative_path,
                 line_number,
-                uses_match.group(1),
+                raw_reference,
             )
             if action_error:
                 errors.append(action_error)
+            if (
+                is_checkout_action(raw_reference)
+                and not checkout_disables_persisted_credentials(lines, line_number - 1)
+            ):
+                errors.append(
+                    f"{relative_path}:{line_number}: checkout must set persist-credentials: false"
+                )
 
     permissions = parse_top_level_permissions(lines)
     if permissions is None:
@@ -189,6 +197,33 @@ def check_action_reference(
         )
 
     return None
+
+
+def is_checkout_action(raw_reference: str) -> bool:
+    reference = raw_reference.strip().strip("\"'")
+    action = reference.rsplit("@", 1)[0]
+    return action.lower() == "actions/checkout"
+
+
+def checkout_disables_persisted_credentials(
+    lines: list[str], uses_line_index: int
+) -> bool:
+    uses_line = lines[uses_line_index]
+    step_indent = len(uses_line) - len(uses_line.lstrip())
+
+    for index in range(uses_line_index + 1, len(lines)):
+        line = lines[index]
+        stripped = line.strip()
+        current_indent = len(line) - len(line.lstrip())
+
+        if current_indent == step_indent and stripped.startswith("- "):
+            break
+        if current_indent < step_indent and stripped:
+            break
+        if stripped == "persist-credentials: false":
+            return True
+
+    return False
 
 
 def check_jobs(relative_path: str, lines: list[str]) -> list[str]:

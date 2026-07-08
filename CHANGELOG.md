@@ -134,6 +134,8 @@ and this project follows semantic versioning once the first release is tagged.
   permissions for all attested artifacts.
 - Workflow policy validation now enforces explicit concurrency groups and
   cancellation settings for every GitHub Actions workflow.
+- GitHub Actions checkout steps now disable persisted git credentials, and CI
+  validates the setting for every workflow.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

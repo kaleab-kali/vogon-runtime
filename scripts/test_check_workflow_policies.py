@@ -28,6 +28,8 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
                         "    timeout-minutes: 10",
                         "    steps:",
                         "      - uses: actions/checkout@v7",
+                        "        with:",
+                        "          persist-credentials: false",
                         "      - uses: github/codeql-action/analyze@v4",
                         "      - uses: docker://alpine:3.20",
                         "      - uses: ./github/actions/local-check",
@@ -254,6 +256,50 @@ class CheckWorkflowPoliciesTests(unittest.TestCase):
             self.assertIn(
                 ".github/workflows/ci.yml:17: action references must not use expressions",
                 errors,
+            )
+
+    def test_rejects_checkout_with_persisted_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workflows = root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "checkout.yml").write_text(
+                "\n".join(
+                    [
+                        "name: Checkout",
+                        "on:",
+                        "  pull_request:",
+                        "permissions:",
+                        "  contents: read",
+                        "concurrency:",
+                        "  group: ${{ github.workflow }}-${{ github.ref }}",
+                        "  cancel-in-progress: true",
+                        "jobs:",
+                        "  missing:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                        "    steps:",
+                        "      - uses: actions/checkout@v7",
+                        "  enabled:",
+                        "    runs-on: ubuntu-24.04",
+                        "    timeout-minutes: 10",
+                        "    steps:",
+                        "      - uses: actions/checkout@v7",
+                        "        with:",
+                        "          persist-credentials: true",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_workflow_policies.check_repository(root)
+
+            self.assertEqual(
+                errors,
+                [
+                    ".github/workflows/checkout.yml:14: checkout must set persist-credentials: false",
+                    ".github/workflows/checkout.yml:19: checkout must set persist-credentials: false",
+                ],
             )
 
     def test_rejects_missing_and_incomplete_concurrency_policy(self):
