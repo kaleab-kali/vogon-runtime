@@ -28,7 +28,6 @@ python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
 python -m unittest scripts.test_check_release_workflow
 python -m unittest scripts.test_check_schema_files
-python -m unittest scripts.test_check_secrets
 python -m unittest scripts.test_check_ci_workflow
 python -m unittest scripts.test_check_security_workflows
 python -m unittest scripts.test_check_workflow_policies
@@ -48,7 +47,7 @@ cargo run -p vogon-xtask -- check-pr-template --root .
 cargo run -p vogon-xtask -- check-release-checklist --root .
 python scripts/check_release_workflow.py --root .
 python scripts/check_schema_files.py --root .
-python scripts/check_secrets.py --root .
+cargo run -p vogon-xtask -- check-secrets --root .
 python scripts/check_ci_workflow.py --root .
 python scripts/check_security_workflows.py --root .
 python scripts/check_workflow_policies.py --root .
