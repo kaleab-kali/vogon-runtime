@@ -1,3 +1,4 @@
+use serde_json::Value as JsonValue;
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
@@ -135,6 +136,26 @@ const EXPECTED_CRATES: &[(&str, &str)] = &[
     ("vogon-cli", "crates/vogon-cli"),
     ("vogon-core", "crates/vogon-core"),
     ("vogon-xtask", "crates/vogon-xtask"),
+];
+const SCHEMA_DRAFT: &str = "https://json-schema.org/draft/2020-12/schema";
+const IDENTIFIER_PATTERN_DESCRIPTION: &str = "ASCII letters, digits, underscores, and hyphens";
+const EXPECTED_SCHEMAS: &[(&str, &str, &[&str])] = &[
+    (
+        "schemas/workflow.schema.json",
+        "Vogon Workflow",
+        &["name", "steps"],
+    ),
+    (
+        "schemas/replay.schema.json",
+        "Vogon Replay",
+        &[
+            "schema_version",
+            "workflow_name",
+            "runtime",
+            "run_hash",
+            "steps",
+        ],
+    ),
 ];
 const EXPECTED_RELEASE_PROFILE: &[(&str, ExpectedValue)] = &[
     ("codegen-units", ExpectedValue::Integer(1)),
@@ -371,6 +392,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_release_checklist(&root)
         }
+        "check-schema-files" => {
+            let root = parse_root(args.collect());
+            check_schema_files(&root)
+        }
         "check-secrets" => {
             let root = parse_root(args.collect());
             check_secrets(&root)
@@ -405,7 +430,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-secrets> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -2272,6 +2297,10 @@ fn relative_path(root: &Path, path: &Path) -> Option<String> {
     path.strip_prefix(root).ok().map(slash_path)
 }
 
+fn relative_display(root: &Path, path: &Path) -> String {
+    relative_path(root, path).unwrap_or_else(|| slash_path(path))
+}
+
 impl ExpectedValue {
     fn matches(self, value: Option<&Value>) -> bool {
         match self {
@@ -2346,6 +2375,478 @@ fn check_env_example(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn check_schema_files(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    for (relative_path, title, required_fields) in EXPECTED_SCHEMAS {
+        let path = root.join(relative_path);
+        if !path.is_file() {
+            errors.push(format!("{relative_path}: missing schema file"));
+            continue;
+        }
+
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+        let schema = match serde_json::from_str::<JsonValue>(&text) {
+            Ok(value) => value,
+            Err(error) => {
+                errors.push(format!("{relative_path}: invalid JSON: {error}"));
+                continue;
+            }
+        };
+        let Some(schema) = schema.as_object() else {
+            errors.push(format!("{relative_path}: schema root must be an object"));
+            continue;
+        };
+
+        errors.extend(check_schema_document(
+            relative_path,
+            schema,
+            title,
+            required_fields,
+        ));
+    }
+
+    errors.extend(check_workflow_fixtures(root));
+    errors.extend(check_replay_fixtures(root));
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_schema_document(
+    relative_path: &str,
+    schema: &serde_json::Map<String, JsonValue>,
+    title: &str,
+    required_fields: &[&str],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    if json_string(schema.get("$schema")) != Some(SCHEMA_DRAFT) {
+        errors.push(format!(
+            "{relative_path}: schema draft must be '{}'",
+            SCHEMA_DRAFT
+        ));
+    }
+    if json_string(schema.get("title")) != Some(title) {
+        errors.push(format!("{relative_path}: title must be '{title}'"));
+    }
+    if json_string(schema.get("type")) != Some("object") {
+        errors.push(format!("{relative_path}: root type must be 'object'"));
+    }
+    if schema.get("additionalProperties") != Some(&JsonValue::Bool(false)) {
+        errors.push(format!(
+            "{relative_path}: root additionalProperties must be false"
+        ));
+    }
+    if !json_string_array_equals(schema.get("required"), required_fields) {
+        errors.push(format!(
+            "{relative_path}: required fields must match documented format"
+        ));
+    }
+
+    let Some(properties) = schema.get("properties").and_then(JsonValue::as_object) else {
+        errors.push(format!("{relative_path}: missing root properties"));
+        return errors;
+    };
+    for field in required_fields {
+        if !properties.contains_key(*field) {
+            errors.push(format!("{relative_path}: missing `{field}` property"));
+        }
+    }
+
+    errors
+}
+
+fn check_workflow_fixtures(root: &Path) -> Vec<String> {
+    let workflows_dir = root.join("fixtures").join("workflows");
+    if !workflows_dir.is_dir() {
+        return vec!["fixtures/workflows: missing workflow fixtures".to_owned()];
+    }
+
+    let mut errors = Vec::new();
+    let fixture_paths = match sorted_files_with_extension(&workflows_dir, "toml") {
+        Ok(paths) => paths,
+        Err(error) => return vec![format!("fixtures/workflows: {error}")],
+    };
+    if fixture_paths.is_empty() {
+        errors.push("fixtures/workflows: missing workflow fixture files".to_owned());
+    }
+
+    for path in fixture_paths {
+        let relative_path = relative_display(root, &path);
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+        let workflow = match text.parse::<TomlTable>() {
+            Ok(table) => table,
+            Err(error) => {
+                errors.push(format!("{relative_path}: invalid TOML: {error}"));
+                continue;
+            }
+        };
+
+        errors.extend(check_workflow_document(&relative_path, &workflow));
+    }
+
+    errors
+}
+
+fn check_workflow_document(relative_path: &str, workflow: &TomlTable) -> Vec<String> {
+    let mut errors = Vec::new();
+    for field in sorted_unknown_fields(workflow.keys(), &["name", "steps"]) {
+        errors.push(format!("{relative_path}: unknown workflow field `{field}`"));
+    }
+
+    if !is_identifier_toml(workflow.get("name")) {
+        errors.push(format!(
+            "{relative_path}: workflow name must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+        ));
+    }
+
+    let Some(steps) = workflow.get("steps").and_then(Value::as_array) else {
+        errors.push(format!(
+            "{relative_path}: workflow steps must be a non-empty list"
+        ));
+        return errors;
+    };
+    if steps.is_empty() {
+        errors.push(format!(
+            "{relative_path}: workflow steps must be a non-empty list"
+        ));
+        return errors;
+    }
+
+    for (index, step) in steps.iter().enumerate() {
+        let Some(step) = step.as_table() else {
+            errors.push(format!(
+                "{relative_path}: workflow step {index} must be an object"
+            ));
+            continue;
+        };
+        for field in sorted_unknown_fields(step.keys(), &["id", "prompt"]) {
+            errors.push(format!(
+                "{relative_path}: workflow step {index} has unknown field `{field}`"
+            ));
+        }
+        if !is_identifier_toml(step.get("id")) {
+            errors.push(format!(
+                "{relative_path}: workflow step {index} id must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+            ));
+        }
+        if !is_non_empty_toml_string(step.get("prompt")) {
+            errors.push(format!(
+                "{relative_path}: workflow step {index} prompt must be non-empty"
+            ));
+        }
+    }
+
+    errors
+}
+
+fn check_replay_fixtures(root: &Path) -> Vec<String> {
+    let replays_dir = root.join("fixtures").join("replays");
+    if !replays_dir.is_dir() {
+        return vec!["fixtures/replays: missing replay fixtures".to_owned()];
+    }
+
+    let mut errors = Vec::new();
+    let fixture_paths = match sorted_files_with_suffix(&replays_dir, ".replay.json") {
+        Ok(paths) => paths,
+        Err(error) => return vec![format!("fixtures/replays: {error}")],
+    };
+    if fixture_paths.is_empty() {
+        errors.push("fixtures/replays: missing replay fixture files".to_owned());
+    }
+
+    for path in fixture_paths {
+        let relative_path = relative_display(root, &path);
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+        let replay = match serde_json::from_str::<JsonValue>(&text) {
+            Ok(JsonValue::Object(object)) => object,
+            Ok(_) => {
+                errors.push(format!("{relative_path}: replay fixture must be an object"));
+                continue;
+            }
+            Err(error) => {
+                errors.push(format!("{relative_path}: invalid JSON: {error}"));
+                continue;
+            }
+        };
+
+        errors.extend(check_replay_document(&relative_path, &replay));
+    }
+
+    errors
+}
+
+fn check_replay_document(
+    relative_path: &str,
+    replay: &serde_json::Map<String, JsonValue>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let allowed_fields = [
+        "schema_version",
+        "workflow_name",
+        "runtime",
+        "run_hash",
+        "steps",
+    ];
+
+    for field in sorted_unknown_fields(replay.keys(), &allowed_fields) {
+        errors.push(format!("{relative_path}: unknown replay field `{field}`"));
+    }
+    for field in allowed_fields {
+        if !replay.contains_key(field) {
+            errors.push(format!("{relative_path}: missing replay field `{field}`"));
+        }
+    }
+
+    if replay.get("schema_version").and_then(JsonValue::as_i64) != Some(1) {
+        errors.push(format!("{relative_path}: replay schema_version must be 1"));
+    }
+    if !is_identifier_json(replay.get("workflow_name")) {
+        errors.push(format!(
+            "{relative_path}: replay workflow_name must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+        ));
+    }
+    if !is_sha256_json(replay.get("run_hash")) {
+        errors.push(format!(
+            "{relative_path}: replay run_hash must be lowercase sha256"
+        ));
+    }
+
+    match replay.get("runtime").and_then(JsonValue::as_object) {
+        Some(runtime) => errors.extend(check_runtime_metadata(relative_path, runtime)),
+        None => errors.push(format!("{relative_path}: replay runtime must be an object")),
+    }
+
+    let Some(steps) = replay.get("steps").and_then(JsonValue::as_array) else {
+        errors.push(format!(
+            "{relative_path}: replay steps must be a non-empty list"
+        ));
+        return errors;
+    };
+    if steps.is_empty() {
+        errors.push(format!(
+            "{relative_path}: replay steps must be a non-empty list"
+        ));
+        return errors;
+    }
+
+    for (index, step) in steps.iter().enumerate() {
+        let Some(step) = step.as_object() else {
+            errors.push(format!(
+                "{relative_path}: replay step {index} must be an object"
+            ));
+            continue;
+        };
+        errors.extend(check_replay_step(relative_path, index, step));
+    }
+
+    errors
+}
+
+fn check_runtime_metadata(
+    relative_path: &str,
+    runtime: &serde_json::Map<String, JsonValue>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let allowed_fields = [
+        "provider",
+        "adapter",
+        "adapter_version",
+        "model",
+        "cache_identity",
+        "parameters",
+    ];
+    let required_fields = ["provider", "adapter", "adapter_version", "cache_identity"];
+
+    for field in sorted_unknown_fields(runtime.keys(), &allowed_fields) {
+        errors.push(format!("{relative_path}: unknown runtime field `{field}`"));
+    }
+    for field in required_fields {
+        if !is_non_empty_json_string(runtime.get(field)) {
+            errors.push(format!(
+                "{relative_path}: runtime `{field}` must be non-empty"
+            ));
+        }
+    }
+
+    if runtime.contains_key("model") && !is_non_empty_json_string(runtime.get("model")) {
+        errors.push(format!(
+            "{relative_path}: runtime `model` must be non-empty when present"
+        ));
+    }
+
+    match runtime.get("parameters") {
+        None => {}
+        Some(JsonValue::Object(parameters))
+            if parameters
+                .iter()
+                .any(|(key, value)| key.is_empty() || !is_non_empty_json_string(Some(value))) =>
+        {
+            errors.push(format!(
+                "{relative_path}: runtime parameters must use non-empty string keys and values"
+            ));
+        }
+        Some(JsonValue::Object(_)) => {}
+        Some(_) => errors.push(format!(
+            "{relative_path}: runtime `parameters` must be an object"
+        )),
+    }
+
+    errors
+}
+
+fn check_replay_step(
+    relative_path: &str,
+    index: usize,
+    step: &serde_json::Map<String, JsonValue>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    for field in sorted_unknown_fields(
+        step.keys(),
+        &["step_id", "input_hash", "output_hash", "output"],
+    ) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} has unknown field `{field}`"
+        ));
+    }
+    if !is_identifier_json(step.get("step_id")) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} id must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+        ));
+    }
+    if !is_sha256_json(step.get("input_hash")) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} input_hash must be lowercase sha256"
+        ));
+    }
+    if !is_sha256_json(step.get("output_hash")) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} output_hash must be lowercase sha256"
+        ));
+    }
+    if !matches!(step.get("output"), Some(JsonValue::String(_))) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} output must be a string"
+        ));
+    }
+    errors
+}
+
+fn sorted_files_with_extension(
+    dir: &Path,
+    extension: &str,
+) -> Result<Vec<PathBuf>, std::io::Error> {
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if path.extension().and_then(|value| value.to_str()) == Some(extension) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+fn sorted_files_with_suffix(dir: &Path, suffix: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    let mut paths = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if slash_path(&path).ends_with(suffix) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+fn sorted_unknown_fields<'a>(
+    fields: impl Iterator<Item = &'a String>,
+    allowed_fields: &[&str],
+) -> Vec<&'a str> {
+    let allowed = allowed_fields.iter().copied().collect::<BTreeSet<_>>();
+    let mut unknown = fields
+        .map(String::as_str)
+        .filter(|field| !allowed.contains(*field))
+        .collect::<Vec<_>>();
+    unknown.sort_unstable();
+    unknown
+}
+
+fn json_string(value: Option<&JsonValue>) -> Option<&str> {
+    value.and_then(JsonValue::as_str)
+}
+
+fn json_string_array_equals(value: Option<&JsonValue>, expected: &[&str]) -> bool {
+    let Some(values) = value.and_then(JsonValue::as_array) else {
+        return false;
+    };
+    values.len() == expected.len()
+        && values
+            .iter()
+            .zip(expected)
+            .all(|(actual, expected)| actual.as_str() == Some(*expected))
+}
+
+fn is_identifier_toml(value: Option<&Value>) -> bool {
+    value.and_then(Value::as_str).is_some_and(is_identifier)
+}
+
+fn is_identifier_json(value: Option<&JsonValue>) -> bool {
+    value.and_then(JsonValue::as_str).is_some_and(is_identifier)
+}
+
+fn is_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '_' || character == '-'
+        })
+}
+
+fn is_non_empty_toml_string(value: Option<&Value>) -> bool {
+    value
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn is_non_empty_json_string(value: Option<&JsonValue>) -> bool {
+    value
+        .and_then(JsonValue::as_str)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn is_sha256_json(value: Option<&JsonValue>) -> bool {
+    value.and_then(JsonValue::as_str).is_some_and(is_sha256)
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .chars()
+            .all(|character| matches!(character, '0'..='9' | 'a'..='f'))
 }
 
 fn parse_assignments(path: &Path) -> Result<BTreeMap<String, String>, Vec<String>> {
@@ -3669,6 +4170,111 @@ and this project follows semantic versioning once the first release is tagged.
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[test]
+    fn accepts_expected_schema_files() {
+        let root = temp_root("schema-accepts");
+        write_schema_files(&root, None, None);
+        write_schema_fixture_files(&root, None, None);
+
+        assert_eq!(check_schema_files(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_schema_files() {
+        let root = temp_root("schema-missing");
+
+        let errors = check_schema_files(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "schemas/workflow.schema.json: missing schema file",
+                "schemas/replay.schema.json: missing schema file",
+                "fixtures/workflows: missing workflow fixtures",
+                "fixtures/replays: missing replay fixtures",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_invalid_schema_json() {
+        let root = temp_root("schema-invalid-json");
+        write_schema_files(&root, Some("{"), None);
+        write_schema_fixture_files(&root, None, None);
+
+        let errors = check_schema_files(&root).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("schemas/workflow.schema.json: invalid JSON:"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_weakened_schema_root_strictness() {
+        let root = temp_root("schema-weakened-root");
+        write_schema_files(
+            &root,
+            Some(&workflow_schema_text().replacen(
+                "\"additionalProperties\": false",
+                "\"additionalProperties\": true",
+                1,
+            )),
+            None,
+        );
+        write_schema_fixture_files(&root, None, None);
+
+        let errors = check_schema_files(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["schemas/workflow.schema.json: root additionalProperties must be false"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_workflow_fixture_outside_schema_shape() {
+        let root = temp_root("schema-workflow-fixture");
+        write_schema_files(&root, None, None);
+        write_schema_fixture_files(&root, Some("name = \"support triage\"\n"), None);
+
+        let errors = check_schema_files(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "fixtures/workflows/support-triage.toml: workflow name must use ASCII letters, digits, underscores, and hyphens",
+                "fixtures/workflows/support-triage.toml: workflow steps must be a non-empty list",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_replay_fixture_outside_schema_shape() {
+        let root = temp_root("schema-replay-fixture");
+        write_schema_files(&root, None, None);
+        write_schema_fixture_files(
+            &root,
+            None,
+            Some(&replay_fixture_text().replacen(
+                "\"schema_version\": 1",
+                "\"schema_version\": 0",
+                1,
+            )),
+        );
+
+        let errors = check_schema_files(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["fixtures/replays/support-triage.replay.json: replay schema_version must be 1"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -3678,6 +4284,111 @@ and this project follows semantic versioning once the first release is tagged.
             env::temp_dir().join(format!("vogon-xtask-{name}-{}-{nonce}", std::process::id()));
         fs::create_dir(&path).unwrap();
         path
+    }
+
+    fn write_schema_files(root: &Path, workflow_schema: Option<&str>, replay_schema: Option<&str>) {
+        let schemas = root.join("schemas");
+        fs::create_dir(&schemas).unwrap();
+        fs::write(
+            schemas.join("workflow.schema.json"),
+            workflow_schema.unwrap_or(workflow_schema_text()),
+        )
+        .unwrap();
+        fs::write(
+            schemas.join("replay.schema.json"),
+            replay_schema.unwrap_or(replay_schema_text()),
+        )
+        .unwrap();
+    }
+
+    fn write_schema_fixture_files(
+        root: &Path,
+        workflow_text: Option<&str>,
+        replay_text: Option<&str>,
+    ) {
+        let workflows = root.join("fixtures").join("workflows");
+        let replays = root.join("fixtures").join("replays");
+        fs::create_dir_all(&workflows).unwrap();
+        fs::create_dir_all(&replays).unwrap();
+        fs::write(
+            workflows.join("support-triage.toml"),
+            workflow_text.unwrap_or(workflow_fixture_text()),
+        )
+        .unwrap();
+        fs::write(
+            replays.join("support-triage.replay.json"),
+            replay_text.unwrap_or(replay_fixture_text()),
+        )
+        .unwrap();
+    }
+
+    fn workflow_schema_text() -> &'static str {
+        r#"{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vogon Workflow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "steps"],
+  "properties": {
+    "name": {},
+    "steps": {}
+  }
+}
+"#
+    }
+
+    fn replay_schema_text() -> &'static str {
+        r#"{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vogon Replay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workflow_name", "runtime", "run_hash", "steps"],
+  "properties": {
+    "schema_version": {},
+    "workflow_name": {},
+    "runtime": {},
+    "run_hash": {},
+    "steps": {}
+  }
+}
+"#
+    }
+
+    fn workflow_fixture_text() -> &'static str {
+        r#"name = "support-triage"
+
+[[steps]]
+id = "classify"
+prompt = "Classify this support request."
+"#
+    }
+
+    fn replay_fixture_text() -> &'static str {
+        r#"{
+  "schema_version": 1,
+  "workflow_name": "support-triage",
+  "runtime": {
+    "provider": "deterministic",
+    "adapter": "deterministic-echo",
+    "adapter_version": "0.1.0",
+    "model": "deterministic-echo",
+    "cache_identity": "vogon-adapters@0.1.0:deterministic-echo:v1",
+    "parameters": {
+      "mode": "offline"
+    }
+  },
+  "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "steps": [
+    {
+      "step_id": "classify",
+      "input_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "output_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "output": "done"
+    }
+  ]
+}
+"#
     }
 
     fn write_changelog(root: &Path, text: &str) {
