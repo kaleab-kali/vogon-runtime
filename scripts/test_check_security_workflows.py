@@ -20,10 +20,27 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
             self.assertEqual(
                 errors,
                 [
+                    ".github/workflows/codeql.yml: missing security workflow",
                     ".github/workflows/security-audit.yml: missing security workflow",
                     ".github/workflows/dependency-review.yml: missing security workflow",
                     ".github/dependency-review-config.yml: missing dependency review policy",
                 ],
+            )
+
+    def test_reports_missing_codeql_extended_queries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_security_workflows(
+                root,
+                codeql=codeql_text().replace(
+                    "          queries: security-extended,security-and-quality\n",
+                    "",
+                ),
+            )
+
+            self.assertEqual(
+                check_security_workflows.check_repository(root),
+                [".github/workflows/codeql.yml: missing extended security queries"],
             )
 
     def test_reports_missing_rustsec_schedule(self):
@@ -31,7 +48,10 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
             root = Path(directory)
             write_security_workflows(
                 root,
-                security_audit_text().replace('    - cron: "17 4 * * 1"\n', ""),
+                security_audit=security_audit_text().replace(
+                    '    - cron: "17 4 * * 1"\n',
+                    "",
+                ),
             )
 
             self.assertEqual(
@@ -117,12 +137,17 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
 
 def write_security_workflows(
     root: Path,
+    codeql: str | None = None,
     security_audit: str | None = None,
     dependency_review: str | None = None,
     dependency_review_config: str | None = None,
 ) -> None:
     workflows = root / ".github" / "workflows"
     workflows.mkdir(parents=True)
+    (workflows / "codeql.yml").write_text(
+        codeql or codeql_text(),
+        encoding="utf-8",
+    )
     (workflows / "security-audit.yml").write_text(
         security_audit or security_audit_text(),
         encoding="utf-8",
@@ -135,6 +160,51 @@ def write_security_workflows(
         dependency_review_config or dependency_review_config_text(),
         encoding="utf-8",
     )
+
+
+def codeql_text() -> str:
+    return """name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "31 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  analyze:
+    name: CodeQL Rust analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+          build-mode: none
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+"""
 
 
 def security_audit_text() -> str:
