@@ -15,6 +15,7 @@ const EXPECTED_ENV_VARS: &[&str] = &[
 ];
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
+const RELEASE_VERIFICATION_MARKER: &str = "Run the full local verification set:";
 const LIVE_WORKFLOW_GUIDANCE: &[(&str, &str)] = &[
     ("Live Gemini Smoke", "GEMINI_API_KEY"),
     ("Live Groq Smoke", "GROQ_API_KEY"),
@@ -119,6 +120,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_pr_template(&root)
         }
+        "check-release-checklist" => {
+            let root = parse_root(args.collect());
+            check_release_checklist(&root)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -149,7 +154,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-env-example|check-pr-template> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-env-example|check-pr-template|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -248,6 +253,45 @@ fn check_pr_template(root: &Path) -> Result<(), Vec<String>> {
         if !template_command_set.contains(&command) {
             errors.push(format!(
                 ".github/pull_request_template.md: missing README local check `{command}`"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_release_checklist(root: &Path) -> Result<(), Vec<String>> {
+    let readme = root.join("README.md");
+    let release_doc = root.join("docs").join("release.md");
+    if !readme.is_file() {
+        return Err(vec!["README.md: missing README local checks".to_owned()]);
+    }
+    if !release_doc.is_file() {
+        return Err(vec![
+            "docs/release.md: missing release process documentation".to_owned(),
+        ]);
+    }
+
+    let readme_commands = extract_shell_commands(&readme, README_LOCAL_CHECKS_MARKER)?;
+    let release_commands = extract_shell_commands(&release_doc, RELEASE_VERIFICATION_MARKER)?;
+    let mut errors = Vec::new();
+
+    if readme_commands.is_empty() {
+        errors.push("README.md: missing local check command block".to_owned());
+    }
+    if release_commands.is_empty() {
+        errors.push("docs/release.md: missing release verification command block".to_owned());
+    }
+
+    let release_command_set = release_commands.iter().collect::<BTreeSet<_>>();
+    for command in readme_commands {
+        if !release_command_set.contains(&command) {
+            errors.push(format!(
+                "docs/release.md: missing README local check `{command}`"
             ));
         }
     }
@@ -996,6 +1040,60 @@ mod tests {
     }
 
     #[test]
+    fn accepts_release_doc_with_readme_checks_and_extra_commands() {
+        let root = temp_root("release-checklist-accepts");
+        write_release_docs(
+            &root,
+            &["cargo test", "python scripts/check_docs_links.py --root ."],
+            &[
+                "cargo test",
+                "python scripts/check_docs_links.py --root .",
+                "docker build --tag vogon-runtime:smoke .",
+            ],
+        );
+
+        assert_eq!(check_release_checklist(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_doc_command() {
+        let root = temp_root("release-checklist-missing-command");
+        write_release_docs(
+            &root,
+            &["cargo test", "cargo clippy -- -D warnings"],
+            &["cargo test"],
+        );
+
+        let errors = check_release_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["docs/release.md: missing README local check `cargo clippy -- -D warnings`",]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_checklist_command_blocks() {
+        let root = temp_root("release-checklist-missing-blocks");
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(root.join("README.md"), "# README\n").unwrap();
+        fs::write(root.join("docs").join("release.md"), "# Release\n").unwrap();
+
+        let errors = check_release_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "README.md: missing local check command block",
+                "docs/release.md: missing release verification command block",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -1344,6 +1442,26 @@ and this project follows semantic versioning once the first release is tagged.
                     .map(|command| format!("- [ ] `{command}`"))
                     .collect::<Vec<_>>()
                     .join("\n")
+            ),
+        )
+        .unwrap();
+    }
+
+    fn write_release_docs(root: &Path, readme_commands: &[&str], release_commands: &[&str]) {
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(
+            root.join("README.md"),
+            format!(
+                "# README\n\nRun local checks:\n\n```sh\n{}\n```\n",
+                readme_commands.join("\n")
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("docs").join("release.md"),
+            format!(
+                "# Release\n\nRun the full local verification set:\n\n```sh\n{}\n```\n",
+                release_commands.join("\n")
             ),
         )
         .unwrap();
