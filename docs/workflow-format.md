@@ -68,6 +68,11 @@ Validate a workflow without executing it:
 cargo run -p vogon-cli -- check fixtures/workflows/support-triage.toml
 ```
 
+Editor and review tooling can use the published
+[workflow schema](../schemas/workflow.schema.json) for the current workflow
+shape. The CLI remains the source of truth for validation, including unique
+step identifiers.
+
 Run a workflow and write a replay:
 
 ```sh

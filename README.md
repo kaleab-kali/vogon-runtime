@@ -276,6 +276,7 @@ python -m unittest scripts.test_check_package_verification_docs
 python -m unittest scripts.test_check_pr_template
 python -m unittest scripts.test_check_release_checklist
 python -m unittest scripts.test_check_release_workflow
+python -m unittest scripts.test_check_schema_files
 python -m unittest scripts.test_check_secrets
 python -m unittest scripts.test_check_security_workflows
 python -m unittest scripts.test_check_workflow_policies
@@ -293,6 +294,7 @@ python scripts/check_package_verification_docs.py --root .
 python scripts/check_pr_template.py --root .
 python scripts/check_release_checklist.py --root .
 python scripts/check_release_workflow.py --root .
+python scripts/check_schema_files.py --root .
 python scripts/check_secrets.py --root .
 python scripts/check_security_workflows.py --root .
 python scripts/check_workflow_policies.py --root .
@@ -361,6 +363,7 @@ Useful documentation:
 - [Workflow format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/workflow-format.md)
 - [Determinism](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/determinism.md)
 - [Replay format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/replay-format.md)
+- [Schemas](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/schemas.md)
 - [Performance](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/performance.md)
 - [Release process](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/release.md)
 - [Support](https://github.com/kaleab-kali/vogon-runtime/blob/main/SUPPORT.md)

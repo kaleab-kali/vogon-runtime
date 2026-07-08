@@ -50,6 +50,11 @@ compares current-schema runtime metadata against the actual verification run.
 Legacy unversioned replays remain readable and verify with the deterministic
 provider unless a provider is selected explicitly.
 
+Editor and review tooling can use the published
+[replay schema](../schemas/replay.schema.json) for current `schema_version: 1`
+replay files. Legacy unversioned replays remain supported by the CLI but are not
+the schema target.
+
 ## Redaction
 
 Replay output can be redacted before it is written. Redaction rules are literal

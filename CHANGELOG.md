@@ -114,6 +114,8 @@ and this project follows semantic versioning once the first release is tagged.
   changes and permissive-license enforcement.
 - Release builds now use an explicit optimized Cargo profile with thin LTO,
   one codegen unit, and stripped symbols.
+- Published JSON Schema files now document the current workflow and replay
+  formats for contributor tooling.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
