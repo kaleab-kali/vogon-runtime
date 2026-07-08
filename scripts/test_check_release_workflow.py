@@ -139,6 +139,9 @@ jobs:
           python3 scripts/check_container_image.py
           python3 scripts/check_container_image.py
           docker run --rm --read-only "$image" --version
+          docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py"
+          python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py" "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json"
       - uses: actions/attest@v4
       - uses: actions/upload-artifact@v7
         with:

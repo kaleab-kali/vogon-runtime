@@ -45,6 +45,9 @@ REQUIRED_SNIPPETS = {
     "missing artifact failure": "if-no-files-found: error",
     "GitHub release creation": "gh release create",
     "read-only container smoke": "docker run --rm --read-only",
+    "downloaded container doctor validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"',
+    "downloaded container workflow validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py"',
+    "downloaded container cache validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py"',
 }
 
 REQUIRED_COUNTS = {

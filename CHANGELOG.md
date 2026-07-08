@@ -102,6 +102,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Live real-provider smoke workflow defaults and operational controls are now
   validated locally and in CI.
 - Contributor guidance now covers every optional live provider smoke workflow.
+- Downloaded container release smoke checks now resolve validators from the
+  checked-out repository path after changing artifact directories.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
