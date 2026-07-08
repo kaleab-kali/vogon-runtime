@@ -30,7 +30,6 @@ python -m unittest scripts.test_check_verify_json
 python -m unittest scripts.test_check_trace_jsonl
 python -m unittest scripts.test_check_docs_links
 python -m unittest scripts.test_check_public_status_docs
-python -m unittest scripts.test_check_env_example
 python -m unittest scripts.test_check_issue_templates
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
@@ -49,7 +48,7 @@ python scripts/check_contributing_checklist.py --root .
 python scripts/check_deployment_checklist.py --root .
 python scripts/check_docs_links.py --root .
 python scripts/check_public_status_docs.py --root .
-python scripts/check_env_example.py --root .
+cargo run -p vogon-xtask -- check-env-example --root .
 python scripts/check_issue_templates.py --root .
 python scripts/check_container_policy.py --root .
 python scripts/check_dependabot_config.py --root .

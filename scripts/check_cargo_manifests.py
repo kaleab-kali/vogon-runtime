@@ -38,6 +38,7 @@ EXPECTED_CRATES = {
     "vogon-adapters": "crates/vogon-adapters",
     "vogon-cli": "crates/vogon-cli",
     "vogon-core": "crates/vogon-core",
+    "vogon-xtask": "crates/vogon-xtask",
 }
 EXPECTED_RELEASE_PROFILE = {
     "lto": "thin",

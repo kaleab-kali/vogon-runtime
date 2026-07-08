@@ -123,6 +123,7 @@ members = [
     "crates/vogon-adapters",
     "crates/vogon-cli",
     "crates/vogon-core",
+    "crates/vogon-xtask",
 ]
 
 [workspace.package]
@@ -159,6 +160,14 @@ vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
         "Command-line interface for Vogon Runtime.",
         ["ai", "workflow", "replay", "cli"],
         ["command-line-utilities", "development-tools"],
+        crate_lints=crate_lints,
+    )
+    write_crate_manifest(
+        root,
+        "vogon-xtask",
+        "Repository maintenance tasks for Vogon Runtime.",
+        ["workflow", "tooling", "ci", "maintenance"],
+        ["development-tools"],
         crate_lints=crate_lints,
     )
 

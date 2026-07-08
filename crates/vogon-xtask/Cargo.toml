@@ -1,0 +1,22 @@
+[package]
+name = "vogon-xtask"
+version = "0.1.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+description = "Repository maintenance tasks for Vogon Runtime."
+readme = "../../README.md"
+keywords = ["workflow", "tooling", "ci", "maintenance"]
+categories = ["development-tools"]
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "vogon-xtask"
+path = "src/main.rs"
