@@ -50,9 +50,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-changelog --root .
 
       - name: Check contributing checklist
-        run: |
-          python3 -m unittest scripts.test_check_contributing_checklist
-          python3 scripts/check_contributing_checklist.py --root .
+        run: cargo run -p vogon-xtask -- check-contributing-checklist --root .
 
       - name: Check pull request template
         run: cargo run -p vogon-xtask -- check-pr-template --root .
