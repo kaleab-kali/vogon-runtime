@@ -72,7 +72,7 @@ Use `--hugging-face-model` to select a different Hugging Face routed model.
 
 - The runtime image is based on Debian bookworm slim.
 - The image includes Open Containers Initiative labels for title, source,
-  documentation, and license metadata.
+  documentation, license, version, and revision metadata.
 - CA certificates are installed so HTTPS provider calls work by default.
 - The container runs as the unprivileged `vogon` user.
 - The deterministic check, verify, and trace flows can run with a read-only
@@ -107,7 +107,7 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
-python scripts/check_container_image.py vogon-runtime:v0.1.0
+python scripts/check_container_image.py vogon-runtime:v0.1.0 --expected-version v0.1.0 --expected-revision <release-commit-sha>
 docker run --rm vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
@@ -117,4 +117,5 @@ docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.0 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
-Use the real version number in place of `v0.1.0`.
+Use the real version number in place of `v0.1.0` and the release commit SHA in
+place of `<release-commit-sha>`.

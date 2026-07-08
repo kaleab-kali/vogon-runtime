@@ -69,7 +69,7 @@ class CheckContainerPolicyTests(unittest.TestCase):
             dockerfile = root / "Dockerfile"
             dockerfile.write_text(
                 dockerfile.read_text(encoding="utf-8").replace(
-                    '    org.opencontainers.image.licenses="MIT"\n',
+                    '    org.opencontainers.image.licenses="MIT" \\\n',
                     "",
                 ),
                 encoding="utf-8",
@@ -121,11 +121,16 @@ def write_container_files(root: Path, *, dockerignore: str | None = None) -> Non
                 "",
                 "FROM debian:bookworm-slim AS runtime",
                 "",
+                "ARG VOGON_IMAGE_VERSION=dev",
+                "ARG VOGON_IMAGE_REVISION=unknown",
+                "",
                 'LABEL org.opencontainers.image.title="Vogon Runtime" \\',
                 '    org.opencontainers.image.description="Deterministic, replayable AI workflow runtime CLI." \\',
                 '    org.opencontainers.image.source="https://github.com/kaleab-kali/vogon-runtime" \\',
                 '    org.opencontainers.image.documentation="https://github.com/kaleab-kali/vogon-runtime#readme" \\',
-                '    org.opencontainers.image.licenses="MIT"',
+                '    org.opencontainers.image.licenses="MIT" \\',
+                '    org.opencontainers.image.version="${VOGON_IMAGE_VERSION}" \\',
+                '    org.opencontainers.image.revision="${VOGON_IMAGE_REVISION}"',
                 "",
                 "RUN apt-get update \\",
                 "    && apt-get install -y --no-install-recommends ca-certificates \\",

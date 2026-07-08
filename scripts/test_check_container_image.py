@@ -59,7 +59,23 @@ class CheckContainerImageTests(unittest.TestCase):
             [],
         )
 
-        self.assertEqual(len(runner.commands), 4)
+        self.assertEqual(len(runner.commands), 6)
+
+    def test_accepts_release_version_and_revision_labels(self):
+        labels = {
+            **check_container_image.EXPECTED_LABELS,
+            "org.opencontainers.image.version": "v0.1.0",
+            "org.opencontainers.image.revision": "abc123",
+        }
+
+        self.assertEqual(
+            check_container_image.check_image(
+                "vogon-runtime:v0.1.0",
+                expected_labels=labels,
+                runner=FakeDockerRunner(labels=labels),
+            ),
+            [],
+        )
 
     def test_reports_label_mismatch(self):
         labels = dict(check_container_image.EXPECTED_LABELS)
@@ -110,6 +126,8 @@ class CheckContainerImageTests(unittest.TestCase):
                 "Container label org.opencontainers.image.title cannot be read: no such image",
                 "Container label org.opencontainers.image.source cannot be read: no such image",
                 "Container label org.opencontainers.image.licenses cannot be read: no such image",
+                "Container label org.opencontainers.image.version cannot be read: no such image",
+                "Container label org.opencontainers.image.revision cannot be read: no such image",
             ],
         )
 

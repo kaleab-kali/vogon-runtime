@@ -196,8 +196,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Packages a Windows x86_64 `vogon.exe` binary as a `.zip` archive.
 - Builds and smoke tests the CLI container image.
 - Packages the CLI container image as a `.tar.gz` archive.
-- Verifies OCI source and license labels on the built and packaged container
-  image.
+- Verifies OCI source, license, version, and revision labels on the built and
+  packaged container image.
 - Includes only the CLI binary, `README.md`, and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
   `vogon-v0.1.0-cargo-metadata.json`.
@@ -253,7 +253,7 @@ The release also publishes a container image archive and checksum:
 ```sh
 sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.0-container-image.tar.gz
-python scripts/check_container_image.py vogon-runtime:v0.1.0
+python scripts/check_container_image.py vogon-runtime:v0.1.0 --expected-version v0.1.0 --expected-revision <release-commit-sha>
 docker run --rm vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 --version
 docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
@@ -263,7 +263,8 @@ docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.0 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
-Use the real version number in place of `v0.1.0`.
+Use the real version number in place of `v0.1.0` and the release commit SHA in
+place of `<release-commit-sha>`.
 
 If the release was built by GitHub Actions, verify the archive provenance with
 GitHub CLI:

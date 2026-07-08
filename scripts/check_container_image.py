@@ -13,6 +13,8 @@ EXPECTED_LABELS = {
     "org.opencontainers.image.title": "Vogon Runtime",
     "org.opencontainers.image.source": "https://github.com/kaleab-kali/vogon-runtime",
     "org.opencontainers.image.licenses": "MIT",
+    "org.opencontainers.image.version": "dev",
+    "org.opencontainers.image.revision": "unknown",
 }
 EXPECTED_USER_ID = "10001"
 
@@ -27,9 +29,28 @@ def main() -> int:
         default=EXPECTED_USER_ID,
         help=f"Expected runtime user id. Defaults to {EXPECTED_USER_ID}.",
     )
+    parser.add_argument(
+        "--expected-version",
+        default=EXPECTED_LABELS["org.opencontainers.image.version"],
+        help="Expected org.opencontainers.image.version label.",
+    )
+    parser.add_argument(
+        "--expected-revision",
+        default=EXPECTED_LABELS["org.opencontainers.image.revision"],
+        help="Expected org.opencontainers.image.revision label.",
+    )
     args = parser.parse_args()
 
-    errors = check_image(args.image, expected_user_id=args.expected_user_id)
+    expected_labels = {
+        **EXPECTED_LABELS,
+        "org.opencontainers.image.version": args.expected_version,
+        "org.opencontainers.image.revision": args.expected_revision,
+    }
+    errors = check_image(
+        args.image,
+        expected_labels=expected_labels,
+        expected_user_id=args.expected_user_id,
+    )
     for error in errors:
         print(error, file=sys.stderr)
     return 1 if errors else 0
