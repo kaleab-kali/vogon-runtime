@@ -143,10 +143,9 @@ jobs:
 
       - name: Benchmark smoke
         run: |
-          python3 -m unittest scripts.test_check_benchmark_output
           benchmark_output="$(cargo bench -p vogon-core --bench runtime --locked -- --iterations 100)"
           echo "$benchmark_output"
-          printf '%s\n' "$benchmark_output" | python3 scripts/check_benchmark_output.py --expected-iterations 100
+          printf '%s\n' "$benchmark_output" | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
 
       - name: Build release artifacts
         run: cargo build --release --workspace --all-features --locked

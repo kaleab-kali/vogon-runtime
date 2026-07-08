@@ -26,7 +26,7 @@ changing runtime behavior.
 CI validates the benchmark smoke output shape with:
 
 ```sh
-cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
 ```
 
 The validator checks the expected iteration count and requires positive finite

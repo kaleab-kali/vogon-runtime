@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fmt::Write as _;
 use std::fs;
+use std::io::{self, Read as _};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use toml::Value;
@@ -86,6 +87,7 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
 ];
 const REQUIRED_README_COMMANDS: &[&str] = &[];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
+const REQUIRED_BENCHMARK_METRICS: &[&str] = &["elapsed_ms", "iterations", "iterations_per_second"];
 const WORKFLOW_SUFFIXES: &[&str] = &["yml", "yaml"];
 const ALLOWED_TOP_LEVEL_WRITE_SCOPES: &[&str] = &["security-events"];
 const FLOATING_RUNNERS: &[&str] = &["ubuntu-latest", "windows-latest", "macos-latest"];
@@ -213,6 +215,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     (
         "benchmark smoke",
         "cargo bench -p vogon-core --bench runtime --locked -- --iterations 100",
+    ),
+    (
+        "benchmark output validator",
+        "cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100",
     ),
     (
         "release build",
@@ -635,6 +641,10 @@ fn main() {
                 &options.required_files,
             )
         }
+        "check-benchmark-output" => {
+            let options = parse_benchmark_output_args(args.collect());
+            check_benchmark_output_from_stdin(options.expected_iterations)
+        }
         "check-env-example" => {
             let root = parse_root(args.collect());
             check_env_example(&root)
@@ -745,9 +755,13 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
+}
+
+struct BenchmarkOutputOptions {
+    expected_iterations: i64,
 }
 
 struct Sha256FileOptions {
@@ -767,6 +781,32 @@ struct WorkflowJob {
     runs_on_line: Option<usize>,
     timeout_minutes: Option<String>,
     timeout_line: Option<usize>,
+}
+
+fn parse_benchmark_output_args(args: Vec<String>) -> BenchmarkOutputOptions {
+    match args.as_slice() {
+        [flag, value] if flag == "--expected-iterations" => {
+            let expected_iterations = value.parse::<i64>().unwrap_or_else(|_| {
+                eprintln!("--expected-iterations must be an integer");
+                std::process::exit(2);
+            });
+            if expected_iterations <= 0 {
+                eprintln!("--expected-iterations must be greater than zero");
+                std::process::exit(2);
+            }
+            BenchmarkOutputOptions {
+                expected_iterations,
+            }
+        }
+        _ => print_benchmark_output_usage_and_exit(),
+    }
+}
+
+fn print_benchmark_output_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations COUNT"
+    );
+    std::process::exit(2);
 }
 
 fn parse_sha256_file_args(args: Vec<String>) -> Sha256FileOptions {
@@ -845,6 +885,115 @@ fn print_archive_contents_usage_and_exit() -> ! {
         "usage: cargo run -p vogon-xtask -- check-archive-contents ARCHIVE_DIRECTORY --binary NAME [--required-file NAME ...]"
     );
     std::process::exit(2);
+}
+
+fn check_benchmark_output_from_stdin(expected_iterations: i64) -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin().read_to_string(&mut output).map_err(|error| {
+        vec![format!(
+            "failed to read benchmark output from stdin: {error}"
+        )]
+    })?;
+    check_benchmark_output(&output, expected_iterations)
+}
+
+fn check_benchmark_output(output: &str, expected_iterations: i64) -> Result<(), Vec<String>> {
+    let metrics = parse_benchmark_metrics(output);
+    let mut errors = Vec::new();
+
+    for metric in REQUIRED_BENCHMARK_METRICS {
+        if !metrics.contains_key(*metric) {
+            errors.push(format!("missing benchmark metric: {metric}"));
+        }
+    }
+
+    if let Some(iterations) = parse_int_metric(&metrics, "iterations", &mut errors) {
+        if iterations != expected_iterations {
+            errors.push(format!(
+                "benchmark iterations mismatch: expected {expected_iterations}, got {iterations}"
+            ));
+        }
+    }
+
+    if let Some(elapsed_ms) = parse_float_metric(&metrics, "elapsed_ms", &mut errors) {
+        if elapsed_ms <= 0.0 {
+            errors.push("benchmark elapsed_ms must be greater than zero".to_owned());
+        }
+    }
+
+    if let Some(iterations_per_second) =
+        parse_float_metric(&metrics, "iterations_per_second", &mut errors)
+    {
+        if iterations_per_second <= 0.0 {
+            errors.push("benchmark iterations_per_second must be greater than zero".to_owned());
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn parse_benchmark_metrics(output: &str) -> BTreeMap<String, String> {
+    let required_metrics = REQUIRED_BENCHMARK_METRICS
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let mut metrics = BTreeMap::new();
+    for line in output.lines() {
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        let name = name.trim();
+        if required_metrics.contains(name) {
+            metrics.insert(name.to_owned(), value.trim().to_owned());
+        }
+    }
+    metrics
+}
+
+fn parse_int_metric(
+    metrics: &BTreeMap<String, String>,
+    name: &str,
+    errors: &mut Vec<String>,
+) -> Option<i64> {
+    let value = metrics.get(name)?;
+    match value.parse::<i64>() {
+        Ok(parsed) => {
+            if parsed <= 0 {
+                errors.push(format!("benchmark {name} must be greater than zero"));
+            }
+            Some(parsed)
+        }
+        Err(_) => {
+            errors.push(format!("benchmark {name} must be an integer"));
+            None
+        }
+    }
+}
+
+fn parse_float_metric(
+    metrics: &BTreeMap<String, String>,
+    name: &str,
+    errors: &mut Vec<String>,
+) -> Option<f64> {
+    let value = metrics.get(name)?;
+    match value.parse::<f64>() {
+        Ok(parsed) => {
+            if !parsed.is_finite() {
+                errors.push(format!("benchmark {name} must be finite"));
+                None
+            } else {
+                Some(parsed)
+            }
+        }
+        Err(_) => {
+            errors.push(format!("benchmark {name} must be a number"));
+            None
+        }
+    }
 }
 
 fn check_contributing_checklist(root: &Path) -> Result<(), Vec<String>> {
@@ -6060,6 +6209,70 @@ and this project follows semantic versioning once the first release is tagged.
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[test]
+    fn accepts_expected_benchmark_metrics() {
+        let output = [
+            "Compiling benchmark harness",
+            "iterations: 100",
+            "elapsed_ms: 2.5",
+            "iterations_per_second: 40",
+        ]
+        .join("\n");
+
+        assert_eq!(check_benchmark_output(&output, 100), Ok(()));
+    }
+
+    #[test]
+    fn reports_missing_benchmark_metrics() {
+        let errors = check_benchmark_output("iterations: 100\n", 100).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "missing benchmark metric: elapsed_ms",
+                "missing benchmark metric: iterations_per_second",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_benchmark_iteration_mismatch() {
+        let output = [
+            "iterations: 10",
+            "elapsed_ms: 1",
+            "iterations_per_second: 10",
+        ]
+        .join("\n");
+
+        let errors = check_benchmark_output(&output, 100).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["benchmark iterations mismatch: expected 100, got 10"]
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_and_non_positive_benchmark_metrics() {
+        let output = [
+            "iterations: no",
+            "elapsed_ms: 0",
+            "iterations_per_second: nan",
+        ]
+        .join("\n");
+
+        let errors = check_benchmark_output(&output, 100).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "benchmark iterations must be an integer",
+                "benchmark elapsed_ms must be greater than zero",
+                "benchmark iterations_per_second must be finite",
+            ]
+        );
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -6139,6 +6352,7 @@ jobs:
           cargo test --workspace --all-features --locked
           cargo check -p vogon-cli --no-default-features --locked
           cargo bench -p vogon-core --bench runtime --locked -- --iterations 100
+          cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
           cargo build --release --workspace --all-features --locked
           ./target/release/vogon doctor --json
           ./target/release/vogon providers --json
