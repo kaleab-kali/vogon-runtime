@@ -16,6 +16,8 @@ and this project follows semantic versioning.
 
 ### Security
 
+- Provider adapter HTTP error messages now redact exact API key values if an
+  upstream error body echoes the submitted credential.
 - Secret scanning now detects raw Groq API key-looking values in tracked text
   files.
 
