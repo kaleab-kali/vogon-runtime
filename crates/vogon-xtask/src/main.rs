@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 use toml::Value;
 
 type TomlTable = toml::Table;
@@ -37,6 +38,30 @@ const REQUIRED_ISSUE_AREAS: &[&str] = &[
 ];
 const REQUIRED_ISSUE_CHECK_LABELS: &[&str] = &["removed secrets", "searched existing issues"];
 const REQUIRED_BUG_VERSION_PLACEHOLDER: &str = "placeholder: \"vogon 0.1.1\"";
+const MAX_SECRET_SCAN_TEXT_BYTES: u64 = 1_000_000;
+const SENSITIVE_ARTIFACT_SUFFIXES: &[&str] = &[".cache.json"];
+const PROVIDER_CREDENTIAL_VARS: &[&str] = &[
+    "GEMINI_API_KEY",
+    "GROQ_API_KEY",
+    "HF_TOKEN",
+    "OPENAI_COMPATIBLE_API_KEY",
+    "OPENROUTER_API_KEY",
+];
+const PLACEHOLDER_VALUES: &[&str] = &[
+    "",
+    "...",
+    "''",
+    "\"\"",
+    "<token>",
+    "<api-key>",
+    "<api_key>",
+    "<secret>",
+    "changeme",
+    "change-me",
+    "your-token",
+    "your-api-key",
+    "your_api_key",
+];
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
 const RELEASE_VERIFICATION_MARKER: &str = "Run the full local verification set:";
@@ -346,6 +371,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_release_checklist(&root)
         }
+        "check-secrets" => {
+            let root = parse_root(args.collect());
+            check_secrets(&root)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -376,7 +405,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-secrets> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -1151,6 +1180,314 @@ fn check_issue_before_submit(relative: &str, lines: &[&str]) -> Vec<String> {
 
 fn issue_relative_path(root: &Path, path: &Path) -> String {
     relative_path(root, path).unwrap_or_else(|| slash_path(path))
+}
+
+fn check_secrets(root: &Path) -> Result<(), Vec<String>> {
+    let tracked_files = match secret_scan_files(root) {
+        Ok(files) => files,
+        Err(error) => return Err(vec![format!("git ls-files: {error}")]),
+    };
+    let mut findings = Vec::new();
+
+    for path in tracked_files {
+        if is_sensitive_artifact(&path) {
+            findings.push(format_file_finding(
+                root,
+                &path,
+                "committed sensitive cache artifact",
+            ));
+        }
+
+        let Some(text) = read_secret_scan_text(&path) else {
+            continue;
+        };
+
+        for (index, line) in text.lines().enumerate() {
+            let line_number = index + 1;
+            for pattern_name in secret_pattern_findings(line) {
+                findings.push(format_secret_finding(
+                    root,
+                    &path,
+                    line_number,
+                    pattern_name,
+                ));
+            }
+            if let Some(provider_assignment) = find_provider_secret_assignment(line) {
+                findings.push(format_secret_finding(
+                    root,
+                    &path,
+                    line_number,
+                    &provider_assignment,
+                ));
+            }
+        }
+    }
+
+    if findings.is_empty() {
+        Ok(())
+    } else {
+        Err(findings)
+    }
+}
+
+fn secret_scan_files(root: &Path) -> Result<Vec<PathBuf>, String> {
+    if root.join(".git").exists() {
+        let output = Command::new("git")
+            .arg("ls-files")
+            .current_dir(root)
+            .output()
+            .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        return Ok(stdout
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| root.join(line))
+            .collect());
+    }
+
+    let mut files = Vec::new();
+    collect_secret_scan_files(root, root, &mut files);
+    files.sort();
+    Ok(files)
+}
+
+fn collect_secret_scan_files(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(relative) = path.strip_prefix(root) else {
+            continue;
+        };
+        if relative
+            .components()
+            .any(|component| matches!(component, Component::Normal(name) if name == ".git" || name == "target"))
+        {
+            continue;
+        }
+        if path.is_dir() {
+            collect_secret_scan_files(root, &path, files);
+        } else if path.is_file() {
+            files.push(path);
+        }
+    }
+}
+
+fn is_sensitive_artifact(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    SENSITIVE_ARTIFACT_SUFFIXES
+        .iter()
+        .any(|suffix| name.ends_with(suffix))
+}
+
+fn read_secret_scan_text(path: &Path) -> Option<String> {
+    let metadata = fs::metadata(path).ok()?;
+    if metadata.len() > MAX_SECRET_SCAN_TEXT_BYTES {
+        return None;
+    }
+    let bytes = fs::read(path).ok()?;
+    if bytes.contains(&0) {
+        return None;
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn secret_pattern_findings(line: &str) -> Vec<&'static str> {
+    let mut findings = Vec::new();
+    if contains_prefixed_token(line, &["A3T", "AKIA", "ASIA"], 16, 16, is_upper_alnum) {
+        findings.push("AWS access key id");
+    }
+    if contains_prefixed_token(
+        line,
+        &["ghp_", "gho_", "ghu_", "ghs_", "ghr_"],
+        36,
+        usize::MAX,
+        |character| character.is_ascii_alphanumeric() || character == '_',
+    ) {
+        findings.push("GitHub token");
+    }
+    if contains_prefixed_token(line, &["AIza"], 35, 35, |character| {
+        character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
+    }) {
+        findings.push("Google API key");
+    }
+    if contains_prefixed_token(line, &["gsk_"], 30, usize::MAX, |character| {
+        character.is_ascii_alphanumeric()
+    }) {
+        findings.push("Groq API key");
+    }
+    if contains_prefixed_token(line, &["hf_"], 30, usize::MAX, |character| {
+        character.is_ascii_alphanumeric()
+    }) {
+        findings.push("Hugging Face token");
+    }
+    if contains_prefixed_token(line, &["sk-"], 20, usize::MAX, |character| {
+        character.is_ascii_alphanumeric()
+    }) {
+        findings.push("OpenAI API key");
+    }
+    if contains_prefixed_token(line, &["sk-or-v1-"], 32, usize::MAX, |character| {
+        character.is_ascii_alphanumeric()
+    }) {
+        findings.push("OpenRouter API key");
+    }
+    if contains_prefixed_token(
+        line,
+        &["xoxb-", "xoxa-", "xoxp-", "xoxr-", "xoxs-"],
+        20,
+        usize::MAX,
+        |character| character.is_ascii_alphanumeric() || character == '-',
+    ) {
+        findings.push("Slack token");
+    }
+    findings
+}
+
+fn contains_prefixed_token(
+    line: &str,
+    prefixes: &[&str],
+    min_tail: usize,
+    max_tail: usize,
+    is_tail_character: fn(char) -> bool,
+) -> bool {
+    for prefix in prefixes {
+        let mut search_start = 0;
+        while let Some(relative_index) = line[search_start..].find(prefix) {
+            let start = search_start + relative_index;
+            let end_of_prefix = start + prefix.len();
+            if !has_token_boundary_before(line, start) {
+                search_start = end_of_prefix;
+                continue;
+            }
+
+            let mut tail_len = 0;
+            let mut token_end = end_of_prefix;
+            for (offset, character) in line[end_of_prefix..].char_indices() {
+                if !is_tail_character(character) {
+                    break;
+                }
+                tail_len += 1;
+                token_end = end_of_prefix + offset + character.len_utf8();
+            }
+            if tail_len >= min_tail
+                && tail_len <= max_tail
+                && has_token_boundary_after(line, token_end)
+            {
+                return true;
+            }
+            search_start = end_of_prefix;
+        }
+    }
+    false
+}
+
+fn is_upper_alnum(character: char) -> bool {
+    character.is_ascii_uppercase() || character.is_ascii_digit()
+}
+
+fn has_token_boundary_before(line: &str, start: usize) -> bool {
+    line[..start]
+        .chars()
+        .next_back()
+        .map(|character| !is_word_character(character))
+        .unwrap_or(true)
+}
+
+fn has_token_boundary_after(line: &str, end: usize) -> bool {
+    line[end..]
+        .chars()
+        .next()
+        .map(|character| !is_word_character(character))
+        .unwrap_or(true)
+}
+
+fn is_word_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '_'
+}
+
+fn find_provider_secret_assignment(line: &str) -> Option<String> {
+    for name in PROVIDER_CREDENTIAL_VARS {
+        let mut search_start = 0;
+        while let Some(relative_index) = line[search_start..].find(name) {
+            let start = search_start + relative_index;
+            let end = start + name.len();
+            if line[..start]
+                .chars()
+                .next_back()
+                .map(|character| {
+                    character.is_ascii_uppercase()
+                        || character.is_ascii_digit()
+                        || matches!(character, '_' | '{')
+                })
+                .unwrap_or(false)
+            {
+                search_start = end;
+                continue;
+            }
+
+            let after_name = &line[end..];
+            let trimmed = after_name.trim_start();
+            let separator = trimmed.chars().next()?;
+            if !matches!(separator, ':' | '=') {
+                search_start = end;
+                continue;
+            }
+            let value = trimmed[separator.len_utf8()..]
+                .trim_start()
+                .split(|character: char| character.is_whitespace() || character == '#')
+                .next()
+                .unwrap_or("");
+            let normalized = normalize_assignment_value(value);
+            if is_allowed_placeholder_value(&normalized) {
+                return None;
+            }
+            return Some(format!("committed {name} value"));
+        }
+    }
+    None
+}
+
+fn normalize_assignment_value(value: &str) -> String {
+    value
+        .trim()
+        .trim_end_matches(',')
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_owned()
+}
+
+fn is_allowed_placeholder_value(value: &str) -> bool {
+    let lowered = value.to_ascii_lowercase();
+    PLACEHOLDER_VALUES.contains(&lowered.as_str())
+        || value.starts_with("${{")
+        || value.starts_with('$')
+        || value.contains("...")
+        || lowered.starts_with("your-")
+        || lowered.starts_with('<')
+}
+
+fn format_secret_finding(
+    root: &Path,
+    path: &Path,
+    line_number: usize,
+    pattern_name: &str,
+) -> String {
+    let relative = relative_path(root, path).unwrap_or_else(|| slash_path(path));
+    format!("{relative}:{line_number}: possible {pattern_name}")
+}
+
+fn format_file_finding(root: &Path, path: &Path, pattern_name: &str) -> String {
+    let relative = relative_path(root, path).unwrap_or_else(|| slash_path(path));
+    format!("{relative}: possible {pattern_name}")
 }
 
 fn check_package_verification_docs(root: &Path) -> Result<(), Vec<String>> {
@@ -2889,6 +3226,131 @@ mod tests {
                 ".github/ISSUE_TEMPLATE/bug_report.yml: version placeholder must match the latest public release",
             ]
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_secret_like_values() {
+        let root = temp_root("secrets-token-patterns");
+        fs::write(
+            root.join("README.md"),
+            format!(
+                "token=sk-{}\ngroq=gsk_{}\n",
+                "abcdefghijklmnopqrstuvwxyz",
+                "A".repeat(30)
+            ),
+        )
+        .unwrap();
+
+        let findings = check_secrets(&root).unwrap_err();
+
+        assert_eq!(
+            findings,
+            [
+                "README.md:1: possible OpenAI API key",
+                "README.md:2: possible Groq API key",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_short_test_placeholders() {
+        let root = temp_root("secrets-placeholders");
+        fs::write(
+            root.join("docs.md"),
+            [
+                "api_key=sk-test-123".to_owned(),
+                "token=secret-key".to_owned(),
+                format!("{}=", "OPENROUTER_API_KEY"),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        assert_eq!(check_secrets(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_provider_env_assignments_with_real_values() {
+        let root = temp_root("secrets-provider-values");
+        fs::write(
+            root.join(".env"),
+            [
+                format!("{}=real-provider-secret", "GEMINI_API_KEY"),
+                format!("{}: another-provider-secret", "OPENROUTER_API_KEY"),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let findings = check_secrets(&root).unwrap_err();
+
+        assert_eq!(
+            findings,
+            [
+                ".env:1: possible committed GEMINI_API_KEY value",
+                ".env:2: possible committed OPENROUTER_API_KEY value",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_provider_env_placeholders_and_secret_refs() {
+        let root = temp_root("secrets-provider-placeholders");
+        fs::write(
+            root.join("workflow.yml"),
+            [
+                format!("{}=...", "GEMINI_API_KEY"),
+                format!("{}=", "GROQ_API_KEY"),
+                format!("{}: ${{{{ secrets.HF_TOKEN }}}}", "HF_TOKEN"),
+                format!("{}=\"$OPENROUTER_API_KEY\"", "OPENROUTER_API_KEY"),
+                format!("{}=<api-key>", "OPENAI_COMPATIBLE_API_KEY"),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        assert_eq!(check_secrets(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_committed_cache_artifacts() {
+        let root = temp_root("secrets-cache-artifact");
+        fs::write(root.join("target-output.cache.json"), "{\"outputs\": {}}").unwrap();
+
+        let findings = check_secrets(&root).unwrap_err();
+
+        assert_eq!(
+            findings,
+            ["target-output.cache.json: possible committed sensitive cache artifact"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_non_cache_json_files() {
+        let root = temp_root("secrets-non-cache-json");
+        fs::write(root.join("fixture.replay.json"), "{\"outputs\": {}}").unwrap();
+
+        assert_eq!(check_secrets(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn skips_binary_and_large_files() {
+        let root = temp_root("secrets-skips-binary-large");
+        fs::write(root.join("image.bin"), b"\0sk-abcdefghijklmnopqrstuvwxyz").unwrap();
+        fs::write(
+            root.join("large.txt"),
+            "x".repeat(MAX_SECRET_SCAN_TEXT_BYTES as usize + 1),
+        )
+        .unwrap();
+
+        assert_eq!(check_secrets(&root), Ok(()));
         fs::remove_dir_all(root).unwrap();
     }
 
