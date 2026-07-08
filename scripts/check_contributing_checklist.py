@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate that contributor docs include README local checks."""
+"""Validate that contributor docs include README local checks and live workflow guidance."""
 
 from __future__ import annotations
 
@@ -10,6 +10,13 @@ from pathlib import Path
 
 README_MARKER = "Run local checks:"
 CONTRIBUTING_MARKER = "## Development"
+LIVE_WORKFLOW_GUIDANCE = {
+    "Live Gemini Smoke": "GEMINI_API_KEY",
+    "Live Groq Smoke": "GROQ_API_KEY",
+    "Live Hugging Face Smoke": "HF_TOKEN",
+    "Live OpenAI-Compatible Smoke": "OPENAI_COMPATIBLE_API_KEY",
+    "Live OpenRouter Smoke": "OPENROUTER_API_KEY",
+}
 
 
 def main() -> int:
@@ -49,6 +56,13 @@ def check_repository(root: Path) -> list[str]:
     for command in readme_commands:
         if command not in contributing_command_set:
             errors.append(f"CONTRIBUTING.md: missing README local check `{command}`")
+
+    contributing_text = contributing.read_text(encoding="utf-8")
+    for workflow_name, secret_name in LIVE_WORKFLOW_GUIDANCE.items():
+        if workflow_name not in contributing_text:
+            errors.append(f"CONTRIBUTING.md: missing `{workflow_name}` guidance")
+        if secret_name not in contributing_text:
+            errors.append(f"CONTRIBUTING.md: missing `{secret_name}` live smoke secret guidance")
 
     return errors
 
