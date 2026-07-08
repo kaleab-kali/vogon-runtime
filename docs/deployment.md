@@ -22,7 +22,7 @@ docker run --rm --read-only vogon-runtime:local doctor --json | cargo run -p vog
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:local init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:local check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:local check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
 Mount the repository, or a directory containing workflows and replays, at
@@ -115,8 +115,8 @@ docker run --rm --read-only vogon-runtime:smoke doctor --json | cargo run -p vog
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
-docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:smoke check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | python scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
 ```
@@ -136,7 +136,7 @@ docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | cargo run -p vo
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.1 init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.1 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.1 check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
 Use the real version number in place of `v0.1.1` and the release commit SHA in

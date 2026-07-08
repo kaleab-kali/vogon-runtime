@@ -62,7 +62,7 @@ jobs:
         run: python3 -m unittest scripts.test_check_cache_json
 
       - name: Test workflow check JSON validator
-        run: python3 -m unittest scripts.test_check_workflow_json
+        run: cargo test -p vogon-xtask --locked workflow_json
 
       - name: Test verify JSON validator
         run: python3 -m unittest scripts.test_check_verify_json
@@ -156,10 +156,10 @@ jobs:
           ./target/release/vogon init --force --output "$init_workflow"
           init_check_json="$(./target/release/vogon check --json "$init_workflow")"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          printf '%s\n' "$init_check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          printf '%s\n' "$check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
@@ -182,8 +182,8 @@ jobs:
           target/install-smoke/bin/vogon doctor --json | cargo run -p vogon-xtask -- check-doctor-json
           target/install-smoke/bin/vogon providers --json | cargo run -p vogon-xtask -- check-providers-json
           target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml
-          target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
-          target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
+          target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           target/install-smoke/bin/vogon run --cache-file target/install-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > target/install-smoke.replay.json
           python3 scripts/check_cache_json.py target/install-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
           for replay in fixtures/replays/*.replay.json; do
@@ -250,10 +250,10 @@ jobs:
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" init --force --output /work/starter.toml
           init_check_json="$(docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" check --json /work/starter.toml)"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          printf '%s\n' "$init_check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          printf '%s\n' "$check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
@@ -293,10 +293,10 @@ jobs:
           .\target\release\vogon.exe init --force --output $initWorkflow
           $initCheckJson = (& .\target\release\vogon.exe check --json $initWorkflow) -join "`n"
           $initCheckJson
-          $initCheckJson | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          $initCheckJson | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
           $checkJson
-          $checkJson | python scripts\check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          $checkJson | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           $verifyJson = (& .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json) -join "`n"
           $verifyJson
           $verifyJson | python scripts\check_verify_json.py --expected-workflow-name support-triage --expect-match
