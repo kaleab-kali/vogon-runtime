@@ -4,6 +4,7 @@ members = [
     "crates/vogon-adapters",
     "crates/vogon-cli",
     "crates/vogon-core",
+    "crates/vogon-xtask",
 ]
 
 [workspace.package]

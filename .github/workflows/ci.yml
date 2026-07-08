@@ -127,9 +127,7 @@ jobs:
           python3 scripts/check_release_workflow.py --root .
 
       - name: Check provider env example
-        run: |
-          python3 -m unittest scripts.test_check_env_example
-          python3 scripts/check_env_example.py --root .
+        run: cargo run -p vogon-xtask -- check-env-example --root .
 
       - name: Check container policy
         run: |
