@@ -55,9 +55,7 @@ jobs:
           python3 scripts/check_contributing_checklist.py --root .
 
       - name: Check pull request template
-        run: |
-          python3 -m unittest scripts.test_check_pr_template
-          python3 scripts/check_pr_template.py --root .
+        run: cargo run -p vogon-xtask -- check-pr-template --root .
 
       - name: Check documentation links
         run: |

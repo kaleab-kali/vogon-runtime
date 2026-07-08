@@ -13,6 +13,7 @@ const EXPECTED_ENV_VARS: &[&str] = &[
     "OPENAI_COMPATIBLE_API_KEY",
     "OPENROUTER_API_KEY",
 ];
+const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
     "Added",
     "Changed",
@@ -98,6 +99,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_changelog(&root)
         }
+        "check-pr-template" => {
+            let root = parse_root(args.collect());
+            check_pr_template(&root)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -128,9 +133,93 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-env-example> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-env-example|check-pr-template> [--root PATH]"
     );
     std::process::exit(2);
+}
+
+fn check_pr_template(root: &Path) -> Result<(), Vec<String>> {
+    let readme = root.join("README.md");
+    let pr_template = root.join(".github/pull_request_template.md");
+    if !readme.is_file() {
+        return Err(vec!["README.md: missing README local checks".to_owned()]);
+    }
+    if !pr_template.is_file() {
+        return Err(vec![
+            ".github/pull_request_template.md: missing pull request template".to_owned(),
+        ]);
+    }
+
+    let readme_commands = extract_shell_commands(&readme, README_LOCAL_CHECKS_MARKER)?;
+    let template_commands = extract_pr_template_commands(&pr_template)?;
+    let mut errors = Vec::new();
+
+    if readme_commands.is_empty() {
+        errors.push("README.md: missing local check command block".to_owned());
+    }
+    if template_commands.is_empty() {
+        errors.push(
+            ".github/pull_request_template.md: missing verification command checklist".to_owned(),
+        );
+    }
+
+    let template_command_set = template_commands.iter().collect::<BTreeSet<_>>();
+    for command in readme_commands {
+        if !template_command_set.contains(&command) {
+            errors.push(format!(
+                ".github/pull_request_template.md: missing README local check `{command}`"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn extract_shell_commands(path: &Path, marker: &str) -> Result<Vec<String>, Vec<String>> {
+    let text =
+        fs::read_to_string(path).map_err(|error| vec![format!("{}: {error}", path.display())])?;
+    let lines = text.lines().collect::<Vec<_>>();
+    let Some(marker_index) = lines.iter().position(|line| *line == marker) else {
+        return Ok(Vec::new());
+    };
+
+    let mut in_block = false;
+    let mut commands = Vec::new();
+    for line in lines.iter().skip(marker_index + 1) {
+        let stripped = line.trim();
+        if stripped.starts_with("```") {
+            if in_block {
+                return Ok(commands);
+            }
+            in_block = matches!(stripped, "```sh" | "```shell" | "```bash");
+            continue;
+        }
+        if in_block && !stripped.is_empty() {
+            commands.push(stripped.to_owned());
+        }
+    }
+
+    Ok(commands)
+}
+
+fn extract_pr_template_commands(path: &Path) -> Result<Vec<String>, Vec<String>> {
+    let text =
+        fs::read_to_string(path).map_err(|error| vec![format!("{}: {error}", path.display())])?;
+    let mut commands = Vec::new();
+    for line in text.lines() {
+        let stripped = line.trim();
+        if let Some(command) = stripped
+            .strip_prefix("- [ ] `")
+            .and_then(|line| line.strip_suffix('`'))
+        {
+            commands.push(command.to_owned());
+        }
+    }
+    Ok(commands)
 }
 
 fn check_changelog(root: &Path) -> Result<(), Vec<String>> {
@@ -635,6 +724,66 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
+    fn accepts_pr_template_with_readme_checks_and_extra_commands() {
+        let root = temp_root("pr-template-accepts");
+        write_pr_template_docs(
+            &root,
+            &["cargo test", "python scripts/check_docs_links.py --root ."],
+            &[
+                "cargo test",
+                "python scripts/check_docs_links.py --root .",
+                "docker build --tag vogon-runtime:smoke .",
+            ],
+        );
+
+        assert_eq!(check_pr_template(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_pr_template_command() {
+        let root = temp_root("pr-template-missing-command");
+        write_pr_template_docs(
+            &root,
+            &["cargo test", "cargo clippy -- -D warnings"],
+            &["cargo test"],
+        );
+
+        let errors = check_pr_template(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/pull_request_template.md: missing README local check `cargo clippy -- -D warnings`",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_pr_template_command_blocks() {
+        let root = temp_root("pr-template-missing-blocks");
+        fs::create_dir(root.join(".github")).unwrap();
+        fs::write(root.join("README.md"), "# README\n").unwrap();
+        fs::write(
+            root.join(".github/pull_request_template.md"),
+            "## Verification\n\n- [ ] Relevant CLI smoke test:\n",
+        )
+        .unwrap();
+
+        let errors = check_pr_template(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "README.md: missing local check command block",
+                ".github/pull_request_template.md: missing verification command checklist",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -962,6 +1111,30 @@ and this project follows semantic versioning once the first release is tagged.
 
     fn write_changelog(root: &Path, text: &str) {
         fs::write(root.join("CHANGELOG.md"), text).unwrap();
+    }
+
+    fn write_pr_template_docs(root: &Path, readme_commands: &[&str], template_commands: &[&str]) {
+        fs::create_dir(root.join(".github")).unwrap();
+        fs::write(
+            root.join("README.md"),
+            format!(
+                "# README\n\nRun local checks:\n\n```sh\n{}\n```\n",
+                readme_commands.join("\n")
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join(".github/pull_request_template.md"),
+            format!(
+                "## Verification\n\n{}\n",
+                template_commands
+                    .iter()
+                    .map(|command| format!("- [ ] `{command}`"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ),
+        )
+        .unwrap();
     }
 
     #[derive(Default)]

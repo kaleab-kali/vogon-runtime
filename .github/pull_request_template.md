@@ -31,7 +31,6 @@
 - [ ] `python -m unittest scripts.test_check_live_replay`
 - [ ] `python -m unittest scripts.test_check_live_workflows`
 - [ ] `python -m unittest scripts.test_check_package_verification_docs`
-- [ ] `python -m unittest scripts.test_check_pr_template`
 - [ ] `python -m unittest scripts.test_check_release_checklist`
 - [ ] `python -m unittest scripts.test_check_release_workflow`
 - [ ] `python -m unittest scripts.test_check_schema_files`
@@ -51,7 +50,7 @@
 - [ ] `python scripts/check_dependabot_config.py --root .`
 - [ ] `python scripts/check_live_workflows.py --root .`
 - [ ] `python scripts/check_package_verification_docs.py --root .`
-- [ ] `python scripts/check_pr_template.py --root .`
+- [ ] `cargo run -p vogon-xtask -- check-pr-template --root .`
 - [ ] `python scripts/check_release_checklist.py --root .`
 - [ ] `python scripts/check_release_workflow.py --root .`
 - [ ] `python scripts/check_schema_files.py --root .`
