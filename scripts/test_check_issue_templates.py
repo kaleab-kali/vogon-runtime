@@ -83,6 +83,39 @@ class CheckIssueTemplatesTests(unittest.TestCase):
                 ],
             )
 
+    def test_reports_stale_bug_version_placeholder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_issue_templates(root)
+            bug_path = root / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml"
+            bug_path.write_text(
+                valid_form(
+                    name="Bug report",
+                    title='title: "Bug: "',
+                    label="- bug",
+                    fields=[
+                        "version",
+                        "component",
+                        "expected",
+                        "actual",
+                        "reproduce",
+                        "environment",
+                        "checks",
+                    ],
+                    version_placeholder="vogon 0.1.0",
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_issue_templates.check_repository(root)
+
+            self.assertEqual(
+                errors,
+                [
+                    ".github/ISSUE_TEMPLATE/bug_report.yml: version placeholder must match the latest public release",
+                ],
+            )
+
 
 def write_issue_templates(root: Path) -> None:
     template_dir = root / ".github" / "ISSUE_TEMPLATE"
@@ -127,6 +160,7 @@ def valid_form(
     fields: list[str],
     include_secret_check: bool = True,
     options: list[str] | None = None,
+    version_placeholder: str = "vogon 0.1.1",
 ) -> str:
     dropdown_options = options or [
         "CLI",
@@ -182,16 +216,29 @@ def valid_form(
                 ]
             )
         else:
-            lines.extend(
-                [
-                    "  - type: textarea",
-                    f"    id: {field}",
-                    "    attributes:",
-                    f"      label: {field}",
-                    "    validations:",
-                    "      required: true",
-                ]
-            )
+            if field == "version":
+                lines.extend(
+                    [
+                        "  - type: input",
+                        "    id: version",
+                        "    attributes:",
+                        "      label: version",
+                        f'      placeholder: "{version_placeholder}"',
+                        "    validations:",
+                        "      required: true",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        "  - type: textarea",
+                        f"    id: {field}",
+                        "    attributes:",
+                        f"      label: {field}",
+                        "    validations:",
+                        "      required: true",
+                    ]
+                )
 
     return "\n".join(lines) + "\n"
 
