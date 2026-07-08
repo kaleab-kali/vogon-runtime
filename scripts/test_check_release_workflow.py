@@ -202,7 +202,7 @@ jobs:
           cargo run -p vogon-xtask -- check-providers-json
           cargo run -p vogon-xtask -- check-providers-json
           cargo run -p vogon-xtask -- check-providers-json
-          python3 scripts/check_cache_json.py
+          cargo run -p vogon-xtask -- check-cache-json
           cargo run -p vogon-xtask -- check-workflow-json
           cargo run -p vogon-xtask -- check-verify-json
           cargo run -p vogon-xtask -- check-trace-jsonl
@@ -270,7 +270,7 @@ jobs:
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json
-          python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py" "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json"
+          cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-cache-json "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json"
           docker run --rm --read-only "$image" providers --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json
       - uses: actions/attest@v4
       - uses: actions/upload-artifact@v7

@@ -48,7 +48,7 @@ REQUIRED_SNIPPETS = {
     ),
     "doctor JSON validator": "check-doctor-json",
     "providers JSON validator": "check-providers-json",
-    "cache JSON validator": "scripts/check_cache_json.py",
+    "cache JSON validator": "check-cache-json",
     "workflow check JSON validator": "check-workflow-json",
     "verify JSON validator": "check-verify-json",
     "trace JSONL validator": "check-trace-jsonl",
@@ -96,7 +96,7 @@ REQUIRED_SNIPPETS = {
         'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json'
     ),
     "downloaded container workflow validator": 'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json',
-    "downloaded container cache validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py"',
+    "downloaded container cache validator": 'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-cache-json',
 }
 
 REQUIRED_COUNTS = {

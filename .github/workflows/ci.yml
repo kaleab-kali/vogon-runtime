@@ -59,7 +59,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-public-status-docs --root .
 
       - name: Test cache JSON validator
-        run: python3 -m unittest scripts.test_check_cache_json
+        run: cargo test -p vogon-xtask --locked cache_json
 
       - name: Test workflow check JSON validator
         run: cargo test -p vogon-xtask --locked workflow_json
@@ -168,7 +168,7 @@ jobs:
           printf '%s\n' "$trace_jsonl" | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           cache_file="$RUNNER_TEMP/vogon-cache-smoke.cache.json"
           ./target/release/vogon run --cache-file "$cache_file" --cache-max-entries 1 fixtures/workflows/support-triage.toml > "$RUNNER_TEMP/vogon-cache-smoke.replay.json"
-          python3 scripts/check_cache_json.py "$cache_file" --expected-max-entries 1 --expected-entry-count 1
+          cargo run -p vogon-xtask -- check-cache-json "$cache_file" --expected-max-entries 1 --expected-entry-count 1
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -185,7 +185,7 @@ jobs:
           target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           target/install-smoke/bin/vogon check --json fixtures/workflows/support-triage.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           target/install-smoke/bin/vogon run --cache-file target/install-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > target/install-smoke.replay.json
-          python3 scripts/check_cache_json.py target/install-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
+          cargo run -p vogon-xtask -- check-cache-json target/install-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
           for replay in fixtures/replays/*.replay.json; do
             name="${replay##*/}"
             name="${name%.replay.json}"
@@ -261,7 +261,7 @@ jobs:
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-container-smoke/cache-smoke.replay.json"
-          python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
+          cargo run -p vogon-xtask -- check-cache-json "${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
 
   windows-release-smoke:
     name: Windows release smoke
@@ -305,7 +305,7 @@ jobs:
           $traceJsonl | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           $cacheFile = Join-Path $env:RUNNER_TEMP 'vogon-cache-smoke.cache.json'
           .\target\release\vogon.exe run --cache-file $cacheFile --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
-          python scripts\check_cache_json.py $cacheFile --expected-max-entries 1 --expected-entry-count 1
+          cargo run -p vogon-xtask -- check-cache-json $cacheFile --expected-max-entries 1 --expected-entry-count 1
           Get-ChildItem fixtures\replays\*.replay.json | ForEach-Object {
             $name = $_.Name -replace '\.replay\.json$', ''
             .\target\release\vogon.exe verify "fixtures\workflows\$name.toml" $_.FullName
