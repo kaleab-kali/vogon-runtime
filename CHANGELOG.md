@@ -3,9 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project follows semantic versioning once the first release is tagged.
+and this project follows semantic versioning.
 
 ## [Unreleased]
+
+### Changed
+
+- Public status documentation now reflects the published `v0.1.0` release while
+  keeping the `0.x` API stability warning.
 
 ## [0.1.0] - 2026-07-08
 
