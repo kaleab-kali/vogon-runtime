@@ -25,6 +25,7 @@ SECRET_PATTERNS = [
     SecretPattern("AWS access key id", re.compile(r"\b(?:A3T|AKIA|ASIA)[A-Z0-9]{16}\b")),
     SecretPattern("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{36,}\b")),
     SecretPattern("Google API key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
+    SecretPattern("Groq API key", re.compile(r"\bgsk_[A-Za-z0-9]{30,}\b")),
     SecretPattern("Hugging Face token", re.compile(r"\bhf_[A-Za-z0-9]{30,}\b")),
     SecretPattern("OpenAI API key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
     SecretPattern("OpenRouter API key", re.compile(r"\bsk-or-v1-[A-Za-z0-9]{32,}\b")),

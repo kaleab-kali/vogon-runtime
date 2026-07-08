@@ -12,14 +12,24 @@ class CheckSecretsTests(unittest.TestCase):
             root = Path(directory)
             secret_file = root / "README.md"
             secret_file.write_text(
-                "token=sk-" + "abcdefghijklmnopqrstuvwxyz\n",
+                "token=sk-"
+                + "abcdefghijklmnopqrstuvwxyz\n"
+                + "groq=gsk_"
+                + ("A" * 30)
+                + "\n",
                 encoding="utf-8",
             )
 
             with mock.patch.object(check_secrets, "tracked_files", return_value=[secret_file]):
                 findings = check_secrets.check_repository(root)
 
-            self.assertEqual(findings, ["README.md:1: possible OpenAI API key"])
+            self.assertEqual(
+                findings,
+                [
+                    "README.md:1: possible OpenAI API key",
+                    "README.md:2: possible Groq API key",
+                ],
+            )
 
     def test_accepts_short_test_placeholders(self):
         with tempfile.TemporaryDirectory() as directory:
