@@ -18,7 +18,7 @@ directly:
 
 ```sh
 docker run --rm vogon-runtime:local --version
-docker run --rm --read-only vogon-runtime:local doctor --json | python scripts/check_doctor_json.py
+docker run --rm --read-only vogon-runtime:local doctor --json | cargo run -p vogon-xtask -- check-doctor-json
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:local init --force --output /work/starter.toml
@@ -111,7 +111,7 @@ docker build --tag vogon-runtime:smoke .
 python scripts/check_container_image.py vogon-runtime:smoke
 docker run --rm vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke --version
-docker run --rm --read-only vogon-runtime:smoke doctor --json | python scripts/check_doctor_json.py
+docker run --rm --read-only vogon-runtime:smoke doctor --json | cargo run -p vogon-xtask -- check-doctor-json
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:smoke init --force --output /work/starter.toml
@@ -132,7 +132,7 @@ docker load --input vogon-v0.1.1-container-image.tar.gz
 python scripts/check_container_image.py vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
 docker run --rm vogon-runtime:v0.1.1 --version
 docker run --rm --read-only vogon-runtime:v0.1.1 --version
-docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | python scripts/check_doctor_json.py
+docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | cargo run -p vogon-xtask -- check-doctor-json
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
 docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.1 init --force --output /work/starter.toml
