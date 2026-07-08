@@ -72,9 +72,14 @@ class CheckContainerPolicyTests(unittest.TestCase):
             self.assertEqual(
                 errors,
                 [
+                    ".dockerignore: missing !.env.example",
                     ".dockerignore: missing *.cache.json",
+                    ".dockerignore: missing *.py[cod]",
+                    ".dockerignore: missing .env",
+                    ".dockerignore: missing .env.*",
                     ".dockerignore: missing /.github",
                     ".dockerignore: missing /target",
+                    ".dockerignore: missing __pycache__/",
                 ],
             )
 
@@ -114,7 +119,18 @@ def write_container_files(root: Path, *, dockerignore: str | None = None) -> Non
         encoding="utf-8",
     )
     (root / ".dockerignore").write_text(
-        dockerignore or "/.git\n/.github\n/target\n*.cache.json\n",
+        dockerignore
+        or (
+            "/.git\n"
+            "/.github\n"
+            "/target\n"
+            ".env\n"
+            ".env.*\n"
+            "!.env.example\n"
+            "__pycache__/\n"
+            "*.py[cod]\n"
+            "*.cache.json\n"
+        ),
         encoding="utf-8",
     )
 

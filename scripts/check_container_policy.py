@@ -10,7 +10,17 @@ from pathlib import Path
 
 
 FROM_RE = re.compile(r"^FROM\s+([^\s]+)(?:\s+AS\s+([A-Za-z0-9_-]+))?\s*$", re.I)
-REQUIRED_DOCKERIGNORE_ENTRIES = {"/.git", "/.github", "/target", "*.cache.json"}
+REQUIRED_DOCKERIGNORE_ENTRIES = {
+    "/.git",
+    "/.github",
+    "/target",
+    ".env",
+    ".env.*",
+    "!.env.example",
+    "__pycache__/",
+    "*.py[cod]",
+    "*.cache.json",
+}
 REQUIRED_DOCKERFILE_SNIPPETS = {
     "cargo incremental builds disabled": "ENV CARGO_INCREMENTAL=0",
     "cargo network retries configured": "ENV CARGO_NET_RETRY=10",
