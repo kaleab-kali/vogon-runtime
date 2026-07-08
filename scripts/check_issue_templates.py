@@ -37,6 +37,7 @@ REQUIRED_CHECK_LABELS = {
     "removed secrets",
     "searched existing issues",
 }
+REQUIRED_BUG_VERSION_PLACEHOLDER = 'placeholder: "vogon 0.1.1"'
 
 
 def main() -> int:
@@ -73,6 +74,7 @@ def check_repository(root: Path) -> list[str]:
             required_fields=BUG_REQUIRED_FIELDS,
         )
     )
+    errors.extend(check_bug_version_placeholder(root, bug_path))
     errors.extend(
         check_form(
             root,
@@ -84,6 +86,19 @@ def check_repository(root: Path) -> list[str]:
         )
     )
     return errors
+
+
+def check_bug_version_placeholder(root: Path, path: Path) -> list[str]:
+    relative = relative_path(root, path)
+    if not path.exists():
+        return []
+
+    text = path.read_text(encoding="utf-8")
+    if REQUIRED_BUG_VERSION_PLACEHOLDER not in text:
+        return [
+            f"{relative}: version placeholder must match the latest public release"
+        ]
+    return []
 
 
 def check_config(root: Path, path: Path) -> list[str]:

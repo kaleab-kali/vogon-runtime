@@ -13,7 +13,7 @@ body:
     attributes:
       label: Vogon Runtime version
       description: Use `vogon --version`, a Git commit SHA, or the release tag.
-      placeholder: "vogon 0.1.0"
+      placeholder: "vogon 0.1.1"
     validations:
       required: true
   - type: dropdown

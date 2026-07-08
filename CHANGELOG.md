@@ -9,6 +9,8 @@ and this project follows semantic versioning.
 
 ### Documentation
 
+- The bug report template now suggests the latest public CLI version when asking
+  reporters for `vogon --version` output.
 - Public release documentation now points at the published `v0.1.1` artifacts
   while preserving `v0.1.0` as the first-release history.
 
