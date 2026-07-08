@@ -229,7 +229,9 @@ jobs:
         run: cargo doc --workspace --all-features --no-deps
 
       - name: Package
-        run: cargo package --workspace --allow-dirty --no-verify --offline
+        run: |
+          cargo package -p vogon-core --allow-dirty --offline
+          cargo package --workspace --allow-dirty --no-verify --offline
 
   msrv:
     name: Minimum supported Rust
