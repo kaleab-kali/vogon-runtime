@@ -347,13 +347,13 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image"
             docker run --rm "$image" --version
             docker run --rm --read-only "$image" --version
-            docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
+            docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
             chmod 777 "${{ runner.temp }}/vogon-downloaded-container-smoke"
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" init --force --output /work/starter.toml
-            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py" --expected-workflow-name starter-workflow --expected-step-count 2
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.replay.json"
-            python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
+            python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py" "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
           )
 
   publish-release:
