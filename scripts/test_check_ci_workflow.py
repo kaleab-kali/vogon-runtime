@@ -94,6 +94,7 @@ jobs:
           python3 scripts/check_workflow_policies.py --root .
           python3 scripts/check_security_workflows.py --root .
           cargo run -p vogon-xtask -- check-container-policy --root .
+          cargo run -p vogon-xtask -- check-secrets --root .
           python3 scripts/check_release_workflow.py --root .
           cargo run -p vogon-xtask -- check-changelog --root .
           cargo run -p vogon-xtask -- check-contributing-checklist --root .

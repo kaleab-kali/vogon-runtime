@@ -30,6 +30,7 @@ REQUIRED_SNIPPETS = {
     "workflow policy validator": "python3 scripts/check_workflow_policies.py --root .",
     "security workflow validator": "python3 scripts/check_security_workflows.py --root .",
     "container policy validator": "cargo run -p vogon-xtask -- check-container-policy --root .",
+    "committed secret validator": "cargo run -p vogon-xtask -- check-secrets --root .",
     "release workflow validator": "python3 scripts/check_release_workflow.py --root .",
     "changelog validator": "cargo run -p vogon-xtask -- check-changelog --root .",
     "contributing checklist validator": (

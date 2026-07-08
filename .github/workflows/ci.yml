@@ -114,9 +114,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-dependabot-config --root .
 
       - name: Check committed secret patterns
-        run: |
-          python3 -m unittest scripts.test_check_secrets
-          python3 scripts/check_secrets.py --root .
+        run: cargo run -p vogon-xtask -- check-secrets --root .
 
       - name: Check CI workflow
         run: |
