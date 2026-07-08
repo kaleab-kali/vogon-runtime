@@ -19,6 +19,7 @@
 - [ ] `python -m unittest scripts.test_check_changelog`
 - [ ] `python -m unittest scripts.test_check_contributing_checklist`
 - [ ] `python -m unittest scripts.test_check_container_policy`
+- [ ] `python -m unittest scripts.test_check_dependabot_config`
 - [ ] `python -m unittest scripts.test_check_deployment_checklist`
 - [ ] `python -m unittest scripts.test_check_doctor_json`
 - [ ] `python -m unittest scripts.test_check_cache_json`
@@ -45,6 +46,7 @@
 - [ ] `python scripts/check_env_example.py --root .`
 - [ ] `python scripts/check_issue_templates.py --root .`
 - [ ] `python scripts/check_container_policy.py --root .`
+- [ ] `python scripts/check_dependabot_config.py --root .`
 - [ ] `python scripts/check_live_workflows.py --root .`
 - [ ] `python scripts/check_package_verification_docs.py --root .`
 - [ ] `python scripts/check_pr_template.py --root .`

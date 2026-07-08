@@ -116,6 +116,11 @@ jobs:
           python3 -m unittest scripts.test_check_container_policy
           python3 scripts/check_container_policy.py --root .
 
+      - name: Check Dependabot configuration
+        run: |
+          python3 -m unittest scripts.test_check_dependabot_config
+          python3 scripts/check_dependabot_config.py --root .
+
       - name: Check committed secret patterns
         run: |
           python3 -m unittest scripts.test_check_secrets

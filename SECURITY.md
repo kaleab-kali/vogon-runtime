@@ -24,6 +24,10 @@ dependency changes and on a weekly schedule. The audit can be run manually
 before releases. New actionable advisories should be fixed or explicitly
 documented before merge.
 
+Dependabot is configured for Cargo dependencies, GitHub Actions, and Docker
+base images so runtime and deployment dependency updates are visible as pull
+requests.
+
 ## Static Analysis
 
 CodeQL scans Rust code on pull requests, pushes to `main`, a weekly schedule,
