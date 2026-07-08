@@ -7,6 +7,8 @@ and this project follows semantic versioning once the first release is tagged.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-08
+
 ### Added
 
 - Initial Rust workspace scaffold for `vogon-core`, `vogon-adapters`, and `vogon-cli`.
@@ -142,6 +144,8 @@ and this project follows semantic versioning once the first release is tagged.
   `--locked` wherever dependency resolution is part of the command.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
+- Container images now include OCI version and revision labels, and release
+  workflows verify tag and commit provenance on built and packaged images.
 - Compile-time unsafe Rust prohibition across workspace crates.
 - Pull request dependency review for high-or-critical vulnerable dependency changes.
 - CodeQL static analysis for Rust code on pull requests, pushes, schedules, and

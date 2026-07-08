@@ -30,6 +30,32 @@ and this project follows semantic versioning once the first release is tagged.
 
             self.assertEqual(check_changelog.check_repository(root), [])
 
+    def test_accepts_empty_unreleased_after_dated_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_changelog(
+                root,
+                """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+## [0.1.0] - 2026-07-08
+
+### Added
+
+- Initial feature.
+""".strip()
+                + "\n",
+            )
+
+            self.assertEqual(check_changelog.check_repository(root), [])
+
     def test_reports_missing_required_structure(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -64,7 +90,7 @@ and this project follows semantic versioning once the first release is tagged.
 
 ### Fixed
 
-## [0.1.0]
+## [0.1.0] - 2026-07-08
 """.strip()
                 + "\n",
             )
@@ -77,6 +103,37 @@ and this project follows semantic versioning once the first release is tagged.
                     "CHANGELOG.md: unsupported Unreleased subsection `Internal`",
                     "CHANGELOG.md: Unreleased `Internal` subsection has no entries",
                     "CHANGELOG.md: Unreleased `Fixed` subsection has no entries",
+                ],
+            )
+
+    def test_reports_release_heading_without_date(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_changelog(
+                root,
+                """
+# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows semantic versioning once the first release is tagged.
+
+## [Unreleased]
+
+## [0.1.0]
+
+### Added
+
+- Initial feature.
+""".strip()
+                + "\n",
+            )
+
+            errors = check_changelog.check_repository(root)
+
+            self.assertEqual(
+                errors,
+                [
+                    "CHANGELOG.md: release heading `## [0.1.0]` must include a version and date",
                 ],
             )
 
