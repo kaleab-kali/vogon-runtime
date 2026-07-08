@@ -14,6 +14,11 @@ and this project follows semantic versioning.
 - Release and container smoke checks now validate machine-readable provider
   diagnostics separately from doctor diagnostics.
 
+### Security
+
+- Secret scanning now detects raw Groq API key-looking values in tracked text
+  files.
+
 ## [0.1.0] - 2026-07-08
 
 ### Added
