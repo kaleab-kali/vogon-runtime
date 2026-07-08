@@ -203,7 +203,7 @@ jobs:
           cargo run -p vogon-xtask -- check-providers-json
           cargo run -p vogon-xtask -- check-providers-json
           python3 scripts/check_cache_json.py
-          python3 scripts/check_workflow_json.py
+          cargo run -p vogon-xtask -- check-workflow-json
           python3 scripts/check_verify_json.py
           python3 scripts/check_trace_jsonl.py
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
@@ -269,7 +269,7 @@ jobs:
           python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json
-          docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py"
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json
           python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py" "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json"
           docker run --rm --read-only "$image" providers --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json
       - uses: actions/attest@v4

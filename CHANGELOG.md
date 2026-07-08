@@ -63,6 +63,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving provider metadata checks.
 - The doctor JSON validator moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving runtime and provider usage checks.
+- The workflow check JSON validator moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving workflow name and step-count checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while

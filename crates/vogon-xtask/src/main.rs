@@ -311,6 +311,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "./target/release/vogon verify",
     ),
     (
+        "workflow check JSON validator",
+        "cargo run -p vogon-xtask -- check-workflow-json",
+    ),
+    (
         "offline install smoke",
         "cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force",
     ),
@@ -780,6 +784,10 @@ fn main() {
             ensure_no_args(args.collect());
             check_doctor_json_from_stdin()
         }
+        "check-workflow-json" => {
+            let options = parse_workflow_json_args(args.collect());
+            check_workflow_json_from_stdin(&options)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -856,7 +864,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -868,6 +876,11 @@ struct BenchmarkOutputOptions {
 struct CargoMetadataJsonOptions {
     metadata_file: PathBuf,
     expected_packages: Vec<String>,
+}
+
+struct WorkflowJsonOptions {
+    expected_workflow_name: Option<String>,
+    expected_step_count: Option<i64>,
 }
 
 struct Sha256FileOptions {
@@ -944,6 +957,47 @@ fn parse_cargo_metadata_json_args(args: Vec<String>) -> CargoMetadataJsonOptions
 fn print_cargo_metadata_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-cargo-metadata-json METADATA_FILE [--expected-workspace-package NAME ...]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_workflow_json_args(args: Vec<String>) -> WorkflowJsonOptions {
+    let mut expected_workflow_name = None;
+    let mut expected_step_count = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--expected-workflow-name" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_workflow_json_usage_and_exit();
+                };
+                expected_workflow_name = Some(value.clone());
+                index += 2;
+            }
+            "--expected-step-count" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_workflow_json_usage_and_exit();
+                };
+                let parsed = value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--expected-step-count must be an integer");
+                    std::process::exit(2);
+                });
+                expected_step_count = Some(parsed);
+                index += 2;
+            }
+            _ => print_workflow_json_usage_and_exit(),
+        }
+    }
+
+    WorkflowJsonOptions {
+        expected_workflow_name,
+        expected_step_count,
+    }
+}
+
+fn print_workflow_json_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-workflow-json [--expected-workflow-name NAME] [--expected-step-count COUNT]"
     );
     std::process::exit(2);
 }
@@ -1483,6 +1537,69 @@ fn validate_provider_json_credential_configured(
 
 fn json_value_display(value: Option<&JsonValue>) -> String {
     value.cloned().unwrap_or(JsonValue::Null).to_string()
+}
+
+fn check_workflow_json_from_stdin(options: &WorkflowJsonOptions) -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin().read_to_string(&mut output).map_err(|error| {
+        vec![format!(
+            "failed to read workflow check JSON from stdin: {error}"
+        )]
+    })?;
+    check_workflow_json(
+        &output,
+        options.expected_workflow_name.as_deref(),
+        options.expected_step_count,
+    )
+}
+
+fn check_workflow_json(
+    output: &str,
+    expected_workflow_name: Option<&str>,
+    expected_step_count: Option<i64>,
+) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("workflow check JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec![
+            "workflow check JSON root must be an object".to_owned(),
+        ]);
+    };
+
+    let mut errors = Vec::new();
+    let workflow_name = data.get("workflow_name");
+    match workflow_name.and_then(JsonValue::as_str) {
+        Some(name) if !name.is_empty() => {
+            if let Some(expected) = expected_workflow_name.filter(|expected| name != *expected) {
+                errors.push(format!(
+                    "workflow check JSON workflow_name mismatch: expected {}, got {}",
+                    expected,
+                    json_value_display(workflow_name)
+                ));
+            }
+        }
+        _ => errors.push("workflow check JSON workflow_name must be a non-empty string".to_owned()),
+    }
+
+    let step_count = data.get("step_count");
+    match step_count.and_then(JsonValue::as_i64) {
+        Some(count) if count > 0 => {
+            if let Some(expected) = expected_step_count.filter(|expected| count != *expected) {
+                errors.push(format!(
+                    "workflow check JSON step_count mismatch: expected {}, got {}",
+                    expected,
+                    json_value_display(step_count)
+                ));
+            }
+        }
+        _ => errors.push("workflow check JSON step_count must be a positive integer".to_owned()),
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 fn check_doctor_json_from_stdin() -> Result<(), Vec<String>> {
@@ -7048,6 +7165,73 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_workflow_json() {
+        let output = serde_json::json!({
+            "workflow_name": "support-triage",
+            "step_count": 2
+        })
+        .to_string();
+
+        assert_eq!(
+            check_workflow_json(&output, Some("support-triage"), Some(2)),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn reports_invalid_workflow_json() {
+        let errors = check_workflow_json("{", None, None).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("workflow check JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_non_object_workflow_json_root() {
+        let errors = check_workflow_json("[]", None, None).unwrap_err();
+
+        assert_eq!(errors, ["workflow check JSON root must be an object"]);
+    }
+
+    #[test]
+    fn reports_malformed_workflow_json_fields() {
+        let output = serde_json::json!({
+            "workflow_name": "",
+            "step_count": 0
+        })
+        .to_string();
+
+        let errors = check_workflow_json(&output, None, None).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "workflow check JSON workflow_name must be a non-empty string",
+                "workflow check JSON step_count must be a positive integer",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_expected_workflow_json_value_mismatches() {
+        let output = serde_json::json!({
+            "workflow_name": "writing-pipeline",
+            "step_count": 3
+        })
+        .to_string();
+
+        let errors = check_workflow_json(&output, Some("support-triage"), Some(2)).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "workflow check JSON workflow_name mismatch: expected support-triage, got \"writing-pipeline\"",
+                "workflow check JSON step_count mismatch: expected 2, got 3",
+            ]
+        );
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -7341,6 +7525,7 @@ jobs:
           ./target/release/vogon providers --json
           cargo run -p vogon-xtask -- check-providers-json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+          cargo run -p vogon-xtask -- check-workflow-json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked
           cargo package --workspace --allow-dirty --no-verify --offline --locked

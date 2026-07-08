@@ -51,10 +51,10 @@ jobs:
           ./target/release/vogon init --force --output "$init_workflow"
           init_check_json="$(./target/release/vogon check --json "$init_workflow")"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          printf '%s\n' "$init_check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(./target/release/vogon check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          printf '%s\n' "$check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(./target/release/vogon verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
@@ -106,7 +106,7 @@ jobs:
           ./archive-smoke/vogon doctor --json | cargo run -p vogon-xtask -- check-doctor-json
           ./archive-smoke/vogon providers --json | cargo run -p vogon-xtask -- check-providers-json
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
-          ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          ./archive-smoke/vogon check --json archive-smoke/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
           python3 scripts/check_cache_json.py archive-smoke/cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
 
@@ -163,10 +163,10 @@ jobs:
           .\target\release\vogon.exe init --force --output $initWorkflow
           $initCheckJson = (& .\target\release\vogon.exe check --json $initWorkflow) -join "`n"
           $initCheckJson
-          $initCheckJson | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          $initCheckJson | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           $checkJson = (& .\target\release\vogon.exe check --json fixtures\workflows\support-triage.toml) -join "`n"
           $checkJson
-          $checkJson | python scripts\check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          $checkJson | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           $verifyJson = (& .\target\release\vogon.exe verify --json fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json) -join "`n"
           $verifyJson
           $verifyJson | python scripts\check_verify_json.py --expected-workflow-name support-triage --expect-match
@@ -204,7 +204,7 @@ jobs:
           $archiveProvidersJson = (& .\archive-smoke\vogon.exe providers --json) -join "`n"
           $archiveProvidersJson | cargo run -p vogon-xtask -- check-providers-json
           .\archive-smoke\vogon.exe init --force --output archive-smoke\starter.toml
-          .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           python scripts\check_cache_json.py archive-smoke\cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
 
@@ -263,10 +263,10 @@ jobs:
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" init --force --output /work/starter.toml
           init_check_json="$(docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" check --json /work/starter.toml)"
           echo "$init_check_json"
-          printf '%s\n' "$init_check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          printf '%s\n' "$init_check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           check_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" check --json fixtures/workflows/support-triage.toml)"
           echo "$check_json"
-          printf '%s\n' "$check_json" | python3 scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
+          printf '%s\n' "$check_json" | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name support-triage --expected-step-count 2
           verify_json="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json)"
           echo "$verify_json"
           printf '%s\n' "$verify_json" | python3 scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
@@ -296,7 +296,7 @@ jobs:
           mkdir -p "${{ runner.temp }}/vogon-packaged-container-smoke"
           chmod 777 "${{ runner.temp }}/vogon-packaged-container-smoke"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" init --force --output /work/starter.toml
-          docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.replay.json"
           python3 scripts/check_cache_json.py "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
 
@@ -385,7 +385,7 @@ jobs:
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
             chmod 777 "${{ runner.temp }}/vogon-downloaded-container-smoke"
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" init --force --output /work/starter.toml
-            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py" --expected-workflow-name starter-workflow --expected-step-count 2
+            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.replay.json"
             python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py" "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
           )
