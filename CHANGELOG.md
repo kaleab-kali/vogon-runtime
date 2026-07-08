@@ -7,6 +7,11 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Public release documentation now points at the published `v0.1.1` artifacts
+  while preserving `v0.1.0` as the first-release history.
+
 ## [0.1.1] - 2026-07-08
 
 ### Changed

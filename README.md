@@ -27,9 +27,10 @@ Vogon Runtime aims to make those workflows easier to operate by providing:
 
 ## Project Status
 
-Vogon Runtime has a first public release, `v0.1.0`. The project is still in
-the `0.x` series, so command and library APIs may change as the runtime
-stabilizes. The current codebase is a small Rust workspace with:
+Vogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first
+public release. The project is still in the `0.x` series, so command and
+library APIs may change as the runtime stabilizes. The current codebase is a
+small Rust workspace with:
 
 - `vogon-core` for workflow, runtime, replay, hashing, and error types.
 - `vogon-adapters` for deterministic local execution and provider-backed
