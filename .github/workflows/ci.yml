@@ -56,9 +56,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-pr-template --root .
 
       - name: Check documentation links
-        run: |
-          python3 -m unittest scripts.test_check_docs_links
-          python3 scripts/check_docs_links.py --root .
+        run: cargo run -p vogon-xtask -- check-docs-links --root .
 
       - name: Check public status docs
         run: cargo run -p vogon-xtask -- check-public-status-docs --root .

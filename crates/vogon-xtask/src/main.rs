@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use toml::Value;
 
 type TomlTable = toml::Table;
@@ -13,6 +13,9 @@ const EXPECTED_ENV_VARS: &[&str] = &[
     "OPENAI_COMPATIBLE_API_KEY",
     "OPENROUTER_API_KEY",
 ];
+const REPO_OWNER: &str = "kaleab-kali";
+const REPO_NAME: &str = "vogon-runtime";
+const MARKDOWN_SUFFIXES: &[&str] = &["md", "markdown"];
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
 const RELEASE_VERIFICATION_MARKER: &str = "Run the full local verification set:";
@@ -278,6 +281,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_dependabot_config(&root)
         }
+        "check-docs-links" => {
+            let root = parse_root(args.collect());
+            check_docs_links(&root)
+        }
         "check-contributing-checklist" => {
             let root = parse_root(args.collect());
             check_contributing_checklist(&root)
@@ -332,7 +339,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -576,6 +583,276 @@ fn check_public_status_docs(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn check_docs_links(root: &Path) -> Result<(), Vec<String>> {
+    let root = fs::canonicalize(root).unwrap_or_else(|_| normalize_path(root));
+    let mut errors = Vec::new();
+    for markdown_file in markdown_files(&root) {
+        let links = match extract_markdown_links(&markdown_file) {
+            Ok(links) => links,
+            Err(error) => {
+                errors.push(format!(
+                    "{}: {error}",
+                    relative_path(&root, &markdown_file)
+                        .unwrap_or_else(|| markdown_file.display().to_string())
+                ));
+                continue;
+            }
+        };
+
+        for link in links {
+            match resolve_repository_link(&root, &markdown_file, &link.target) {
+                Ok(Some(resolved)) => {
+                    if !resolved.exists() {
+                        let source = relative_path(&root, &markdown_file)
+                            .unwrap_or_else(|| markdown_file.display().to_string());
+                        let target = relative_path(&root, &resolved)
+                            .unwrap_or_else(|| resolved.display().to_string());
+                        errors.push(format!(
+                            "{source}:{}: missing link target `{}` -> `{target}`",
+                            link.line, link.target
+                        ));
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    let source = relative_path(&root, &markdown_file)
+                        .unwrap_or_else(|| markdown_file.display().to_string());
+                    errors.push(format!("{source}:{}: {error}", link.line));
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct MarkdownLink {
+    line: usize,
+    target: String,
+}
+
+fn markdown_files(root: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    collect_markdown_files(root, root, &mut paths);
+    paths.sort();
+    paths
+}
+
+fn collect_markdown_files(root: &Path, directory: &Path, paths: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(relative) = path.strip_prefix(root) else {
+            continue;
+        };
+        if relative
+            .components()
+            .any(|component| matches!(component, Component::Normal(name) if name == ".git" || name == "target"))
+        {
+            continue;
+        }
+        if path.is_dir() {
+            collect_markdown_files(root, &path, paths);
+        } else if path.is_file()
+            && path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .map(|extension| {
+                    MARKDOWN_SUFFIXES.contains(&extension.to_ascii_lowercase().as_str())
+                })
+                .unwrap_or(false)
+        {
+            paths.push(path);
+        }
+    }
+}
+
+fn extract_markdown_links(path: &Path) -> Result<Vec<MarkdownLink>, std::io::Error> {
+    let text = fs::read_to_string(path)?;
+    let mut links = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        for target in markdown_link_targets(line) {
+            links.push(MarkdownLink {
+                line: index + 1,
+                target,
+            });
+        }
+    }
+    Ok(links)
+}
+
+fn markdown_link_targets(line: &str) -> Vec<String> {
+    let bytes = line.as_bytes();
+    let mut targets = Vec::new();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] != b'[' || (index > 0 && bytes[index - 1] == b'!') {
+            index += 1;
+            continue;
+        }
+
+        let Some(label_end) = find_matching_bracket(bytes, index) else {
+            index += 1;
+            continue;
+        };
+        if label_end + 1 >= bytes.len() || bytes[label_end + 1] != b'(' {
+            index += 1;
+            continue;
+        }
+
+        let target_start = label_end + 2;
+        let Some(relative_target_end) = line[target_start..].find(')') else {
+            index += 1;
+            continue;
+        };
+        let target_end = target_start + relative_target_end;
+        let target = normalize_markdown_target(&line[target_start..target_end]);
+        if !target.is_empty() {
+            targets.push(target);
+        }
+        index = target_end + 1;
+    }
+
+    targets
+}
+
+fn find_matching_bracket(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut depth = 0;
+    for (index, byte) in bytes.iter().enumerate().skip(start) {
+        match byte {
+            b'[' => depth += 1,
+            b']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn normalize_markdown_target(raw_target: &str) -> String {
+    let mut target = raw_target.trim();
+    if target.is_empty() {
+        return String::new();
+    }
+    if target.starts_with('<') && target.ends_with('>') {
+        target = target[1..target.len() - 1].trim();
+    }
+    target.split_whitespace().next().unwrap_or("").to_owned()
+}
+
+fn resolve_repository_link(
+    root: &Path,
+    source: &Path,
+    target: &str,
+) -> Result<Option<PathBuf>, String> {
+    let target_without_anchor = target.split('#').next().unwrap_or("");
+    if target_without_anchor.is_empty() {
+        return Ok(None);
+    }
+
+    if target_without_anchor.starts_with("http://") || target_without_anchor.starts_with("https://")
+    {
+        return resolve_github_repository_link(root, target_without_anchor);
+    }
+    if target_without_anchor.contains("://") {
+        return Ok(None);
+    }
+
+    if target_without_anchor.starts_with('/') {
+        return safe_join(root, root, target_without_anchor.trim_start_matches('/'));
+    }
+
+    safe_join(root, source.parent().unwrap_or(root), target_without_anchor)
+}
+
+fn resolve_github_repository_link(root: &Path, target: &str) -> Result<Option<PathBuf>, String> {
+    let Some(path) = target
+        .strip_prefix("https://github.com/")
+        .or_else(|| target.strip_prefix("http://github.com/"))
+    else {
+        return Ok(None);
+    };
+    let path = path.split('?').next().unwrap_or(path);
+    let parts = path
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .map(percent_decode)
+        .collect::<Vec<_>>();
+    if parts.len() < 5 {
+        return Ok(None);
+    }
+    if parts[0] != REPO_OWNER || parts[1] != REPO_NAME {
+        return Ok(None);
+    }
+    if !matches!(parts[2].as_str(), "blob" | "tree") || parts[3] != "main" {
+        return Ok(None);
+    }
+
+    let relative = parts[4..].join("/");
+    safe_join(root, root, &relative)
+}
+
+fn safe_join(root: &Path, base: &Path, target: &str) -> Result<Option<PathBuf>, String> {
+    let root = normalize_path(root);
+    let base = normalize_path(base);
+    let resolved = normalize_path(&base.join(target));
+    if resolved == root || resolved.starts_with(&root) {
+        Ok(Some(resolved))
+    } else {
+        Err(format!(
+            "link target escapes repository root: {}",
+            resolved.display()
+        ))
+    }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            _ => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
+}
+
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            if let Ok(hex) = std::str::from_utf8(&bytes[index + 1..index + 3]) {
+                if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                    decoded.push(byte);
+                    index += 3;
+                    continue;
+                }
+            }
+        }
+        decoded.push(bytes[index]);
+        index += 1;
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
 }
 
 fn check_package_verification_docs(root: &Path) -> Result<(), Vec<String>> {
@@ -1356,6 +1633,10 @@ fn slash_path(path: &Path) -> String {
         .join("/")
 }
 
+fn relative_path(root: &Path, path: &Path) -> Option<String> {
+    path.strip_prefix(root).ok().map(slash_path)
+}
+
 impl ExpectedValue {
     fn matches(self, value: Option<&Value>) -> bool {
         match self {
@@ -2073,6 +2354,54 @@ mod tests {
                 ".github/dependabot.yml: cargo `groups.cargo-minor-patch.update-types` must be 'minor,patch'",
             ]
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn extracts_nested_badge_link_without_image_target() {
+        let links = markdown_link_targets(
+            "[![CI](https://example.com/badge.svg)](https://github.com/kaleab-kali/vogon-runtime/actions/workflows/ci.yml)",
+        );
+
+        assert_eq!(
+            links,
+            ["https://github.com/kaleab-kali/vogon-runtime/actions/workflows/ci.yml"]
+        );
+    }
+
+    #[test]
+    fn accepts_relative_absolute_and_repo_blob_links() {
+        let root = temp_root("docs-links-accepts");
+        let docs = root.join("docs");
+        fs::create_dir(&docs).unwrap();
+        fs::write(docs.join("guide.md"), "# Guide\n").unwrap();
+        fs::write(
+            root.join("README.md"),
+            [
+                "[Guide](docs/guide.md)",
+                "[Root guide](/docs/guide.md)",
+                "[GitHub guide](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/guide.md)",
+                "[Anchor](#local-heading)",
+                "[External](https://example.com/docs)",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        assert_eq!(check_docs_links(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_repository_link_targets() {
+        let root = temp_root("docs-links-missing");
+        fs::write(root.join("README.md"), "[Missing](docs/missing.md)\n").unwrap();
+
+        let errors = check_docs_links(&root).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("README.md:1"));
+        assert!(errors[0].contains("docs/missing.md"));
         fs::remove_dir_all(root).unwrap();
     }
 
