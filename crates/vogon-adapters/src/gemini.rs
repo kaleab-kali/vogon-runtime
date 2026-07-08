@@ -184,13 +184,13 @@ impl ModelAdapter for GeminiModel {
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
-                Ok(response) => return Err(http_status_error(response)),
+                Ok(response) => return Err(http_status_error(response, &self.api_key)),
                 Err(error) if retries_remaining > 0 && is_retryable_error(&error) => {
                     sleep_before_retry(retry_attempt);
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
-                Err(error) => return Err(http_error(error)),
+                Err(error) => return Err(http_error(error, &self.api_key)),
             }
         };
         let response_body = response
@@ -287,16 +287,27 @@ fn extract_text(response: &GenerateContentResponse) -> Option<String> {
     if text.is_empty() { None } else { Some(text) }
 }
 
-fn http_status_error(mut response: ureq::http::Response<ureq::Body>) -> VogonError {
+fn http_status_error(mut response: ureq::http::Response<ureq::Body>, api_key: &str) -> VogonError {
     let status = response.status();
-    let body = truncate_error_body(read_error_body(response.body_mut()));
+    let body = redact_api_key(
+        truncate_error_body(read_error_body(response.body_mut())),
+        api_key,
+    );
     VogonError::Adapter(format!(
         "Gemini API request failed with HTTP {status}: {body}"
     ))
 }
 
-fn http_error(error: ureq::Error) -> VogonError {
-    VogonError::Adapter(format!("Gemini API request failed: {error}"))
+fn http_error(error: ureq::Error, api_key: &str) -> VogonError {
+    let message = redact_api_key(format!("Gemini API request failed: {error}"), api_key);
+    VogonError::Adapter(message)
+}
+
+fn redact_api_key(message: String, api_key: &str) -> String {
+    if api_key.is_empty() {
+        return message;
+    }
+    message.replace(api_key, "<redacted>")
 }
 
 fn truncate_error_body(body: String) -> String {
@@ -544,6 +555,41 @@ mod tests {
         let error = error.to_string();
         assert!(error.contains("HTTP 400 Bad Request"));
         assert!(error.contains(r#"{"error":"bad request"}"#));
+    }
+
+    #[test]
+    fn non_retryable_status_errors_redact_api_key_from_response_body() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+
+            let body = r#"{"error":"refused secret-key"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        });
+
+        let model = GeminiModel::with_base_url(
+            "secret-key",
+            "gemini-3.1-flash-lite",
+            format!("http://{address}"),
+            Duration::from_secs(5),
+            0,
+        )
+        .unwrap();
+        let step = Step::new(StepId::new("classify").unwrap(), "Classify");
+
+        let error = model.complete(&step, "input").unwrap_err();
+
+        server.join().unwrap();
+        let error = error.to_string();
+        assert!(error.contains("<redacted>"));
+        assert!(!error.contains("secret-key"));
     }
 
     #[test]
