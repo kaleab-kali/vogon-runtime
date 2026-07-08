@@ -13,3 +13,6 @@ The workflow schema describes the TOML-compatible object shape accepted by
 These schemas are aids for contributors and tooling. The CLI validators remain
 the source of truth because they also enforce cross-field rules such as unique
 step identifiers and replay step ordering.
+
+CI validates the schema files and checks committed workflow and replay fixtures
+against the same schema-level constraints.
