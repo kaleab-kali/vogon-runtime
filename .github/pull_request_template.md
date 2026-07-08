@@ -37,6 +37,7 @@
 - [ ] `python -m unittest scripts.test_check_release_workflow`
 - [ ] `python -m unittest scripts.test_check_schema_files`
 - [ ] `python -m unittest scripts.test_check_secrets`
+- [ ] `python -m unittest scripts.test_check_ci_workflow`
 - [ ] `python -m unittest scripts.test_check_security_workflows`
 - [ ] `python -m unittest scripts.test_check_workflow_policies`
 - [ ] `python scripts/check_cargo_manifests.py --root .`
@@ -55,6 +56,7 @@
 - [ ] `python scripts/check_release_workflow.py --root .`
 - [ ] `python scripts/check_schema_files.py --root .`
 - [ ] `python scripts/check_secrets.py --root .`
+- [ ] `python scripts/check_ci_workflow.py --root .`
 - [ ] `python scripts/check_security_workflows.py --root .`
 - [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
