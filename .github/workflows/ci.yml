@@ -116,9 +116,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-ci-workflow --root .
 
       - name: Check GitHub workflow policies
-        run: |
-          python3 -m unittest scripts.test_check_workflow_policies
-          python3 scripts/check_workflow_policies.py --root .
+        run: cargo run -p vogon-xtask -- check-workflow-policies --root .
 
       - name: Check security workflows
         run: cargo run -p vogon-xtask -- check-security-workflows --root .

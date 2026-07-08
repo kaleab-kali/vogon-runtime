@@ -86,6 +86,10 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
 ];
 const REQUIRED_README_COMMANDS: &[&str] = &[];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
+const WORKFLOW_SUFFIXES: &[&str] = &["yml", "yaml"];
+const ALLOWED_TOP_LEVEL_WRITE_SCOPES: &[&str] = &["security-events"];
+const FLOATING_RUNNERS: &[&str] = &["ubuntu-latest", "windows-latest", "macos-latest"];
+const MUTABLE_ACTION_REFS: &[&str] = &["main", "master", "latest", "head", "trunk"];
 const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ("workflow name", "name: CI"),
     ("pull request trigger", "  pull_request:"),
@@ -115,7 +119,7 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ),
     (
         "workflow policy validator",
-        "python3 scripts/check_workflow_policies.py --root .",
+        "cargo run -p vogon-xtask -- check-workflow-policies --root .",
     ),
     (
         "security workflow validator",
@@ -707,6 +711,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_secrets(&root)
         }
+        "check-workflow-policies" => {
+            let root = parse_root(args.collect());
+            check_workflow_policies(&root)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -737,7 +745,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -745,6 +753,20 @@ fn print_usage_and_exit() -> ! {
 struct Sha256FileOptions {
     artifact: PathBuf,
     checksum_file: Option<PathBuf>,
+}
+
+struct WorkflowBlock {
+    line: usize,
+    entries: BTreeMap<String, (String, usize)>,
+}
+
+struct WorkflowJob {
+    name: String,
+    line: usize,
+    runs_on: Option<String>,
+    runs_on_line: Option<usize>,
+    timeout_minutes: Option<String>,
+    timeout_line: Option<usize>,
 }
 
 fn parse_sha256_file_args(args: Vec<String>) -> Sha256FileOptions {
@@ -2803,6 +2825,392 @@ fn check_ci_workflow(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_workflow_policies(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    for workflow_file in workflow_policy_files(root) {
+        errors.extend(check_workflow_policy_file(root, &workflow_file));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn workflow_policy_files(root: &Path) -> Vec<PathBuf> {
+    let workflows_dir = root.join(".github").join("workflows");
+    let Ok(entries) = fs::read_dir(workflows_dir) else {
+        return Vec::new();
+    };
+
+    let mut paths = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| WORKFLOW_SUFFIXES.contains(&extension))
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+}
+
+fn check_workflow_policy_file(root: &Path, path: &Path) -> Vec<String> {
+    let relative_path = relative_display(root, path);
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => return vec![format!("{relative_path}: {error}")],
+    };
+    let lines = text.lines().collect::<Vec<_>>();
+    let mut errors = Vec::new();
+
+    for (line_index, line) in lines.iter().enumerate() {
+        let line_number = line_index + 1;
+        let stripped = line.trim();
+        if stripped.starts_with("pull_request_target:") {
+            errors.push(format!(
+                "{relative_path}:{line_number}: pull_request_target is not allowed"
+            ));
+        }
+        if matches!(stripped, "permissions: read-all" | "permissions: write-all") {
+            errors.push(format!(
+                "{relative_path}:{line_number}: broad workflow permissions are not allowed"
+            ));
+        }
+
+        if let Some(raw_reference) = workflow_uses_reference(line) {
+            if let Some(error) =
+                check_workflow_action_reference(&relative_path, line_number, raw_reference)
+            {
+                errors.push(error);
+            }
+            if is_checkout_action_reference(raw_reference)
+                && !checkout_disables_persisted_credentials(&lines, line_index)
+            {
+                errors.push(format!(
+                    "{relative_path}:{line_number}: checkout must set persist-credentials: false"
+                ));
+            }
+        }
+    }
+
+    let Some(permissions) = parse_workflow_top_level_block(&lines, "permissions") else {
+        errors.push(format!(
+            "{relative_path}: missing top-level permissions block"
+        ));
+        return errors;
+    };
+
+    if let Some(concurrency) = parse_workflow_top_level_block(&lines, "concurrency") {
+        if let Some(jobs_line) = first_workflow_top_level_key_line(&lines, "jobs:") {
+            if concurrency.line > jobs_line {
+                errors.push(format!(
+                    "{relative_path}:{}: top-level concurrency must be before jobs",
+                    concurrency.line
+                ));
+            }
+        }
+
+        if !concurrency.entries.contains_key("group") {
+            errors.push(format!(
+                "{relative_path}:{}: top-level concurrency must include group",
+                concurrency.line
+            ));
+        }
+        if !concurrency.entries.contains_key("cancel-in-progress") {
+            errors.push(format!(
+                "{relative_path}:{}: top-level concurrency must include cancel-in-progress",
+                concurrency.line
+            ));
+        }
+    } else {
+        errors.push(format!(
+            "{relative_path}: missing top-level concurrency block"
+        ));
+    }
+
+    errors.extend(check_workflow_jobs(&relative_path, &lines));
+
+    if let Some(jobs_line) = first_workflow_top_level_key_line(&lines, "jobs:") {
+        if permissions.line > jobs_line {
+            errors.push(format!(
+                "{relative_path}:{}: top-level permissions must be before jobs",
+                permissions.line
+            ));
+        }
+    }
+
+    match permissions.entries.get("contents") {
+        Some((level, line_number)) if level == "read" => {}
+        Some((_level, line_number)) => errors.push(format!(
+            "{relative_path}:{line_number}: top-level contents permission must be read"
+        )),
+        None => errors.push(format!(
+            "{relative_path}:{}: top-level permissions must include contents",
+            permissions.line
+        )),
+    }
+
+    for (scope, (level, line_number)) in &permissions.entries {
+        if level == "write" && !ALLOWED_TOP_LEVEL_WRITE_SCOPES.contains(&scope.as_str()) {
+            errors.push(format!(
+                "{relative_path}:{line_number}: top-level {scope} write permission must be job-scoped"
+            ));
+        }
+    }
+
+    errors
+}
+
+fn workflow_uses_reference(line: &str) -> Option<&str> {
+    let stripped = line.trim_start();
+    stripped
+        .strip_prefix("- uses:")
+        .or_else(|| stripped.strip_prefix("uses:"))
+        .map(str::trim)
+        .filter(|reference| !reference.is_empty())
+}
+
+fn check_workflow_action_reference(
+    relative_path: &str,
+    line_number: usize,
+    raw_reference: &str,
+) -> Option<String> {
+    let reference = raw_reference.trim().trim_matches(&['"', '\''][..]);
+    if reference.starts_with("./") || reference.starts_with("docker://") {
+        return None;
+    }
+
+    if reference.contains("${{") {
+        return Some(format!(
+            "{relative_path}:{line_number}: action references must not use expressions"
+        ));
+    }
+
+    let Some((action, action_ref)) = reference.rsplit_once('@') else {
+        return Some(format!(
+            "{relative_path}:{line_number}: external action references must include an explicit ref"
+        ));
+    };
+    if action.is_empty() || action_ref.is_empty() {
+        return Some(format!(
+            "{relative_path}:{line_number}: action reference must include action and ref"
+        ));
+    }
+
+    let normalized_ref = action_ref.to_ascii_lowercase();
+    if MUTABLE_ACTION_REFS.contains(&normalized_ref.as_str())
+        || normalized_ref.starts_with("refs/heads/")
+    {
+        return Some(format!(
+            "{relative_path}:{line_number}: action reference `{reference}` uses a mutable ref"
+        ));
+    }
+
+    None
+}
+
+fn is_checkout_action_reference(raw_reference: &str) -> bool {
+    let reference = raw_reference.trim().trim_matches(&['"', '\''][..]);
+    reference
+        .rsplit_once('@')
+        .map(|(action, _)| action.eq_ignore_ascii_case("actions/checkout"))
+        .unwrap_or(false)
+}
+
+fn checkout_disables_persisted_credentials(lines: &[&str], uses_line_index: usize) -> bool {
+    let uses_line = lines[uses_line_index];
+    let step_indent = leading_whitespace_len(uses_line);
+
+    for line in lines.iter().skip(uses_line_index + 1) {
+        let stripped = line.trim();
+        let current_indent = leading_whitespace_len(line);
+
+        if current_indent == step_indent && stripped.starts_with("- ") {
+            break;
+        }
+        if current_indent < step_indent && !stripped.is_empty() {
+            break;
+        }
+        if stripped == "persist-credentials: false" {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn parse_workflow_top_level_block(lines: &[&str], key: &str) -> Option<WorkflowBlock> {
+    let header = format!("{key}:");
+    let start_index = lines.iter().position(|line| *line == header)?;
+    let mut entries = BTreeMap::new();
+
+    for (child_index, child) in lines.iter().enumerate().skip(start_index + 1) {
+        if is_workflow_top_level_key(child) {
+            break;
+        }
+        let Some((name, value)) = parse_workflow_block_entry(child) else {
+            continue;
+        };
+        entries.insert(name.to_owned(), (value.to_owned(), child_index + 1));
+    }
+
+    Some(WorkflowBlock {
+        line: start_index + 1,
+        entries,
+    })
+}
+
+fn parse_workflow_block_entry(line: &str) -> Option<(&str, &str)> {
+    if !line.starts_with(char::is_whitespace) {
+        return None;
+    }
+    let stripped = line.trim();
+    let (key, value) = stripped.split_once(':')?;
+    let key = key.trim();
+    let value = value.trim();
+    if !is_identifier(key) || value.is_empty() {
+        return None;
+    }
+    Some((key, value))
+}
+
+fn check_workflow_jobs(relative_path: &str, lines: &[&str]) -> Vec<String> {
+    let Some(jobs_line_index) = lines.iter().position(|line| *line == "jobs:") else {
+        return Vec::new();
+    };
+
+    let mut errors = Vec::new();
+    for job in parse_workflow_jobs(lines, jobs_line_index + 1) {
+        match (&job.runs_on, job.runs_on_line) {
+            (None, _) => errors.push(format!(
+                "{relative_path}:{}: job `{}` missing runs-on",
+                job.line, job.name
+            )),
+            (Some(runner), Some(line_number)) if FLOATING_RUNNERS.contains(&runner.as_str()) => {
+                errors.push(format!(
+                    "{relative_path}:{line_number}: job `{}` uses floating runner `{runner}`",
+                    job.name
+                ));
+            }
+            _ => {}
+        }
+
+        match (&job.timeout_minutes, job.timeout_line) {
+            (None, _) => errors.push(format!(
+                "{relative_path}:{}: job `{}` missing timeout-minutes",
+                job.line, job.name
+            )),
+            (Some(value), Some(line_number)) => match value.parse::<i64>() {
+                Ok(timeout) if (1..=60).contains(&timeout) => {}
+                Ok(_) => errors.push(format!(
+                    "{relative_path}:{line_number}: job `{}` timeout-minutes must be between 1 and 60",
+                    job.name
+                )),
+                Err(_) => errors.push(format!(
+                    "{relative_path}:{line_number}: job `{}` timeout-minutes must be an integer",
+                    job.name
+                )),
+            },
+            _ => {}
+        }
+    }
+
+    errors
+}
+
+fn parse_workflow_jobs(lines: &[&str], start_index: usize) -> Vec<WorkflowJob> {
+    let mut jobs = Vec::new();
+    let mut index = start_index;
+    while index < lines.len() {
+        let line = lines[index];
+        if is_workflow_top_level_key(line) {
+            break;
+        }
+
+        let Some(name) = workflow_job_name(line) else {
+            index += 1;
+            continue;
+        };
+
+        let line_number = index + 1;
+        let mut runs_on = None;
+        let mut runs_on_line = None;
+        let mut timeout_minutes = None;
+        let mut timeout_line = None;
+        index += 1;
+
+        while index < lines.len() {
+            let child = lines[index];
+            if is_workflow_top_level_key(child) || workflow_job_name(child).is_some() {
+                break;
+            }
+
+            let stripped = child.trim();
+            if leading_whitespace_len(child) == 4 {
+                if let Some(value) = stripped.strip_prefix("runs-on:") {
+                    runs_on = Some(value.trim().trim_matches(&['"', '\''][..]).to_owned());
+                    runs_on_line = Some(index + 1);
+                }
+                if let Some(value) = stripped.strip_prefix("timeout-minutes:") {
+                    timeout_minutes = Some(value.trim().trim_matches(&['"', '\''][..]).to_owned());
+                    timeout_line = Some(index + 1);
+                }
+            }
+
+            index += 1;
+        }
+
+        jobs.push(WorkflowJob {
+            name: name.to_owned(),
+            line: line_number,
+            runs_on,
+            runs_on_line,
+            timeout_minutes,
+            timeout_line,
+        });
+    }
+
+    jobs
+}
+
+fn workflow_job_name(line: &str) -> Option<&str> {
+    if !line.starts_with("  ") || line.starts_with("    ") {
+        return None;
+    }
+    let stripped = line.trim();
+    let name = stripped.strip_suffix(':')?;
+    if is_identifier(name) {
+        Some(name)
+    } else {
+        None
+    }
+}
+
+fn first_workflow_top_level_key_line(lines: &[&str], key: &str) -> Option<usize> {
+    lines
+        .iter()
+        .enumerate()
+        .find_map(|(index, line)| (*line == key).then_some(index + 1))
+}
+
+fn is_workflow_top_level_key(line: &str) -> bool {
+    !line.is_empty()
+        && !line.starts_with([' ', '\t'])
+        && line
+            .split_once(':')
+            .map(|(key, _)| is_identifier(key))
+            .unwrap_or(false)
+}
+
+fn leading_whitespace_len(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
 fn check_security_workflows(root: &Path) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     for (relative_path, requirements) in SECURITY_WORKFLOW_REQUIREMENTS {
@@ -3915,6 +4323,356 @@ mod tests {
                 "Checksum digest mismatch: expected {wrong_digest}, got {actual_digest}"
             )]
         );
+    }
+
+    #[test]
+    fn accepts_least_privilege_workflow_with_job_scoped_write() {
+        let root = temp_root("workflow-policy-accepts");
+        write_workflow_policy_file(
+            &root,
+            "release.yml",
+            &[
+                "name: Release",
+                "on:",
+                "  workflow_dispatch:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  publish:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+                "    steps:",
+                "      - uses: actions/checkout@v7",
+                "        with:",
+                "          persist-credentials: false",
+                "      - uses: github/codeql-action/analyze@v4",
+                "      - uses: docker://alpine:3.20",
+                "      - uses: ./github/actions/local-check",
+                "    permissions:",
+                "      contents: write",
+            ],
+        );
+
+        assert_eq!(check_workflow_policies(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_top_level_workflow_permissions() {
+        let root = temp_root("workflow-policy-missing-permissions");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &["name: CI", "on:", "  pull_request:", "jobs:"],
+        );
+
+        assert_eq!(
+            check_workflow_policies(&root).unwrap_err(),
+            [".github/workflows/ci.yml: missing top-level permissions block"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_pull_request_target_and_broad_permissions() {
+        let root = temp_root("workflow-policy-broad-permissions");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &[
+                "name: CI",
+                "on:",
+                "  pull_request_target:",
+                "permissions: write-all",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error
+                    == ".github/workflows/ci.yml:3: pull_request_target is not allowed")
+        );
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:4: broad workflow permissions are not allowed"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_top_level_write_permissions_except_security_events() {
+        let root = temp_root("workflow-policy-write-permissions");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &[
+                "name: CI",
+                "on:",
+                "  push:",
+                "permissions:",
+                "  contents: write",
+                "  security-events: write",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:5: top-level contents permission must be read"
+        }));
+        assert!(errors.iter().any(|error| {
+            error
+                == ".github/workflows/ci.yml:5: top-level contents write permission must be job-scoped"
+        }));
+        assert!(!errors.iter().any(|error| {
+            error
+                == ".github/workflows/ci.yml:6: top-level security-events write permission must be job-scoped"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_floating_runner_and_missing_timeout() {
+        let root = temp_root("workflow-policy-floating-runner");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &[
+                "name: CI",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-latest",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:11: job `test` uses floating runner `ubuntu-latest`"
+        }));
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:10: job `test` missing timeout-minutes"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_timeout_values() {
+        let root = temp_root("workflow-policy-invalid-timeout");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &[
+                "name: CI",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  slow:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 90",
+                "  invalid:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: soon",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:12: job `slow` timeout-minutes must be between 1 and 60"
+        }));
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:15: job `invalid` timeout-minutes must be an integer"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_unpinned_and_mutable_action_refs() {
+        let root = temp_root("workflow-policy-action-refs");
+        write_workflow_policy_file(
+            &root,
+            "ci.yml",
+            &[
+                "name: CI",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+                "    steps:",
+                "      - uses: actions/checkout",
+                "      - uses: github/codeql-action/analyze@main",
+                "      - uses: actions/cache@refs/heads/main",
+                "      - uses: actions/upload-artifact@${{ inputs.ref }}",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error
+                == ".github/workflows/ci.yml:14: external action references must include an explicit ref"
+        }));
+        assert!(errors.iter().any(|error| {
+            error
+                == ".github/workflows/ci.yml:15: action reference `github/codeql-action/analyze@main` uses a mutable ref"
+        }));
+        assert!(errors.iter().any(|error| {
+            error
+                == ".github/workflows/ci.yml:16: action reference `actions/cache@refs/heads/main` uses a mutable ref"
+        }));
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/ci.yml:17: action references must not use expressions"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_checkout_with_persisted_credentials() {
+        let root = temp_root("workflow-policy-checkout-credentials");
+        write_workflow_policy_file(
+            &root,
+            "checkout.yml",
+            &[
+                "name: Checkout",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+                "jobs:",
+                "  missing:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+                "    steps:",
+                "      - uses: actions/checkout@v7",
+                "  enabled:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+                "    steps:",
+                "      - uses: actions/checkout@v7",
+                "        with:",
+                "          persist-credentials: true",
+            ],
+        );
+
+        assert_eq!(
+            check_workflow_policies(&root).unwrap_err(),
+            [
+                ".github/workflows/checkout.yml:14: checkout must set persist-credentials: false",
+                ".github/workflows/checkout.yml:19: checkout must set persist-credentials: false",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_missing_and_incomplete_concurrency_policy() {
+        let root = temp_root("workflow-policy-concurrency");
+        write_workflow_policy_file(
+            &root,
+            "missing.yml",
+            &[
+                "name: Missing",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+            ],
+        );
+        write_workflow_policy_file(
+            &root,
+            "incomplete.yml",
+            &[
+                "name: Incomplete",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+            ],
+        );
+        write_workflow_policy_file(
+            &root,
+            "late.yml",
+            &[
+                "name: Late",
+                "on:",
+                "  pull_request:",
+                "permissions:",
+                "  contents: read",
+                "jobs:",
+                "  test:",
+                "    runs-on: ubuntu-24.04",
+                "    timeout-minutes: 10",
+                "concurrency:",
+                "  group: ${{ github.workflow }}-${{ github.ref }}",
+                "  cancel-in-progress: true",
+            ],
+        );
+
+        let errors = check_workflow_policies(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/missing.yml: missing top-level concurrency block"
+        }));
+        assert!(errors.iter().any(|error| {
+            error
+                == ".github/workflows/incomplete.yml:6: top-level concurrency must include cancel-in-progress"
+        }));
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/late.yml:10: top-level concurrency must be before jobs"
+        }));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -5357,7 +6115,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           cargo run -p vogon-xtask -- check-ci-workflow --root .
-          python3 scripts/check_workflow_policies.py --root .
+          cargo run -p vogon-xtask -- check-workflow-policies --root .
           cargo run -p vogon-xtask -- check-security-workflows --root .
           cargo run -p vogon-xtask -- check-container-policy --root .
           cargo run -p vogon-xtask -- check-secrets --root .
@@ -5419,6 +6177,12 @@ jobs:
           cargo build --release -p vogon-cli --locked
           .\target\release\vogon.exe verify fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json
 "#
+    }
+
+    fn write_workflow_policy_file(root: &Path, filename: &str, lines: &[&str]) {
+        let workflows = root.join(".github").join("workflows");
+        fs::create_dir_all(&workflows).unwrap();
+        fs::write(workflows.join(filename), lines.join("\n")).unwrap();
     }
 
     fn write_security_workflows(

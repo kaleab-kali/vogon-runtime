@@ -25,7 +25,6 @@ cargo run -p vogon-xtask -- check-issue-templates --root .
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
 python -m unittest scripts.test_check_release_workflow
-python -m unittest scripts.test_check_workflow_policies
 cargo run -p vogon-xtask -- check-cargo-manifests --root .
 cargo run -p vogon-xtask -- check-changelog --root .
 cargo run -p vogon-xtask -- check-contributing-checklist --root .
@@ -45,7 +44,7 @@ cargo run -p vogon-xtask -- check-schema-files --root .
 cargo run -p vogon-xtask -- check-secrets --root .
 cargo run -p vogon-xtask -- check-ci-workflow --root .
 cargo run -p vogon-xtask -- check-security-workflows --root .
-python scripts/check_workflow_policies.py --root .
+cargo run -p vogon-xtask -- check-workflow-policies --root .
 cargo +1.85.0 test --workspace --all-features --locked
 cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
 cargo build --release --workspace --all-features --locked
