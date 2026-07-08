@@ -103,9 +103,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-release-checklist --root .
 
       - name: Check package verification docs
-        run: |
-          python3 -m unittest scripts.test_check_package_verification_docs
-          python3 scripts/check_package_verification_docs.py --root .
+        run: cargo run -p vogon-xtask -- check-package-verification-docs --root .
 
       - name: Check release workflow
         run: |

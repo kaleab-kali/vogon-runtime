@@ -123,6 +123,13 @@ const STALE_PUBLIC_STATUS_PHRASES: &[&str] = &[
     "once the first release is tagged",
     "public API is\npre-release",
 ];
+const PACKAGE_VERIFICATION_COMMAND: &str =
+    "cargo package --workspace --allow-dirty --no-verify --offline --locked";
+const PACKAGE_VERIFICATION_RATIONALE_SNIPPETS: &[&str] = &[
+    "Cargo can fail offline verification while resolving unpublished internal workspace crates",
+    "preceding build, test, docs, install, and smoke commands",
+];
+const PACKAGE_VERIFICATION_DOCS: &[&str] = &["README.md", "docs/release.md"];
 
 #[derive(Clone, Copy)]
 enum ExpectedValue {
@@ -157,6 +164,10 @@ fn main() {
         "check-deployment-checklist" => {
             let root = parse_root(args.collect());
             check_deployment_checklist(&root)
+        }
+        "check-package-verification-docs" => {
+            let root = parse_root(args.collect());
+            check_package_verification_docs(&root)
         }
         "check-pr-template" => {
             let root = parse_root(args.collect());
@@ -200,7 +211,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -436,6 +447,45 @@ fn check_public_status_docs(root: &Path) -> Result<(), Vec<String>> {
                     single_line(phrase)
                 ));
             }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_package_verification_docs(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    for relative_path in PACKAGE_VERIFICATION_DOCS {
+        let path = root.join(relative_path);
+        if !path.is_file() {
+            errors.push(format!(
+                "{relative_path}: missing package verification documentation"
+            ));
+            continue;
+        }
+
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+        let normalized_text = single_line(&text);
+        if !text.contains(PACKAGE_VERIFICATION_COMMAND) {
+            errors.push(format!("{relative_path}: missing offline package command"));
+        }
+        if !PACKAGE_VERIFICATION_RATIONALE_SNIPPETS
+            .iter()
+            .all(|snippet| normalized_text.contains(snippet))
+        {
+            errors.push(format!(
+                "{relative_path}: missing package verification rationale"
+            ));
         }
     }
 
@@ -1368,6 +1418,45 @@ mod tests {
     }
 
     #[test]
+    fn accepts_documented_package_verification_rationale() {
+        let root = temp_root("package-verification-accepts");
+        write_package_verification_docs(&root, PACKAGE_VERIFICATION_COMMAND, None);
+
+        assert_eq!(check_package_verification_docs(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_package_command() {
+        let root = temp_root("package-verification-missing-command");
+        write_package_verification_docs(&root, "cargo package --workspace --offline", None);
+
+        let errors = check_package_verification_docs(&root).unwrap_err();
+
+        assert!(errors.contains(&"README.md: missing offline package command".to_owned()));
+        assert!(errors.contains(&"docs/release.md: missing offline package command".to_owned()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_package_verification_rationale() {
+        let root = temp_root("package-verification-missing-rationale");
+        write_package_verification_docs(
+            &root,
+            PACKAGE_VERIFICATION_COMMAND,
+            Some("Run this after the other checks."),
+        );
+
+        let errors = check_package_verification_docs(&root).unwrap_err();
+
+        assert!(errors.contains(&"README.md: missing package verification rationale".to_owned()));
+        assert!(
+            errors.contains(&"docs/release.md: missing package verification rationale".to_owned())
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -1805,6 +1894,20 @@ and this project follows semantic versioning once the first release is tagged.
             "# Release\n\nCrate publishing is manual while still in the `0.x` series.\n",
         )
         .unwrap();
+    }
+
+    fn write_package_verification_docs(
+        root: &Path,
+        package_command: &str,
+        rationale: Option<&str>,
+    ) {
+        fs::create_dir(root.join("docs")).unwrap();
+        let rationale = rationale.unwrap_or(
+            "Cargo can fail offline verification while resolving unpublished internal workspace crates. The preceding build, test, docs, install, and smoke commands still verify compilation and CLI behavior.",
+        );
+        let text = format!("{package_command}\n\n{rationale}\n");
+        fs::write(root.join("README.md"), &text).unwrap();
+        fs::write(root.join("docs").join("release.md"), text).unwrap();
     }
 
     fn write_contributing_docs(
