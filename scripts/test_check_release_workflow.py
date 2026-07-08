@@ -205,7 +205,7 @@ jobs:
           python3 scripts/check_cache_json.py
           cargo run -p vogon-xtask -- check-workflow-json
           cargo run -p vogon-xtask -- check-verify-json
-          python3 scripts/check_trace_jsonl.py
+          cargo run -p vogon-xtask -- check-trace-jsonl
           sha256sum -c vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-metadata.json.sha256
           sha256sum -c vogon-${{ github.ref_name }}-cargo-spdx.json.sha256

@@ -315,6 +315,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "cargo run -p vogon-xtask -- check-verify-json",
     ),
     (
+        "trace JSONL validator",
+        "cargo run -p vogon-xtask -- check-trace-jsonl",
+    ),
+    (
         "workflow check JSON validator",
         "cargo run -p vogon-xtask -- check-workflow-json",
     ),
@@ -796,6 +800,10 @@ fn main() {
             let options = parse_verify_json_args(args.collect());
             check_verify_json_from_stdin(&options)
         }
+        "check-trace-jsonl" => {
+            let options = parse_trace_jsonl_args(args.collect());
+            check_trace_jsonl_from_stdin(&options)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -872,7 +880,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -894,6 +902,13 @@ struct WorkflowJsonOptions {
 struct VerifyJsonOptions {
     expected_workflow_name: Option<String>,
     expected_match: Option<bool>,
+}
+
+struct TraceJsonlOptions {
+    expected_provider: Option<String>,
+    expected_model: Option<String>,
+    expected_schema_version: i64,
+    expected_step_count: Option<usize>,
 }
 
 struct Sha256FileOptions {
@@ -1053,6 +1068,67 @@ fn parse_verify_json_args(args: Vec<String>) -> VerifyJsonOptions {
 fn print_verify_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-verify-json [--expected-workflow-name NAME] [--expect-match|--expect-mismatch]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_trace_jsonl_args(args: Vec<String>) -> TraceJsonlOptions {
+    let mut expected_provider = None;
+    let mut expected_model = None;
+    let mut expected_schema_version = 1;
+    let mut expected_step_count = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--expected-provider" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_trace_jsonl_usage_and_exit();
+                };
+                expected_provider = Some(value.clone());
+                index += 2;
+            }
+            "--expected-model" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_trace_jsonl_usage_and_exit();
+                };
+                expected_model = Some(value.clone());
+                index += 2;
+            }
+            "--expected-schema-version" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_trace_jsonl_usage_and_exit();
+                };
+                expected_schema_version = value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--expected-schema-version must be an integer");
+                    std::process::exit(2);
+                });
+                index += 2;
+            }
+            "--expected-step-count" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_trace_jsonl_usage_and_exit();
+                };
+                expected_step_count = Some(value.parse::<usize>().unwrap_or_else(|_| {
+                    eprintln!("--expected-step-count must be a non-negative integer");
+                    std::process::exit(2);
+                }));
+                index += 2;
+            }
+            _ => print_trace_jsonl_usage_and_exit(),
+        }
+    }
+
+    TraceJsonlOptions {
+        expected_provider,
+        expected_model,
+        expected_schema_version,
+        expected_step_count,
+    }
+}
+
+fn print_trace_jsonl_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-trace-jsonl [--expected-provider NAME] [--expected-model NAME] [--expected-schema-version VERSION] [--expected-step-count COUNT]"
     );
     std::process::exit(2);
 }
@@ -1733,6 +1809,154 @@ fn check_verify_json(
         Ok(())
     } else {
         Err(errors)
+    }
+}
+
+fn check_trace_jsonl_from_stdin(options: &TraceJsonlOptions) -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin()
+        .read_to_string(&mut output)
+        .map_err(|error| vec![format!("failed to read trace JSONL from stdin: {error}")])?;
+    check_trace_jsonl(&output, options)
+}
+
+fn check_trace_jsonl(output: &str, options: &TraceJsonlOptions) -> Result<(), Vec<String>> {
+    let lines = output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>();
+    if lines.is_empty() {
+        return Err(vec!["trace JSONL output must not be empty".to_owned()]);
+    }
+
+    let mut events = Vec::new();
+    let mut errors = Vec::new();
+    for (index, line) in lines.iter().enumerate() {
+        match serde_json::from_str::<JsonValue>(line) {
+            Ok(JsonValue::Object(event)) => events.push(event),
+            Ok(_) => errors.push(format!("trace JSONL line {} must be an object", index + 1)),
+            Err(error) => errors.push(format!(
+                "trace JSONL line {} is invalid JSON: {error}",
+                index + 1
+            )),
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    let run = &events[0];
+    if run.get("event").and_then(JsonValue::as_str) != Some("run") {
+        errors.push("trace JSONL first event must be run".to_owned());
+    }
+
+    if run.get("schema_version").and_then(JsonValue::as_i64)
+        != Some(options.expected_schema_version)
+    {
+        errors.push(format!(
+            "trace JSONL schema_version mismatch: expected {}, got {}",
+            options.expected_schema_version,
+            json_value_display(run.get("schema_version"))
+        ));
+    }
+
+    let runtime = run.get("runtime").and_then(JsonValue::as_object);
+    let runtime = match runtime {
+        Some(runtime) => Some(runtime),
+        None => {
+            errors.push("trace JSONL run runtime must be an object".to_owned());
+            None
+        }
+    };
+
+    if let Some(expected_provider) = options.expected_provider.as_deref() {
+        let actual = runtime.and_then(|runtime| runtime.get("provider"));
+        if actual.and_then(JsonValue::as_str) != Some(expected_provider) {
+            errors.push(format!(
+                "trace JSONL runtime provider mismatch: expected {expected_provider}, got {}",
+                json_value_display(actual)
+            ));
+        }
+    }
+
+    if let Some(expected_model) = options.expected_model.as_deref() {
+        let actual = runtime.and_then(|runtime| runtime.get("model"));
+        if actual.and_then(JsonValue::as_str) != Some(expected_model) {
+            errors.push(format!(
+                "trace JSONL runtime model mismatch: expected {expected_model}, got {}",
+                json_value_display(actual)
+            ));
+        }
+    }
+
+    let run_step_count = match run.get("step_count").and_then(JsonValue::as_i64) {
+        Some(count) if count > 0 => Some(count),
+        _ => {
+            errors.push("trace JSONL run step_count must be a positive integer".to_owned());
+            None
+        }
+    };
+
+    let step_events = &events[1..];
+    if let Some(expected) = options
+        .expected_step_count
+        .filter(|expected| step_events.len() != *expected)
+    {
+        errors.push(format!(
+            "trace JSONL step event count mismatch: expected {expected}, got {}",
+            step_events.len()
+        ));
+    }
+    if let Some(count) = run_step_count {
+        if count != step_events.len() as i64 {
+            errors.push(format!(
+                "trace JSONL run step_count must match step events: expected {count}, got {}",
+                step_events.len()
+            ));
+        }
+    }
+
+    for (index, step) in step_events.iter().enumerate() {
+        check_trace_jsonl_step_event(step, index + 1, &mut errors);
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_trace_jsonl_step_event(
+    step: &serde_json::Map<String, JsonValue>,
+    expected_index: usize,
+    errors: &mut Vec<String>,
+) {
+    if step.get("event").and_then(JsonValue::as_str) != Some("step") {
+        errors.push(format!(
+            "trace JSONL event {} must be step",
+            expected_index + 1
+        ));
+    }
+    if step.get("index").and_then(JsonValue::as_i64) != Some(expected_index as i64) {
+        errors.push(format!(
+            "trace JSONL step index mismatch at event {}: expected {}, got {}",
+            expected_index + 1,
+            expected_index,
+            json_value_display(step.get("index"))
+        ));
+    }
+
+    for field in ["step_id", "input_hash", "output_hash", "output"] {
+        if step
+            .get(field)
+            .and_then(JsonValue::as_str)
+            .is_none_or(str::is_empty)
+        {
+            errors.push(format!(
+                "trace JSONL step {expected_index} field {field} must be a non-empty string"
+            ));
+        }
     }
 }
 
@@ -7476,6 +7700,109 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_trace_jsonl() {
+        assert_eq!(
+            check_trace_jsonl(
+                &valid_trace_jsonl(),
+                &TraceJsonlOptions {
+                    expected_provider: Some("deterministic".to_owned()),
+                    expected_model: Some("deterministic-echo".to_owned()),
+                    expected_schema_version: 1,
+                    expected_step_count: Some(2),
+                },
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn reports_empty_trace_jsonl() {
+        let errors = check_trace_jsonl("", &default_trace_jsonl_options()).unwrap_err();
+
+        assert_eq!(errors, ["trace JSONL output must not be empty"]);
+    }
+
+    #[test]
+    fn reports_invalid_trace_jsonl_line() {
+        let errors = check_trace_jsonl("{", &default_trace_jsonl_options()).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("trace JSONL line 1 is invalid JSON:"));
+    }
+
+    #[test]
+    fn reports_trace_jsonl_runtime_mismatches() {
+        let trace = valid_trace_jsonl().replacen("\"deterministic\"", "\"gemini\"", 1);
+
+        let errors = check_trace_jsonl(
+            &trace,
+            &TraceJsonlOptions {
+                expected_provider: Some("deterministic".to_owned()),
+                expected_model: Some("deterministic-echo".to_owned()),
+                expected_schema_version: 1,
+                expected_step_count: Some(2),
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["trace JSONL runtime provider mismatch: expected deterministic, got \"gemini\""]
+        );
+    }
+
+    #[test]
+    fn reports_trace_jsonl_step_count_mismatches() {
+        let events = valid_trace_jsonl()
+            .lines()
+            .take(2)
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let errors = check_trace_jsonl(
+            &events,
+            &TraceJsonlOptions {
+                expected_step_count: Some(2),
+                ..default_trace_jsonl_options()
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "trace JSONL step event count mismatch: expected 2, got 1",
+                "trace JSONL run step_count must match step events: expected 2, got 1",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_malformed_trace_jsonl_step_event() {
+        let mut events = valid_trace_jsonl()
+            .lines()
+            .map(|line| serde_json::from_str::<JsonValue>(line).unwrap())
+            .collect::<Vec<_>>();
+        events[1]["index"] = JsonValue::Number(2.into());
+        events[1]["output_hash"] = JsonValue::String(String::new());
+        let trace = events
+            .iter()
+            .map(JsonValue::to_string)
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let errors = check_trace_jsonl(&trace, &default_trace_jsonl_options()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "trace JSONL step index mismatch at event 2: expected 1, got 2",
+                "trace JSONL step 1 field output_hash must be a non-empty string",
+            ]
+        );
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -7705,6 +8032,51 @@ and this project follows semantic versioning once the first release is tagged.
         .to_string()
     }
 
+    fn default_trace_jsonl_options() -> TraceJsonlOptions {
+        TraceJsonlOptions {
+            expected_provider: None,
+            expected_model: None,
+            expected_schema_version: 1,
+            expected_step_count: None,
+        }
+    }
+
+    fn valid_trace_jsonl() -> String {
+        [
+            serde_json::json!({
+                "event": "run",
+                "schema_version": 1,
+                "workflow_name": "support-triage",
+                "runtime": {
+                    "provider": "deterministic",
+                    "model": "deterministic-echo",
+                },
+                "run_hash": "a".repeat(64),
+                "step_count": 2,
+            })
+            .to_string(),
+            serde_json::json!({
+                "event": "step",
+                "index": 1,
+                "step_id": "classify",
+                "input_hash": "b".repeat(64),
+                "output_hash": "c".repeat(64),
+                "output": "classify:input",
+            })
+            .to_string(),
+            serde_json::json!({
+                "event": "step",
+                "index": 2,
+                "step_id": "draft_response",
+                "input_hash": "d".repeat(64),
+                "output_hash": "e".repeat(64),
+                "output": "draft_response:input",
+            })
+            .to_string(),
+        ]
+        .join("\n")
+    }
+
     fn write_ci_workflow(root: &Path, text: &str) {
         let workflows = root.join(".github").join("workflows");
         fs::create_dir_all(&workflows).unwrap();
@@ -7770,6 +8142,7 @@ jobs:
           cargo run -p vogon-xtask -- check-providers-json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           cargo run -p vogon-xtask -- check-verify-json
+          cargo run -p vogon-xtask -- check-trace-jsonl
           cargo run -p vogon-xtask -- check-workflow-json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked

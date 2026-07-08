@@ -51,7 +51,7 @@ REQUIRED_SNIPPETS = {
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "check-workflow-json",
     "verify JSON validator": "check-verify-json",
-    "trace JSONL validator": "scripts/check_trace_jsonl.py",
+    "trace JSONL validator": "check-trace-jsonl",
     "container image validator": "scripts/check_container_image.py",
     "container version label validation": '--expected-version "${{ github.ref_name }}"',
     "container revision label validation": '--expected-revision "${{ github.sha }}"',
