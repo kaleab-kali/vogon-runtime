@@ -11,6 +11,8 @@ and this project follows semantic versioning.
 
 - Public status documentation now reflects the published `v0.1.0` release while
   keeping the `0.x` API stability warning.
+- Release and container smoke checks now validate machine-readable provider
+  diagnostics separately from doctor diagnostics.
 
 ## [0.1.0] - 2026-07-08
 
