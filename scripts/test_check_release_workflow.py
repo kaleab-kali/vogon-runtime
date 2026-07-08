@@ -78,6 +78,21 @@ class CheckReleaseWorkflowTests(unittest.TestCase):
                 errors,
             )
 
+    def test_reports_missing_attestation_permission_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_release_workflow(
+                root,
+                release_workflow_text().replace("      id-token: write\n", "", 1),
+            )
+
+            errors = check_release_workflow.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/release.yml: expected at least 3 occurrence(s) of `      id-token: write`, found 2",
+                errors,
+            )
+
 
 def write_release_workflow(root: Path, text: str) -> None:
     workflows = root / ".github" / "workflows"
@@ -103,6 +118,10 @@ concurrency:
 
 jobs:
   linux-cli:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - run: cargo build --release -p vogon-cli --locked
@@ -139,6 +158,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   windows-cli:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - run: |
@@ -157,6 +180,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   container-image:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - run: |

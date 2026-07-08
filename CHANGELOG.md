@@ -130,6 +130,8 @@ and this project follows semantic versioning once the first release is tagged.
   permissions, query suite, and analysis steps.
 - CI workflow validation now enforces core jobs, policy checks, and release,
   install, benchmark, container, and Windows smoke commands.
+- Release workflow validation now enforces job-scoped OIDC and attestation
+  permissions for all attested artifacts.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
