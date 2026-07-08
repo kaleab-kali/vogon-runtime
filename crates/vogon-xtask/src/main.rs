@@ -295,6 +295,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "./target/release/vogon doctor --json",
     ),
     (
+        "doctor JSON validator",
+        "cargo run -p vogon-xtask -- check-doctor-json",
+    ),
+    (
         "release CLI providers smoke",
         "./target/release/vogon providers --json",
     ),
@@ -772,6 +776,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_deployment_docs(&root)
         }
+        "check-doctor-json" => {
+            ensure_no_args(args.collect());
+            check_doctor_json_from_stdin()
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -848,7 +856,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -1475,6 +1483,89 @@ fn validate_provider_json_credential_configured(
 
 fn json_value_display(value: Option<&JsonValue>) -> String {
     value.cloned().unwrap_or(JsonValue::Null).to_string()
+}
+
+fn check_doctor_json_from_stdin() -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin()
+        .read_to_string(&mut output)
+        .map_err(|error| vec![format!("failed to read doctor JSON from stdin: {error}")])?;
+    check_doctor_json(&output)
+}
+
+fn check_doctor_json(output: &str) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("doctor JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec!["doctor JSON root must be an object".to_owned()]);
+    };
+
+    let mut errors = Vec::new();
+    if data.get("status").and_then(JsonValue::as_str) != Some("ok") {
+        errors.push("doctor status must be ok".to_owned());
+    }
+
+    match data.get("checks").and_then(JsonValue::as_array) {
+        Some(checks) => {
+            let has_runtime_check = checks.iter().any(|check| {
+                check.as_object().is_some_and(|check| {
+                    check.get("name").and_then(JsonValue::as_str) == Some("deterministic_runtime")
+                        && check.get("status").and_then(JsonValue::as_str) == Some("ok")
+                })
+            });
+            if !has_runtime_check {
+                errors.push("doctor checks must include ok deterministic_runtime".to_owned());
+            }
+        }
+        None => errors.push("doctor checks must be an array".to_owned()),
+    }
+
+    let Some(providers) = data.get("providers").and_then(JsonValue::as_array) else {
+        errors.push("doctor providers must be an array".to_owned());
+        return Err(errors);
+    };
+
+    let providers_by_name = providers
+        .iter()
+        .filter_map(|provider| {
+            let provider = provider.as_object()?;
+            let name = provider.get("name").and_then(JsonValue::as_str)?;
+            Some((name.to_owned(), provider))
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    for expected in EXPECTED_PROVIDER_JSON {
+        let Some(provider) = providers_by_name.get(expected.name) else {
+            errors.push(format!("doctor providers must include {}", expected.name));
+            continue;
+        };
+        match expected.usage_url {
+            Some(expected_url) => {
+                if provider.get("usage_url").and_then(JsonValue::as_str) != Some(expected_url) {
+                    errors.push(format!(
+                        "doctor provider {} usage_url mismatch: expected {expected_url}, got {}",
+                        expected.name,
+                        json_value_display(provider.get("usage_url"))
+                    ));
+                }
+            }
+            None => {
+                if provider.get("usage_url") != Some(&JsonValue::Null) {
+                    errors.push(format!(
+                        "doctor provider {} usage_url must be null, got {}",
+                        expected.name,
+                        json_value_display(provider.get("usage_url"))
+                    ));
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 fn check_contributing_checklist(root: &Path) -> Result<(), Vec<String>> {
@@ -6956,6 +7047,63 @@ and this project follows semantic versioning once the first release is tagged.
         );
     }
 
+    #[test]
+    fn accepts_expected_doctor_json() {
+        assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
+    }
+
+    #[test]
+    fn reports_invalid_doctor_json() {
+        let errors = check_doctor_json("{").unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("doctor JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_missing_doctor_runtime_check() {
+        let mut data: JsonValue = serde_json::from_str(&doctor_json_output()).unwrap();
+        data["checks"] = JsonValue::Array(Vec::new());
+
+        let errors = check_doctor_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["doctor checks must include ok deterministic_runtime"]
+        );
+    }
+
+    #[test]
+    fn reports_doctor_provider_usage_url_mismatch() {
+        let mut data: JsonValue = serde_json::from_str(&doctor_json_output()).unwrap();
+        let providers = data
+            .get_mut("providers")
+            .and_then(JsonValue::as_array_mut)
+            .unwrap();
+        let gemini = providers
+            .iter_mut()
+            .find(|provider| provider.get("name").and_then(JsonValue::as_str) == Some("gemini"))
+            .unwrap();
+        gemini["usage_url"] = JsonValue::String("https://example.com".to_owned());
+        let openai_compatible = providers
+            .iter_mut()
+            .find(|provider| {
+                provider.get("name").and_then(JsonValue::as_str) == Some("openai-compatible")
+            })
+            .unwrap();
+        openai_compatible["usage_url"] = JsonValue::String("https://example.com/usage".to_owned());
+
+        let errors = check_doctor_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "doctor provider gemini usage_url mismatch: expected https://ai.google.dev/gemini-api/docs/pricing, got \"https://example.com\"",
+                "doctor provider openai-compatible usage_url must be null, got \"https://example.com/usage\"",
+            ]
+        );
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -7088,6 +7236,47 @@ and this project follows semantic versioning once the first release is tagged.
         .to_string()
     }
 
+    fn doctor_json_output() -> String {
+        serde_json::json!({
+            "status": "ok",
+            "version": "0.1.0",
+            "checks": [
+                {
+                    "name": "deterministic_runtime",
+                    "status": "ok",
+                    "message": "deterministic runtime executed a one-step workflow"
+                }
+            ],
+            "providers": [
+                {
+                    "name": "deterministic",
+                    "usage_url": null
+                },
+                {
+                    "name": "gemini",
+                    "usage_url": "https://ai.google.dev/gemini-api/docs/pricing"
+                },
+                {
+                    "name": "groq",
+                    "usage_url": "https://console.groq.com/docs/rate-limits"
+                },
+                {
+                    "name": "hugging-face",
+                    "usage_url": "https://huggingface.co/docs/inference-providers/pricing"
+                },
+                {
+                    "name": "openrouter",
+                    "usage_url": "https://openrouter.ai/pricing"
+                },
+                {
+                    "name": "openai-compatible",
+                    "usage_url": null
+                }
+            ]
+        })
+        .to_string()
+    }
+
     fn write_ci_workflow(root: &Path, text: &str) {
         let workflows = root.join(".github").join("workflows");
         fs::create_dir_all(&workflows).unwrap();
@@ -7148,6 +7337,7 @@ jobs:
           cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
           cargo build --release --workspace --all-features --locked
           ./target/release/vogon doctor --json
+          cargo run -p vogon-xtask -- check-doctor-json
           ./target/release/vogon providers --json
           cargo run -p vogon-xtask -- check-providers-json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json

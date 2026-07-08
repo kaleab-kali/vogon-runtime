@@ -43,7 +43,7 @@ jobs:
           ./target/release/vogon --version
           doctor_json="$(./target/release/vogon doctor --json)"
           echo "$doctor_json"
-          printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          printf '%s\n' "$doctor_json" | cargo run -p vogon-xtask -- check-doctor-json
           providers_json="$(./target/release/vogon providers --json)"
           echo "$providers_json"
           printf '%s\n' "$providers_json" | cargo run -p vogon-xtask -- check-providers-json
@@ -103,7 +103,7 @@ jobs:
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
           cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon
           ./archive-smoke/vogon --version
-          ./archive-smoke/vogon doctor --json | python3 scripts/check_doctor_json.py
+          ./archive-smoke/vogon doctor --json | cargo run -p vogon-xtask -- check-doctor-json
           ./archive-smoke/vogon providers --json | cargo run -p vogon-xtask -- check-providers-json
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
@@ -155,7 +155,7 @@ jobs:
           .\target\release\vogon.exe --version
           $doctorJson = (& .\target\release\vogon.exe doctor --json) -join "`n"
           $doctorJson
-          $doctorJson | python scripts\check_doctor_json.py
+          $doctorJson | cargo run -p vogon-xtask -- check-doctor-json
           $providersJson = (& .\target\release\vogon.exe providers --json) -join "`n"
           $providersJson
           $providersJson | cargo run -p vogon-xtask -- check-providers-json
@@ -200,7 +200,7 @@ jobs:
           cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe
           .\archive-smoke\vogon.exe --version
           $archiveDoctorJson = (& .\archive-smoke\vogon.exe doctor --json) -join "`n"
-          $archiveDoctorJson | python scripts\check_doctor_json.py
+          $archiveDoctorJson | cargo run -p vogon-xtask -- check-doctor-json
           $archiveProvidersJson = (& .\archive-smoke\vogon.exe providers --json) -join "`n"
           $archiveProvidersJson | cargo run -p vogon-xtask -- check-providers-json
           .\archive-smoke\vogon.exe init --force --output archive-smoke\starter.toml
@@ -254,7 +254,7 @@ jobs:
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"
-          printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          printf '%s\n' "$doctor_json" | cargo run -p vogon-xtask -- check-doctor-json
           providers_json="$(docker run --rm --read-only "$image" providers --json)"
           echo "$providers_json"
           printf '%s\n' "$providers_json" | cargo run -p vogon-xtask -- check-providers-json
@@ -291,7 +291,7 @@ jobs:
           python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
-          docker run --rm --read-only "$image" doctor --json | python3 scripts/check_doctor_json.py
+          docker run --rm --read-only "$image" doctor --json | cargo run -p vogon-xtask -- check-doctor-json
           docker run --rm --read-only "$image" providers --json | cargo run -p vogon-xtask -- check-providers-json
           mkdir -p "${{ runner.temp }}/vogon-packaged-container-smoke"
           chmod 777 "${{ runner.temp }}/vogon-packaged-container-smoke"
@@ -380,7 +380,7 @@ jobs:
             python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
             docker run --rm "$image" --version
             docker run --rm --read-only "$image" --version
-            docker run --rm --read-only "$image" doctor --json | python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"
+            docker run --rm --read-only "$image" doctor --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json
             docker run --rm --read-only "$image" providers --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json
             mkdir -p "${{ runner.temp }}/vogon-downloaded-container-smoke"
             chmod 777 "${{ runner.temp }}/vogon-downloaded-container-smoke"

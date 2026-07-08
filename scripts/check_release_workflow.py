@@ -46,7 +46,7 @@ REQUIRED_SNIPPETS = {
         "          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe\n"
         "          .\\archive-smoke\\vogon.exe --version"
     ),
-    "doctor JSON validator": "scripts/check_doctor_json.py",
+    "doctor JSON validator": "check-doctor-json",
     "providers JSON validator": "check-providers-json",
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",
@@ -89,7 +89,9 @@ REQUIRED_SNIPPETS = {
     "artifact retention": "retention-days: 30",
     "GitHub release creation": "gh release create",
     "read-only container smoke": "docker run --rm --read-only",
-    "downloaded container doctor validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"',
+    "downloaded container doctor validator": (
+        'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json'
+    ),
     "downloaded container providers validator": (
         'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json'
     ),

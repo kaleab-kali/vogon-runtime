@@ -58,9 +58,6 @@ jobs:
       - name: Check public status docs
         run: cargo run -p vogon-xtask -- check-public-status-docs --root .
 
-      - name: Test doctor JSON validator
-        run: python3 -m unittest scripts.test_check_doctor_json
-
       - name: Test cache JSON validator
         run: python3 -m unittest scripts.test_check_cache_json
 
@@ -151,7 +148,7 @@ jobs:
           ./target/release/vogon --version
           doctor_json="$(./target/release/vogon doctor --json)"
           echo "$doctor_json"
-          printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          printf '%s\n' "$doctor_json" | cargo run -p vogon-xtask -- check-doctor-json
           providers_json="$(./target/release/vogon providers --json)"
           echo "$providers_json"
           printf '%s\n' "$providers_json" | cargo run -p vogon-xtask -- check-providers-json
@@ -182,7 +179,7 @@ jobs:
         run: |
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           target/install-smoke/bin/vogon --version
-          target/install-smoke/bin/vogon doctor --json | python3 scripts/check_doctor_json.py
+          target/install-smoke/bin/vogon doctor --json | cargo run -p vogon-xtask -- check-doctor-json
           target/install-smoke/bin/vogon providers --json | cargo run -p vogon-xtask -- check-providers-json
           target/install-smoke/bin/vogon init --force --output target/install-smoke-workflow.toml
           target/install-smoke/bin/vogon check --json target/install-smoke-workflow.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
@@ -244,7 +241,7 @@ jobs:
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
           echo "$doctor_json"
-          printf '%s\n' "$doctor_json" | python3 scripts/check_doctor_json.py
+          printf '%s\n' "$doctor_json" | cargo run -p vogon-xtask -- check-doctor-json
           providers_json="$(docker run --rm --read-only "$image" providers --json)"
           echo "$providers_json"
           printf '%s\n' "$providers_json" | cargo run -p vogon-xtask -- check-providers-json
@@ -288,7 +285,7 @@ jobs:
           .\target\release\vogon.exe --version
           $doctorJson = (& .\target\release\vogon.exe doctor --json) -join "`n"
           $doctorJson
-          $doctorJson | python scripts\check_doctor_json.py
+          $doctorJson | cargo run -p vogon-xtask -- check-doctor-json
           $providersJson = (& .\target\release\vogon.exe providers --json) -join "`n"
           $providersJson
           $providersJson | cargo run -p vogon-xtask -- check-providers-json
