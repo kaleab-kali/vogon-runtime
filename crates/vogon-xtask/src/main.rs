@@ -16,6 +16,7 @@ const EXPECTED_ENV_VARS: &[&str] = &[
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
 const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
 const RELEASE_VERIFICATION_MARKER: &str = "Run the full local verification set:";
+const DEPLOYMENT_SMOKE_MARKER: &str = "Before publishing or deploying an image, run:";
 const LIVE_WORKFLOW_GUIDANCE: &[(&str, &str)] = &[
     ("Live Gemini Smoke", "GEMINI_API_KEY"),
     ("Live Groq Smoke", "GROQ_API_KEY"),
@@ -116,6 +117,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_contributing_checklist(&root)
         }
+        "check-deployment-checklist" => {
+            let root = parse_root(args.collect());
+            check_deployment_checklist(&root)
+        }
         "check-pr-template" => {
             let root = parse_root(args.collect());
             check_pr_template(&root)
@@ -154,7 +159,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-env-example|check-pr-template|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-pr-template|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -253,6 +258,61 @@ fn check_pr_template(root: &Path) -> Result<(), Vec<String>> {
         if !template_command_set.contains(&command) {
             errors.push(format!(
                 ".github/pull_request_template.md: missing README local check `{command}`"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_deployment_checklist(root: &Path) -> Result<(), Vec<String>> {
+    let readme = root.join("README.md");
+    let release_doc = root.join("docs").join("release.md");
+    let deployment_doc = root.join("docs").join("deployment.md");
+    if !readme.is_file() {
+        return Err(vec!["README.md: missing README local checks".to_owned()]);
+    }
+    if !release_doc.is_file() {
+        return Err(vec![
+            "docs/release.md: missing release process documentation".to_owned(),
+        ]);
+    }
+    if !deployment_doc.is_file() {
+        return Err(vec![
+            "docs/deployment.md: missing deployment documentation".to_owned(),
+        ]);
+    }
+
+    let readme_commands = extract_shell_commands(&readme, README_LOCAL_CHECKS_MARKER)?;
+    let release_commands = extract_shell_commands(&release_doc, RELEASE_VERIFICATION_MARKER)?;
+    let deployment_commands = extract_shell_commands(&deployment_doc, DEPLOYMENT_SMOKE_MARKER)?;
+    let mut errors = Vec::new();
+
+    if readme_commands.is_empty() {
+        errors.push("README.md: missing local check command block".to_owned());
+    }
+    if release_commands.is_empty() {
+        errors.push("docs/release.md: missing release verification command block".to_owned());
+    }
+    if deployment_commands.is_empty() {
+        errors.push("docs/deployment.md: missing deployment smoke command block".to_owned());
+    }
+
+    let readme_command_set = readme_commands.iter().collect::<BTreeSet<_>>();
+    let release_command_set = release_commands.iter().collect::<BTreeSet<_>>();
+    for command in deployment_commands {
+        if !readme_command_set.contains(&command) {
+            errors.push(format!(
+                "README.md: missing deployment smoke command `{command}`"
+            ));
+        }
+        if !release_command_set.contains(&command) {
+            errors.push(format!(
+                "docs/release.md: missing deployment smoke command `{command}`"
             ));
         }
     }
@@ -1094,6 +1154,78 @@ mod tests {
     }
 
     #[test]
+    fn accepts_docs_with_deployment_commands_in_readme_and_release() {
+        let root = temp_root("deployment-checklist-accepts");
+        write_deployment_docs(
+            &root,
+            &[
+                "docker build --tag vogon-runtime:smoke .",
+                "docker run --rm vogon-runtime:smoke --version",
+            ],
+            &[
+                "cargo test",
+                "docker build --tag vogon-runtime:smoke .",
+                "docker run --rm vogon-runtime:smoke --version",
+            ],
+            &[
+                "cargo test",
+                "docker build --tag vogon-runtime:smoke .",
+                "docker run --rm vogon-runtime:smoke --version",
+            ],
+        );
+
+        assert_eq!(check_deployment_checklist(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_deployment_commands_missing_from_readme_and_release() {
+        let root = temp_root("deployment-checklist-missing-commands");
+        write_deployment_docs(
+            &root,
+            &[
+                "docker build --tag vogon-runtime:smoke .",
+                "docker run --rm vogon-runtime:smoke --version",
+            ],
+            &["docker build --tag vogon-runtime:smoke ."],
+            &["cargo test"],
+        );
+
+        let errors = check_deployment_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "docs/release.md: missing deployment smoke command `docker build --tag vogon-runtime:smoke .`",
+                "README.md: missing deployment smoke command `docker run --rm vogon-runtime:smoke --version`",
+                "docs/release.md: missing deployment smoke command `docker run --rm vogon-runtime:smoke --version`",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_deployment_checklist_command_blocks() {
+        let root = temp_root("deployment-checklist-missing-blocks");
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(root.join("README.md"), "# README\n").unwrap();
+        fs::write(root.join("docs").join("release.md"), "# Release\n").unwrap();
+        fs::write(root.join("docs").join("deployment.md"), "# Deployment\n").unwrap();
+
+        let errors = check_deployment_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "README.md: missing local check command block",
+                "docs/release.md: missing release verification command block",
+                "docs/deployment.md: missing deployment smoke command block",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -1462,6 +1594,39 @@ and this project follows semantic versioning once the first release is tagged.
             format!(
                 "# Release\n\nRun the full local verification set:\n\n```sh\n{}\n```\n",
                 release_commands.join("\n")
+            ),
+        )
+        .unwrap();
+    }
+
+    fn write_deployment_docs(
+        root: &Path,
+        deployment_commands: &[&str],
+        readme_commands: &[&str],
+        release_commands: &[&str],
+    ) {
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(
+            root.join("README.md"),
+            format!(
+                "# README\n\nRun local checks:\n\n```sh\n{}\n```\n",
+                readme_commands.join("\n")
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("docs").join("release.md"),
+            format!(
+                "# Release\n\nRun the full local verification set:\n\n```sh\n{}\n```\n",
+                release_commands.join("\n")
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("docs").join("deployment.md"),
+            format!(
+                "# Deployment\n\nBefore publishing or deploying an image, run:\n\n```sh\n{}\n```\n",
+                deployment_commands.join("\n")
             ),
         )
         .unwrap();

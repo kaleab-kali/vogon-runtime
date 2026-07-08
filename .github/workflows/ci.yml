@@ -84,9 +84,7 @@ jobs:
         run: python3 -m unittest scripts.test_check_trace_jsonl
 
       - name: Check deployment checklist
-        run: |
-          python3 -m unittest scripts.test_check_deployment_checklist
-          python3 scripts/check_deployment_checklist.py --root .
+        run: cargo run -p vogon-xtask -- check-deployment-checklist --root .
 
       - name: Check deployment docs
         run: |
