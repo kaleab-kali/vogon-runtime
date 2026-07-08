@@ -44,9 +44,7 @@ jobs:
           python3 -m unittest scripts.test_check_container_image
 
       - name: Check Cargo manifests
-        run: |
-          python3 -m unittest scripts.test_check_cargo_manifests
-          python3 scripts/check_cargo_manifests.py --root .
+        run: cargo run -p vogon-xtask -- check-cargo-manifests --root .
 
       - name: Check changelog
         run: |
