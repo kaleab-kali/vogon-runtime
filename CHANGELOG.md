@@ -118,6 +118,8 @@ and this project follows semantic versioning once the first release is tagged.
   formats for contributor tooling.
 - Schema validation now checks committed workflow and replay fixtures against
   the published schema constraints.
+- Release workflow runs now use a per-ref concurrency guard to avoid overlapping
+  artifact publishing for the same tag or manual ref.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

@@ -138,6 +138,10 @@ Confirm that:
 GitHub Actions workflows set `CARGO_NET_RETRY=10` for Cargo commands so
 transient registry resets are retried before a job fails.
 
+The Release workflow also uses a per-ref concurrency group without canceling
+in-progress runs, so duplicate tag or manual release runs for the same ref do
+not overlap while an artifact publish is active.
+
 After the install smoke command, run the installed binary for your platform
 against the same workflow and replay fixtures. The install smoke uses
 `--offline` because earlier verification commands have already fetched and
