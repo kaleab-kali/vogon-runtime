@@ -13,18 +13,24 @@ EXPECTED_UPDATES = {
         "directory": "/",
         "interval": "weekly",
         "open-pull-requests-limit": "5",
+        "groups.cargo-minor-patch.patterns": "*",
+        "groups.cargo-minor-patch.update-types": "minor,patch",
         "commit-message.prefix": "deps",
     },
     "github-actions": {
         "directory": "/",
         "interval": "weekly",
         "open-pull-requests-limit": "5",
+        "groups.github-actions-minor-patch.patterns": "*",
+        "groups.github-actions-minor-patch.update-types": "minor,patch",
         "commit-message.prefix": "ci",
     },
     "docker": {
         "directory": "/",
         "interval": "weekly",
         "open-pull-requests-limit": "5",
+        "groups.docker-minor-patch.patterns": "*",
+        "groups.docker-minor-patch.update-types": "minor,patch",
         "commit-message.prefix": "deps",
     },
 }
@@ -78,6 +84,10 @@ def parse_update_blocks(text: str) -> dict[str, dict[str, str]]:
     current_ecosystem: str | None = None
     in_schedule = False
     in_commit_message = False
+    in_groups = False
+    current_group: str | None = None
+    in_group_patterns = False
+    in_group_update_types = False
 
     for raw_line in text.splitlines():
         line = raw_line.rstrip()
@@ -90,6 +100,10 @@ def parse_update_blocks(text: str) -> dict[str, dict[str, str]]:
             updates[current_ecosystem] = {}
             in_schedule = False
             in_commit_message = False
+            in_groups = False
+            current_group = None
+            in_group_patterns = False
+            in_group_update_types = False
             continue
 
         if current_ecosystem is None:
@@ -98,10 +112,50 @@ def parse_update_blocks(text: str) -> dict[str, dict[str, str]]:
         if stripped == "schedule:":
             in_schedule = True
             in_commit_message = False
+            in_groups = False
             continue
         if stripped == "commit-message:":
             in_commit_message = True
             in_schedule = False
+            in_groups = False
+            current_group = None
+            continue
+        if stripped == "groups:":
+            in_groups = True
+            in_schedule = False
+            in_commit_message = False
+            current_group = None
+            continue
+        if (
+            in_groups
+            and stripped.endswith(":")
+            and stripped not in {"patterns:", "update-types:"}
+        ):
+            current_group = stripped.removesuffix(":")
+            in_group_patterns = False
+            in_group_update_types = False
+            continue
+        if in_groups and current_group is not None and stripped == "patterns:":
+            in_group_patterns = True
+            in_group_update_types = False
+            updates[current_ecosystem][f"groups.{current_group}.patterns"] = ""
+            continue
+        if in_groups and current_group is not None and stripped == "update-types:":
+            in_group_patterns = False
+            in_group_update_types = True
+            updates[current_ecosystem][f"groups.{current_group}.update-types"] = ""
+            continue
+        if in_groups and current_group is not None and stripped.startswith("- "):
+            value = stripped.removeprefix("- ").strip().strip('"')
+            key = (
+                f"groups.{current_group}.patterns"
+                if in_group_patterns
+                else f"groups.{current_group}.update-types"
+            )
+            existing = updates[current_ecosystem].get(key)
+            updates[current_ecosystem][key] = (
+                value if not existing else f"{existing},{value}"
+            )
             continue
         if stripped.endswith(":") and stripped not in {"schedule:", "commit-message:"}:
             in_schedule = False
