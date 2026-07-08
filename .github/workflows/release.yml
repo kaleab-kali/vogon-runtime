@@ -92,13 +92,13 @@ jobs:
         run: |
           mkdir -p archive-smoke
           tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C archive-smoke
+          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
           ./archive-smoke/vogon --version
           ./archive-smoke/vogon doctor --json | python3 scripts/check_doctor_json.py
           ./archive-smoke/vogon init --force --output archive-smoke/starter.toml
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | python3 scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
           python3 scripts/check_cache_json.py archive-smoke/cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
-          python3 scripts/check_archive_contents.py archive-smoke --binary vogon
 
       - name: Attest CLI archive
         uses: actions/attest@v4
@@ -181,6 +181,7 @@ jobs:
       - name: Smoke test packaged archive
         run: |
           Expand-Archive "vogon-${{ github.ref_name }}-windows-x86_64.zip" -DestinationPath archive-smoke -Force
+          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
           .\archive-smoke\vogon.exe --version
           $archiveDoctorJson = (& .\archive-smoke\vogon.exe doctor --json) -join "`n"
           $archiveDoctorJson | python scripts\check_doctor_json.py
@@ -188,7 +189,6 @@ jobs:
           .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | python scripts\check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           python scripts\check_cache_json.py archive-smoke\cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
-          python scripts/check_archive_contents.py archive-smoke --binary vogon.exe
 
       - name: Attest CLI archive
         uses: actions/attest@v4
