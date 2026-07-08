@@ -10,6 +10,12 @@ These instructions apply to the entire repository.
   session-specific implementation scratchpads to public docs.
 - Keep the repository open-source ready: clear docs, small changes, tests, CI,
   license clarity, and reviewable pull requests.
+- Keep Vogon Runtime Rust-first. Product code, long-lived project tooling, and
+  new validators should default to Rust, preferably through the workspace or a
+  Rust `xtask` tool. Do not add new Python validators by default.
+- Treat the existing Python scripts as transitional CI/release tooling. When
+  improving checks, prefer consolidating or migrating them into Rust instead of
+  growing the Python surface area.
 
 ## Git Workflow
 
