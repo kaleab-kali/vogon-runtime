@@ -31,6 +31,8 @@ WORKFLOW_REQUIREMENTS = {
         "workflow name": "name: Dependency Review",
         "pull request trigger": "  pull_request:",
         "read-only contents permission": "permissions:\n  contents: read",
+        "concurrency group": "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+        "stale run cancellation": "  cancel-in-progress: true",
         "ubuntu runner": "    runs-on: ubuntu-24.04",
         "job timeout": "    timeout-minutes: 10",
         "checkout action": "uses: actions/checkout@v7",

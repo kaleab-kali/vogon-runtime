@@ -57,6 +57,27 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
                 ],
             )
 
+    def test_reports_missing_dependency_review_concurrency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_security_workflows(
+                root,
+                dependency_review=dependency_review_text().replace(
+                    "concurrency:\n"
+                    "  group: ${{ github.workflow }}-${{ github.ref }}\n"
+                    "  cancel-in-progress: true\n\n",
+                    "",
+                ),
+            )
+
+            self.assertEqual(
+                check_security_workflows.check_repository(root),
+                [
+                    ".github/workflows/dependency-review.yml: missing concurrency group",
+                    ".github/workflows/dependency-review.yml: missing stale run cancellation",
+                ],
+            )
+
     def test_reports_disabled_dependency_review_license_check(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -170,6 +191,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dependency-review:
