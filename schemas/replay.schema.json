@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kaleab-kali/vogon-runtime/main/schemas/replay.schema.json",
+  "title": "Vogon Replay",
+  "description": "Current Vogon Runtime replay JSON format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workflow_name", "runtime", "run_hash", "steps"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "workflow_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "adapter", "adapter_version", "cache_identity"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cache_identity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "run_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step_id", "input_hash", "output_hash", "output"],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "input_hash": {
+            "$ref": "#/$defs/sha256"
+          },
+          "output_hash": {
+            "$ref": "#/$defs/sha256"
+          },
+          "output": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

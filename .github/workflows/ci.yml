@@ -91,6 +91,11 @@ jobs:
           python3 -m unittest scripts.test_check_issue_templates
           python3 scripts/check_issue_templates.py --root .
 
+      - name: Check schema files
+        run: |
+          python3 -m unittest scripts.test_check_schema_files
+          python3 scripts/check_schema_files.py --root .
+
       - name: Check release checklist
         run: |
           python3 -m unittest scripts.test_check_release_checklist
