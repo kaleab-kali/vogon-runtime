@@ -9,6 +9,8 @@ and this project follows semantic versioning.
 
 ### Documentation
 
+- The container build stage now uses the current Dependabot-suggested Rust
+  `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
   leaving major upgrades separate for focused review.
 - The bug report template now suggests the latest public CLI version when asking
