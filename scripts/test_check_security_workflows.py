@@ -22,6 +22,7 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
                 [
                     ".github/workflows/security-audit.yml: missing security workflow",
                     ".github/workflows/dependency-review.yml: missing security workflow",
+                    ".github/dependency-review-config.yml: missing dependency review policy",
                 ],
             )
 
@@ -38,21 +39,57 @@ class CheckSecurityWorkflowsTests(unittest.TestCase):
                 [".github/workflows/security-audit.yml: missing scheduled audit"],
             )
 
-    def test_reports_missing_dependency_review_severity(self):
+    def test_reports_missing_dependency_review_config_reference(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_security_workflows(
                 root,
                 dependency_review=dependency_review_text().replace(
+                    "          config-file: ./.github/dependency-review-config.yml",
                     "          fail-on-severity: high",
-                    "          fail-on-severity: critical",
                 ),
             )
 
             self.assertEqual(
                 check_security_workflows.check_repository(root),
                 [
-                    ".github/workflows/dependency-review.yml: missing high severity failure"
+                    ".github/workflows/dependency-review.yml: missing dependency review config file"
+                ],
+            )
+
+    def test_reports_disabled_dependency_review_license_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_security_workflows(
+                root,
+                dependency_review_config=dependency_review_config_text().replace(
+                    "license-check: true",
+                    "license-check: false",
+                ),
+            )
+
+            self.assertEqual(
+                check_security_workflows.check_repository(root),
+                [
+                    ".github/dependency-review-config.yml: missing license checks enabled"
+                ],
+            )
+
+    def test_reports_removed_dependency_review_license_allowlist_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_security_workflows(
+                root,
+                dependency_review_config=dependency_review_config_text().replace(
+                    "  - CDLA-Permissive-2.0\n",
+                    "",
+                ),
+            )
+
+            self.assertEqual(
+                check_security_workflows.check_repository(root),
+                [
+                    ".github/dependency-review-config.yml: missing CDLA permissive license allowed"
                 ],
             )
 
@@ -61,6 +98,7 @@ def write_security_workflows(
     root: Path,
     security_audit: str | None = None,
     dependency_review: str | None = None,
+    dependency_review_config: str | None = None,
 ) -> None:
     workflows = root / ".github" / "workflows"
     workflows.mkdir(parents=True)
@@ -70,6 +108,10 @@ def write_security_workflows(
     )
     (workflows / "dependency-review.yml").write_text(
         dependency_review or dependency_review_text(),
+        encoding="utf-8",
+    )
+    (root / ".github" / "dependency-review-config.yml").write_text(
+        dependency_review_config or dependency_review_config_text(),
         encoding="utf-8",
     )
 
@@ -142,7 +184,22 @@ jobs:
       - name: Review dependency changes
         uses: actions/dependency-review-action@v5
         with:
-          fail-on-severity: high
+          config-file: ./.github/dependency-review-config.yml
+"""
+
+
+def dependency_review_config_text() -> str:
+    return """fail-on-severity: high
+license-check: true
+vulnerability-check: true
+allow-licenses:
+  - Apache-2.0
+  - BSD-3-Clause
+  - CDLA-Permissive-2.0
+  - ISC
+  - MIT
+  - Unicode-3.0
+  - Unlicense
 """
 
 
