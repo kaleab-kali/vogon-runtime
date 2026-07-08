@@ -62,6 +62,23 @@ class CheckContainerPolicyTests(unittest.TestCase):
 
             self.assertEqual(errors, ["Dockerfile: missing non-root user activation"])
 
+    def test_reports_missing_oci_metadata_label(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_container_files(root)
+            dockerfile = root / "Dockerfile"
+            dockerfile.write_text(
+                dockerfile.read_text(encoding="utf-8").replace(
+                    '    org.opencontainers.image.licenses="MIT"\n',
+                    "",
+                ),
+                encoding="utf-8",
+            )
+
+            errors = check_container_policy.check_repository(root)
+
+            self.assertEqual(errors, ["Dockerfile: missing OCI license label"])
+
     def test_reports_missing_build_context_ignores(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -103,6 +120,12 @@ def write_container_files(root: Path, *, dockerignore: str | None = None) -> Non
                 "RUN cargo build --release --locked -p vogon-cli",
                 "",
                 "FROM debian:bookworm-slim AS runtime",
+                "",
+                'LABEL org.opencontainers.image.title="Vogon Runtime" \\',
+                '    org.opencontainers.image.description="Deterministic, replayable AI workflow runtime CLI." \\',
+                '    org.opencontainers.image.source="https://github.com/kaleab-kali/vogon-runtime" \\',
+                '    org.opencontainers.image.documentation="https://github.com/kaleab-kali/vogon-runtime#readme" \\',
+                '    org.opencontainers.image.licenses="MIT"',
                 "",
                 "RUN apt-get update \\",
                 "    && apt-get install -y --no-install-recommends ca-certificates \\",
