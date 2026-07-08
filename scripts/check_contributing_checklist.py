@@ -17,6 +17,10 @@ LIVE_WORKFLOW_GUIDANCE = {
     "Live OpenAI-Compatible Smoke": "OPENAI_COMPATIBLE_API_KEY",
     "Live OpenRouter Smoke": "OPENROUTER_API_KEY",
 }
+REQUIRED_README_COMMANDS = [
+    "python -m unittest scripts.test_check_sha256_file",
+    "python -m unittest scripts.test_check_archive_contents",
+]
 
 
 def main() -> int:
@@ -51,6 +55,11 @@ def check_repository(root: Path) -> list[str]:
         errors.append("README.md: missing local check command block")
     if not contributing_commands:
         errors.append("CONTRIBUTING.md: missing development command block")
+
+    readme_command_set = set(readme_commands)
+    for command in REQUIRED_README_COMMANDS:
+        if command not in readme_command_set:
+            errors.append(f"README.md: missing required local check `{command}`")
 
     contributing_command_set = set(contributing_commands)
     for command in readme_commands:

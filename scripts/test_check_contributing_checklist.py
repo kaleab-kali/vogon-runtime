@@ -11,9 +11,16 @@ class CheckContributingChecklistTests(unittest.TestCase):
             root = Path(directory)
             write_docs(
                 root,
-                readme_commands=["cargo test", "python scripts/check_docs_links.py --root ."],
+                readme_commands=[
+                    "cargo test",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
+                    "python scripts/check_docs_links.py --root .",
+                ],
                 contributing_commands=[
                     "cargo test",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
                     "python scripts/check_docs_links.py --root .",
                     "docker build --tag vogon-runtime:smoke .",
                 ],
@@ -27,8 +34,17 @@ class CheckContributingChecklistTests(unittest.TestCase):
             root = Path(directory)
             write_docs(
                 root,
-                readme_commands=["cargo test", "cargo clippy -- -D warnings"],
-                contributing_commands=["cargo test"],
+                readme_commands=[
+                    "cargo test",
+                    "cargo clippy -- -D warnings",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
+                ],
+                contributing_commands=[
+                    "cargo test",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
+                ],
                 live_guidance=live_guidance_text(),
             )
 
@@ -41,13 +57,41 @@ class CheckContributingChecklistTests(unittest.TestCase):
                 ],
             )
 
-    def test_reports_missing_live_workflow_guidance(self):
+    def test_reports_missing_required_readme_release_validator_tests(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_docs(
                 root,
                 readme_commands=["cargo test"],
                 contributing_commands=["cargo test"],
+                live_guidance=live_guidance_text(),
+            )
+
+            errors = check_contributing_checklist.check_repository(root)
+
+            self.assertEqual(
+                errors,
+                [
+                    "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
+                    "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
+                ],
+            )
+
+    def test_reports_missing_live_workflow_guidance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_docs(
+                root,
+                readme_commands=[
+                    "cargo test",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
+                ],
+                contributing_commands=[
+                    "cargo test",
+                    "python -m unittest scripts.test_check_sha256_file",
+                    "python -m unittest scripts.test_check_archive_contents",
+                ],
                 live_guidance=live_guidance_text().replace(
                     "- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n",
                     "",
@@ -80,6 +124,8 @@ class CheckContributingChecklistTests(unittest.TestCase):
                 [
                     "README.md: missing local check command block",
                     "CONTRIBUTING.md: missing development command block",
+                    "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
+                    "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
                 ],
             )
 

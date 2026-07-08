@@ -281,6 +281,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Security policy and contributor docs now describe RustSec advisory auditing.
 - Contributor verification docs now stay aligned with the README local check
   list through CI validation.
+- Contributor verification docs now include release checksum and archive
+  validator tests, and CI enforces those checks in the README.
 - Deployment smoke commands now stay aligned with README and release
   verification docs through CI validation.
 - Issue forms now stay aligned with required reproduction, security, and intake
