@@ -19,6 +19,10 @@ The benchmark prints:
 Use the same machine, Rust toolchain, and iteration count when comparing two
 branches.
 
+Release builds use thin link-time optimization, one code generation unit, and
+symbol stripping to keep shipped CLI artifacts optimized and smaller without
+changing runtime behavior.
+
 CI validates the benchmark smoke output shape with:
 
 ```sh
