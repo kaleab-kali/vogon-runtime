@@ -85,6 +85,72 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
     ("hugging-face", "HF_TOKEN"),
     ("openrouter", "OPENROUTER_API_KEY"),
 ];
+const EXPECTED_PROVIDER_JSON: &[ProviderJsonExpectation] = &[
+    ProviderJsonExpectation {
+        name: "deterministic",
+        default_provider: true,
+        credential_env: None,
+        credential_configured: ExpectedProviderJsonValue::Null,
+        default_base_url: None,
+        default_model: None,
+        documentation_url: Some(
+            "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic",
+        ),
+        usage_url: None,
+    },
+    ProviderJsonExpectation {
+        name: "gemini",
+        default_provider: false,
+        credential_env: Some("GEMINI_API_KEY"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: None,
+        default_model: Some("gemini-3.1-flash-lite"),
+        documentation_url: Some("https://ai.google.dev/gemini-api/docs"),
+        usage_url: Some("https://ai.google.dev/gemini-api/docs/pricing"),
+    },
+    ProviderJsonExpectation {
+        name: "groq",
+        default_provider: false,
+        credential_env: Some("GROQ_API_KEY"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: Some("https://api.groq.com/openai/v1"),
+        default_model: Some("llama-3.1-8b-instant"),
+        documentation_url: Some("https://console.groq.com/docs/openai"),
+        usage_url: Some("https://console.groq.com/docs/rate-limits"),
+    },
+    ProviderJsonExpectation {
+        name: "hugging-face",
+        default_provider: false,
+        credential_env: Some("HF_TOKEN"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: Some("https://router.huggingface.co/v1"),
+        default_model: Some("openai/gpt-oss-120b:fastest"),
+        documentation_url: Some("https://huggingface.co/docs/inference-providers"),
+        usage_url: Some("https://huggingface.co/docs/inference-providers/pricing"),
+    },
+    ProviderJsonExpectation {
+        name: "openrouter",
+        default_provider: false,
+        credential_env: Some("OPENROUTER_API_KEY"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: Some("https://openrouter.ai/api/v1"),
+        default_model: Some("openrouter/free"),
+        documentation_url: Some("https://openrouter.ai/docs"),
+        usage_url: Some("https://openrouter.ai/pricing"),
+    },
+    ProviderJsonExpectation {
+        name: "openai-compatible",
+        default_provider: false,
+        credential_env: Some("OPENAI_COMPATIBLE_API_KEY"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: Some("https://router.huggingface.co/v1"),
+        default_model: Some("openai/gpt-oss-120b:fastest"),
+        documentation_url: Some(
+            "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+        ),
+        usage_url: None,
+    },
+];
 const REQUIRED_README_COMMANDS: &[&str] = &[];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
 const REQUIRED_BENCHMARK_METRICS: &[&str] = &["elapsed_ms", "iterations", "iterations_per_second"];
@@ -233,12 +299,8 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "./target/release/vogon providers --json",
     ),
     (
-        "providers JSON validator unit test",
-        "python3 -m unittest scripts.test_check_providers_json",
-    ),
-    (
         "providers JSON validator",
-        "scripts/check_providers_json.py",
+        "cargo run -p vogon-xtask -- check-providers-json",
     ),
     (
         "release replay verification smoke",
@@ -626,6 +688,23 @@ enum ExpectedValue {
     StringList(&'static [&'static str]),
 }
 
+#[derive(Clone, Copy)]
+enum ExpectedProviderJsonValue {
+    Null,
+    BoolOrNull,
+}
+
+struct ProviderJsonExpectation {
+    name: &'static str,
+    default_provider: bool,
+    credential_env: Option<&'static str>,
+    credential_configured: ExpectedProviderJsonValue,
+    default_base_url: Option<&'static str>,
+    default_model: Option<&'static str>,
+    documentation_url: Option<&'static str>,
+    usage_url: Option<&'static str>,
+}
+
 fn main() {
     let mut args = env::args().skip(1);
     let Some(command) = args.next() else {
@@ -701,6 +780,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_pr_template(&root)
         }
+        "check-providers-json" => {
+            ensure_no_args(args.collect());
+            check_providers_json_from_stdin()
+        }
         "check-public-status-docs" => {
             let root = parse_root(args.collect());
             check_public_status_docs(&root)
@@ -757,9 +840,15 @@ fn parse_root(args: Vec<String>) -> PathBuf {
     }
 }
 
+fn ensure_no_args(args: Vec<String>) {
+    if !args.is_empty() {
+        print_usage_and_exit();
+    }
+}
+
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -1190,6 +1279,202 @@ fn json_string_array_display<'a>(values: impl Iterator<Item = &'a str>) -> Strin
         .map(|value| JsonValue::String(value.to_owned()))
         .collect::<Vec<_>>();
     serde_json::to_string(&array).unwrap_or_else(|_| "[]".to_owned())
+}
+
+fn check_providers_json_from_stdin() -> Result<(), Vec<String>> {
+    let mut output = String::new();
+    io::stdin()
+        .read_to_string(&mut output)
+        .map_err(|error| vec![format!("failed to read providers JSON from stdin: {error}")])?;
+    check_providers_json(&output)
+}
+
+fn check_providers_json(output: &str) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("providers JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec!["providers JSON root must be an object".to_owned()]);
+    };
+    let Some(providers) = data.get("providers").and_then(JsonValue::as_array) else {
+        return Err(vec!["providers must be an array".to_owned()]);
+    };
+
+    let mut errors = Vec::new();
+    let mut providers_by_name = BTreeMap::new();
+    for (index, provider) in providers.iter().enumerate() {
+        let Some(provider) = provider.as_object() else {
+            errors.push(format!("provider at index {index} must be an object"));
+            continue;
+        };
+        let Some(name) = provider.get("name").and_then(JsonValue::as_str) else {
+            errors.push(format!("provider at index {index} must have string name"));
+            continue;
+        };
+        if providers_by_name.contains_key(name) {
+            errors.push(format!("duplicate provider {name}"));
+            continue;
+        }
+        providers_by_name.insert(name.to_owned(), provider);
+    }
+
+    let expected_names = EXPECTED_PROVIDER_JSON
+        .iter()
+        .map(|provider| provider.name)
+        .collect::<BTreeSet<_>>();
+    let actual_names = providers_by_name
+        .keys()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+
+    for name in expected_names.difference(&actual_names) {
+        errors.push(format!("providers must include {name}"));
+    }
+    for name in actual_names.difference(&expected_names) {
+        errors.push(format!(
+            "providers must not include unexpected provider {name}"
+        ));
+    }
+
+    let mut default_count = 0;
+    for expected in EXPECTED_PROVIDER_JSON {
+        let Some(provider) = providers_by_name.get(expected.name) else {
+            continue;
+        };
+        if !matches!(provider.get("enabled"), Some(JsonValue::Bool(_))) {
+            errors.push(format!(
+                "provider {} enabled must be boolean",
+                expected.name
+            ));
+        }
+        if provider.get("default") == Some(&JsonValue::Bool(true)) {
+            default_count += 1;
+        }
+        validate_provider_json_bool_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "default",
+            expected.default_provider,
+        );
+        validate_provider_json_string_or_null_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "credential_env",
+            expected.credential_env,
+        );
+        validate_provider_json_credential_configured(&mut errors, expected.name, provider);
+        validate_provider_json_string_or_null_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "default_base_url",
+            expected.default_base_url,
+        );
+        validate_provider_json_string_or_null_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "default_model",
+            expected.default_model,
+        );
+        validate_provider_json_string_or_null_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "documentation_url",
+            expected.documentation_url,
+        );
+        validate_provider_json_string_or_null_field(
+            &mut errors,
+            expected.name,
+            provider,
+            "usage_url",
+            expected.usage_url,
+        );
+    }
+
+    if default_count != 1 {
+        errors.push(format!(
+            "exactly one provider must be default, found {default_count}"
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn validate_provider_json_bool_field(
+    errors: &mut Vec<String>,
+    name: &str,
+    provider: &serde_json::Map<String, JsonValue>,
+    field: &str,
+    expected: bool,
+) {
+    let actual = provider.get(field);
+    if actual != Some(&JsonValue::Bool(expected)) {
+        errors.push(format!(
+            "provider {name} {field} mismatch: expected {}, got {}",
+            JsonValue::Bool(expected),
+            json_value_display(actual)
+        ));
+    }
+}
+
+fn validate_provider_json_string_or_null_field(
+    errors: &mut Vec<String>,
+    name: &str,
+    provider: &serde_json::Map<String, JsonValue>,
+    field: &str,
+    expected: Option<&str>,
+) {
+    let expected_value =
+        expected.map_or(JsonValue::Null, |value| JsonValue::String(value.to_owned()));
+    let actual = provider.get(field);
+    if actual != Some(&expected_value) {
+        errors.push(format!(
+            "provider {name} {field} mismatch: expected {}, got {}",
+            expected_value,
+            json_value_display(actual)
+        ));
+    }
+}
+
+fn validate_provider_json_credential_configured(
+    errors: &mut Vec<String>,
+    name: &str,
+    provider: &serde_json::Map<String, JsonValue>,
+) {
+    let actual = provider.get("credential_configured");
+    let expected = EXPECTED_PROVIDER_JSON
+        .iter()
+        .find(|expected| expected.name == name)
+        .map(|expected| expected.credential_configured);
+    match expected {
+        Some(ExpectedProviderJsonValue::Null) if actual != Some(&JsonValue::Null) => {
+            errors.push(format!(
+                "provider {name} credential_configured mismatch: expected null, got {}",
+                json_value_display(actual)
+            ));
+        }
+        Some(ExpectedProviderJsonValue::BoolOrNull)
+            if !matches!(actual, Some(JsonValue::Bool(_)) | Some(JsonValue::Null)) =>
+        {
+            errors.push(format!(
+                "provider {name} credential_configured must be boolean or null, got {}",
+                json_value_display(actual)
+            ));
+        }
+        None => {}
+        _ => {}
+    }
+}
+
+fn json_value_display(value: Option<&JsonValue>) -> String {
+    value.cloned().unwrap_or(JsonValue::Null).to_string()
 }
 
 fn check_contributing_checklist(root: &Path) -> Result<(), Vec<String>> {
@@ -6576,6 +6861,101 @@ and this project follows semantic versioning once the first release is tagged.
         );
     }
 
+    #[test]
+    fn accepts_expected_providers_json() {
+        assert_eq!(check_providers_json(&provider_json_output()), Ok(()));
+    }
+
+    #[test]
+    fn reports_invalid_providers_json() {
+        let errors = check_providers_json("{").unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("providers JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_missing_provider_json_entry() {
+        let mut data: JsonValue = serde_json::from_str(&provider_json_output()).unwrap();
+        let providers = data
+            .get_mut("providers")
+            .and_then(JsonValue::as_array_mut)
+            .unwrap();
+        providers.retain(|provider| {
+            provider.get("name").and_then(JsonValue::as_str) != Some("openrouter")
+        });
+
+        let errors = check_providers_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(errors, ["providers must include openrouter"]);
+    }
+
+    #[test]
+    fn reports_wrong_provider_json_default_count() {
+        let mut data: JsonValue = serde_json::from_str(&provider_json_output()).unwrap();
+        for provider in data
+            .get_mut("providers")
+            .and_then(JsonValue::as_array_mut)
+            .unwrap()
+        {
+            provider["default"] = JsonValue::Bool(false);
+        }
+
+        let errors = check_providers_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "provider deterministic default mismatch: expected true, got false",
+                "exactly one provider must be default, found 0",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_provider_json_metadata_mismatch() {
+        let mut data: JsonValue = serde_json::from_str(&provider_json_output()).unwrap();
+        let gemini = data
+            .get_mut("providers")
+            .and_then(JsonValue::as_array_mut)
+            .unwrap()
+            .iter_mut()
+            .find(|provider| provider.get("name").and_then(JsonValue::as_str) == Some("gemini"))
+            .unwrap();
+        gemini["default_model"] = JsonValue::String("gemini-old".to_owned());
+
+        let errors = check_providers_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "provider gemini default_model mismatch: expected \"gemini-3.1-flash-lite\", got \"gemini-old\"",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_non_boolean_provider_json_credential_status() {
+        let mut data: JsonValue = serde_json::from_str(&provider_json_output()).unwrap();
+        let groq = data
+            .get_mut("providers")
+            .and_then(JsonValue::as_array_mut)
+            .unwrap()
+            .iter_mut()
+            .find(|provider| provider.get("name").and_then(JsonValue::as_str) == Some("groq"))
+            .unwrap();
+        groq["credential_configured"] = JsonValue::String("secret-groq-key".to_owned());
+
+        let errors = check_providers_json(&data.to_string()).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "provider groq credential_configured must be boolean or null, got \"secret-groq-key\"",
+            ]
+        );
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -6630,6 +7010,80 @@ and this project follows semantic versioning once the first release is tagged.
                     }
                 ]
             }
+        })
+        .to_string()
+    }
+
+    fn provider_json_output() -> String {
+        serde_json::json!({
+            "providers": [
+                {
+                    "name": "deterministic",
+                    "enabled": true,
+                    "default": true,
+                    "credential_env": null,
+                    "credential_configured": null,
+                    "default_base_url": null,
+                    "default_model": null,
+                    "documentation_url": "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic",
+                    "usage_url": null
+                },
+                {
+                    "name": "gemini",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "GEMINI_API_KEY",
+                    "credential_configured": false,
+                    "default_base_url": null,
+                    "default_model": "gemini-3.1-flash-lite",
+                    "documentation_url": "https://ai.google.dev/gemini-api/docs",
+                    "usage_url": "https://ai.google.dev/gemini-api/docs/pricing"
+                },
+                {
+                    "name": "groq",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "GROQ_API_KEY",
+                    "credential_configured": true,
+                    "default_base_url": "https://api.groq.com/openai/v1",
+                    "default_model": "llama-3.1-8b-instant",
+                    "documentation_url": "https://console.groq.com/docs/openai",
+                    "usage_url": "https://console.groq.com/docs/rate-limits"
+                },
+                {
+                    "name": "hugging-face",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "HF_TOKEN",
+                    "credential_configured": true,
+                    "default_base_url": "https://router.huggingface.co/v1",
+                    "default_model": "openai/gpt-oss-120b:fastest",
+                    "documentation_url": "https://huggingface.co/docs/inference-providers",
+                    "usage_url": "https://huggingface.co/docs/inference-providers/pricing"
+                },
+                {
+                    "name": "openrouter",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "OPENROUTER_API_KEY",
+                    "credential_configured": false,
+                    "default_base_url": "https://openrouter.ai/api/v1",
+                    "default_model": "openrouter/free",
+                    "documentation_url": "https://openrouter.ai/docs",
+                    "usage_url": "https://openrouter.ai/pricing"
+                },
+                {
+                    "name": "openai-compatible",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "OPENAI_COMPATIBLE_API_KEY",
+                    "credential_configured": null,
+                    "default_base_url": "https://router.huggingface.co/v1",
+                    "default_model": "openai/gpt-oss-120b:fastest",
+                    "documentation_url": "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
+                    "usage_url": null
+                }
+            ]
         })
         .to_string()
     }
@@ -6695,8 +7149,7 @@ jobs:
           cargo build --release --workspace --all-features --locked
           ./target/release/vogon doctor --json
           ./target/release/vogon providers --json
-          python3 -m unittest scripts.test_check_providers_json
-          python3 scripts/check_providers_json.py
+          cargo run -p vogon-xtask -- check-providers-json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
           cargo package -p vogon-core --allow-dirty --offline --locked
