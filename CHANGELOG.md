@@ -136,6 +136,8 @@ and this project follows semantic versioning once the first release is tagged.
   cancellation settings for every GitHub Actions workflow.
 - GitHub Actions checkout steps now disable persisted git credentials, and CI
   validates the setting for every workflow.
+- CI now verifies the `vogon-core` package archive in addition to smoke testing
+  workspace package archive generation.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

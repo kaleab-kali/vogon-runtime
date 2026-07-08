@@ -96,6 +96,7 @@ docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json 
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | python scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
+cargo package -p vogon-core --allow-dirty --offline
 cargo package --workspace --allow-dirty --no-verify --offline
 ```
 

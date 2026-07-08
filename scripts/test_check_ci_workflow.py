@@ -105,6 +105,7 @@ jobs:
           ./target/release/vogon doctor --json
           ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
           cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
+          cargo package -p vogon-core --allow-dirty --offline
           cargo package --workspace --allow-dirty --no-verify --offline
       - env:
           RUSTDOCFLAGS: -D warnings
