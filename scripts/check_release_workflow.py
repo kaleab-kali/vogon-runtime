@@ -52,6 +52,9 @@ REQUIRED_SNIPPETS = {
     "metadata checksum": "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256",
     "SBOM checksum": "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256",
     "artifact attestation": "uses: actions/attest@v4",
+    "read-only release job contents permission": "      contents: read",
+    "release attestation OIDC permission": "      id-token: write",
+    "release attestation write permission": "      attestations: write",
     "artifact upload": "uses: actions/upload-artifact@v7",
     "artifact download": "uses: actions/download-artifact@v8",
     "missing artifact failure": "if-no-files-found: error",
@@ -66,6 +69,8 @@ REQUIRED_SNIPPETS = {
 REQUIRED_COUNTS = {
     "uses: actions/checkout@v7": 4,
     "uses: actions/attest@v4": 3,
+    "      id-token: write": 3,
+    "      attestations: write": 3,
     "uses: actions/upload-artifact@v7": 3,
     "uses: actions/download-artifact@v8": 2,
     "retention-days: 30": 3,
