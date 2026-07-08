@@ -43,6 +43,8 @@ and this project follows semantic versioning.
 - README, contributing, pull request, and release verification checklists now
   point at the Rust committed secret scanner instead of removed Python helper
   scripts.
+- The schema file and fixture shape check moved from Python scripts into the
+  Rust `vogon-xtask` tool while preserving workflow and replay schema guards.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
