@@ -57,6 +57,17 @@ docker run --rm \
 Use `--openai-compatible-base-url` and `--openai-compatible-model` to target a
 specific compatible service.
 
+For Groq:
+
+```sh
+docker run --rm \
+  -e GROQ_API_KEY \
+  -v "$PWD:/work" \
+  vogon-runtime:local run --provider groq fixtures/workflows/support-triage.toml
+```
+
+Use `--groq-model` to select a different Groq model.
+
 For Hugging Face Inference Providers:
 
 ```sh
@@ -67,6 +78,17 @@ docker run --rm \
 ```
 
 Use `--hugging-face-model` to select a different Hugging Face routed model.
+
+For OpenRouter:
+
+```sh
+docker run --rm \
+  -e OPENROUTER_API_KEY \
+  -v "$PWD:/work" \
+  vogon-runtime:local run --provider openrouter fixtures/workflows/support-triage.toml
+```
+
+Use `--openrouter-model` to select a different OpenRouter model.
 
 ## Runtime Notes
 
