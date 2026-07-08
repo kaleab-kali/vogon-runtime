@@ -50,10 +50,9 @@ REQUIRED_SNIPPETS = {
     "provider env example validator": (
         "cargo run -p vogon-xtask -- check-env-example --root ."
     ),
-    "public status docs validator unit test": (
-        "python3 -m unittest scripts.test_check_public_status_docs"
+    "public status docs validator": (
+        "cargo run -p vogon-xtask -- check-public-status-docs --root ."
     ),
-    "public status docs validator": "python3 scripts/check_public_status_docs.py --root .",
     "live workflow validator": "python3 scripts/check_live_workflows.py --root .",
     "format check": "cargo fmt --all -- --check",
     "clippy check": "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings",

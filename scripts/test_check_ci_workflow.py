@@ -102,8 +102,7 @@ jobs:
           cargo run -p vogon-xtask -- check-release-checklist --root .
           cargo run -p vogon-xtask -- check-cargo-manifests --root .
           cargo run -p vogon-xtask -- check-env-example --root .
-          python3 -m unittest scripts.test_check_public_status_docs
-          python3 scripts/check_public_status_docs.py --root .
+          cargo run -p vogon-xtask -- check-public-status-docs --root .
           python3 scripts/check_live_workflows.py --root .
           python3 -m unittest scripts.test_check_deployment_docs
           python3 scripts/check_deployment_docs.py --root .
