@@ -65,6 +65,25 @@ REQUIRED_SNIPPETS = {
     "release attestation write permission": "      attestations: write",
     "artifact upload": "uses: actions/upload-artifact@v7",
     "artifact download": "uses: actions/download-artifact@v8",
+    "publish release checkout": (
+        "  publish-release:\n"
+        "    name: Publish GitHub release\n"
+        "    if: github.ref_type == 'tag'\n"
+        "    runs-on: ubuntu-24.04\n"
+        "    timeout-minutes: 10\n"
+        "    permissions:\n"
+        "      contents: write\n"
+        "    needs:\n"
+        "      - linux-cli\n"
+        "      - windows-cli\n"
+        "      - container-image\n"
+        "\n"
+        "    steps:\n"
+        "      - name: Checkout\n"
+        "        uses: actions/checkout@v7\n"
+        "        with:\n"
+        "          persist-credentials: false"
+    ),
     "missing artifact failure": "if-no-files-found: error",
     "artifact retention": "retention-days: 30",
     "GitHub release creation": "gh release create",
@@ -75,7 +94,7 @@ REQUIRED_SNIPPETS = {
 }
 
 REQUIRED_COUNTS = {
-    "uses: actions/checkout@v7": 4,
+    "uses: actions/checkout@v7": 5,
     "uses: actions/attest@v4": 3,
     "      id-token: write": 3,
     "      attestations: write": 3,
