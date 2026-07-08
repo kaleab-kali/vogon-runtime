@@ -98,6 +98,7 @@ jobs:
           cargo run -p vogon-xtask -- check-changelog --root .
           cargo run -p vogon-xtask -- check-contributing-checklist --root .
           cargo run -p vogon-xtask -- check-deployment-checklist --root .
+          cargo run -p vogon-xtask -- check-deployment-docs --root .
           cargo run -p vogon-xtask -- check-pr-template --root .
           cargo run -p vogon-xtask -- check-docs-links --root .
           cargo run -p vogon-xtask -- check-issue-templates --root .
@@ -108,8 +109,6 @@ jobs:
           cargo run -p vogon-xtask -- check-public-status-docs --root .
           cargo run -p vogon-xtask -- check-package-verification-docs --root .
           python3 scripts/check_live_workflows.py --root .
-          python3 -m unittest scripts.test_check_deployment_docs
-          python3 scripts/check_deployment_docs.py --root .
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
           cargo test --workspace --all-features --locked

@@ -38,6 +38,9 @@ REQUIRED_SNIPPETS = {
     "deployment checklist validator": (
         "cargo run -p vogon-xtask -- check-deployment-checklist --root ."
     ),
+    "deployment docs validator": (
+        "cargo run -p vogon-xtask -- check-deployment-docs --root ."
+    ),
     "pull request template validator": (
         "cargo run -p vogon-xtask -- check-pr-template --root ."
     ),
@@ -72,8 +75,6 @@ REQUIRED_SNIPPETS = {
     "deterministic-only CLI build": "cargo check -p vogon-cli --no-default-features --locked",
     "MSRV test": "cargo +1.85.0 test --workspace --all-features --locked",
     "benchmark smoke": "cargo bench -p vogon-core --bench runtime --locked -- --iterations 100",
-    "deployment docs validator unit test": "python3 -m unittest scripts.test_check_deployment_docs",
-    "deployment docs validator": "python3 scripts/check_deployment_docs.py --root .",
     "release build": "cargo build --release --workspace --all-features --locked",
     "release CLI doctor smoke": "./target/release/vogon doctor --json",
     "release CLI providers smoke": "./target/release/vogon providers --json",
