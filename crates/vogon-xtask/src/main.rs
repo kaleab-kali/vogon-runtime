@@ -14,6 +14,18 @@ const EXPECTED_ENV_VARS: &[&str] = &[
     "OPENROUTER_API_KEY",
 ];
 const README_LOCAL_CHECKS_MARKER: &str = "Run local checks:";
+const CONTRIBUTING_DEVELOPMENT_MARKER: &str = "## Development";
+const LIVE_WORKFLOW_GUIDANCE: &[(&str, &str)] = &[
+    ("Live Gemini Smoke", "GEMINI_API_KEY"),
+    ("Live Groq Smoke", "GROQ_API_KEY"),
+    ("Live Hugging Face Smoke", "HF_TOKEN"),
+    ("Live OpenAI-Compatible Smoke", "OPENAI_COMPATIBLE_API_KEY"),
+    ("Live OpenRouter Smoke", "OPENROUTER_API_KEY"),
+];
+const REQUIRED_README_COMMANDS: &[&str] = &[
+    "python -m unittest scripts.test_check_sha256_file",
+    "python -m unittest scripts.test_check_archive_contents",
+];
 const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
     "Added",
     "Changed",
@@ -99,6 +111,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_changelog(&root)
         }
+        "check-contributing-checklist" => {
+            let root = parse_root(args.collect());
+            check_contributing_checklist(&root)
+        }
         "check-pr-template" => {
             let root = parse_root(args.collect());
             check_pr_template(&root)
@@ -133,9 +149,73 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-env-example|check-pr-template> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-env-example|check-pr-template> [--root PATH]"
     );
     std::process::exit(2);
+}
+
+fn check_contributing_checklist(root: &Path) -> Result<(), Vec<String>> {
+    let readme = root.join("README.md");
+    let contributing = root.join("CONTRIBUTING.md");
+    if !readme.is_file() {
+        return Err(vec!["README.md: missing README local checks".to_owned()]);
+    }
+    if !contributing.is_file() {
+        return Err(vec![
+            "CONTRIBUTING.md: missing contributor documentation".to_owned(),
+        ]);
+    }
+
+    let readme_commands = extract_shell_commands(&readme, README_LOCAL_CHECKS_MARKER)?;
+    let contributing_commands =
+        extract_shell_commands(&contributing, CONTRIBUTING_DEVELOPMENT_MARKER)?;
+    let contributing_text = fs::read_to_string(&contributing)
+        .map_err(|error| vec![format!("{}: {error}", contributing.display())])?;
+    let mut errors = Vec::new();
+
+    if readme_commands.is_empty() {
+        errors.push("README.md: missing local check command block".to_owned());
+    }
+    if contributing_commands.is_empty() {
+        errors.push("CONTRIBUTING.md: missing development command block".to_owned());
+    }
+
+    let readme_command_set = readme_commands.iter().collect::<BTreeSet<_>>();
+    for command in REQUIRED_README_COMMANDS {
+        if !readme_command_set.contains(&command.to_string()) {
+            errors.push(format!(
+                "README.md: missing required local check `{command}`"
+            ));
+        }
+    }
+
+    let contributing_command_set = contributing_commands.iter().collect::<BTreeSet<_>>();
+    for command in readme_commands {
+        if !contributing_command_set.contains(&command) {
+            errors.push(format!(
+                "CONTRIBUTING.md: missing README local check `{command}`"
+            ));
+        }
+    }
+
+    for (workflow_name, secret_name) in LIVE_WORKFLOW_GUIDANCE {
+        if !contributing_text.contains(workflow_name) {
+            errors.push(format!(
+                "CONTRIBUTING.md: missing `{workflow_name}` guidance"
+            ));
+        }
+        if !contributing_text.contains(secret_name) {
+            errors.push(format!(
+                "CONTRIBUTING.md: missing `{secret_name}` live smoke secret guidance"
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 fn check_pr_template(root: &Path) -> Result<(), Vec<String>> {
@@ -724,6 +804,138 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
+    fn accepts_contributing_doc_with_readme_checks_and_extra_commands() {
+        let root = temp_root("contributing-accepts");
+        write_contributing_docs(
+            &root,
+            &[
+                "cargo test",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+                "python scripts/check_docs_links.py --root .",
+            ],
+            &[
+                "cargo test",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+                "python scripts/check_docs_links.py --root .",
+                "docker build --tag vogon-runtime:smoke .",
+            ],
+            live_guidance_text(),
+        );
+
+        assert_eq!(check_contributing_checklist(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_contributing_doc_command() {
+        let root = temp_root("contributing-missing-command");
+        write_contributing_docs(
+            &root,
+            &[
+                "cargo test",
+                "cargo clippy -- -D warnings",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+            ],
+            &[
+                "cargo test",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+            ],
+            live_guidance_text(),
+        );
+
+        let errors = check_contributing_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["CONTRIBUTING.md: missing README local check `cargo clippy -- -D warnings`",]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_required_readme_release_validator_tests() {
+        let root = temp_root("contributing-missing-required-readme");
+        write_contributing_docs(
+            &root,
+            &["cargo test"],
+            &["cargo test"],
+            live_guidance_text(),
+        );
+
+        let errors = check_contributing_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
+                "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_live_workflow_guidance() {
+        let root = temp_root("contributing-missing-live-guidance");
+        write_contributing_docs(
+            &root,
+            &[
+                "cargo test",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+            ],
+            &[
+                "cargo test",
+                "python -m unittest scripts.test_check_sha256_file",
+                "python -m unittest scripts.test_check_archive_contents",
+            ],
+            &live_guidance_text().replace(
+                "- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n",
+                "",
+            ),
+        );
+
+        let errors = check_contributing_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "CONTRIBUTING.md: missing `Live OpenAI-Compatible Smoke` guidance",
+                "CONTRIBUTING.md: missing `OPENAI_COMPATIBLE_API_KEY` live smoke secret guidance",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_contributing_command_blocks() {
+        let root = temp_root("contributing-missing-blocks");
+        fs::write(root.join("README.md"), "# README\n").unwrap();
+        fs::write(
+            root.join("CONTRIBUTING.md"),
+            format!("# Contributing\n{}", live_guidance_text()),
+        )
+        .unwrap();
+
+        let errors = check_contributing_checklist(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "README.md: missing local check command block",
+                "CONTRIBUTING.md: missing development command block",
+                "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
+                "README.md: missing required local check `python -m unittest scripts.test_check_archive_contents`",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_pr_template_with_readme_checks_and_extra_commands() {
         let root = temp_root("pr-template-accepts");
         write_pr_template_docs(
@@ -1135,6 +1347,35 @@ and this project follows semantic versioning once the first release is tagged.
             ),
         )
         .unwrap();
+    }
+
+    fn write_contributing_docs(
+        root: &Path,
+        readme_commands: &[&str],
+        contributing_commands: &[&str],
+        live_guidance: &str,
+    ) {
+        fs::write(
+            root.join("README.md"),
+            format!(
+                "# README\n\nRun local checks:\n\n```sh\n{}\n```\n",
+                readme_commands.join("\n")
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("CONTRIBUTING.md"),
+            format!(
+                "# Contributing\n\n## Development\n\n```sh\n{}\n```\n{}",
+                contributing_commands.join("\n"),
+                live_guidance
+            ),
+        )
+        .unwrap();
+    }
+
+    fn live_guidance_text() -> &'static str {
+        "\n- `Live Gemini Smoke` uses `GEMINI_API_KEY`.\n- `Live Groq Smoke` uses `GROQ_API_KEY`.\n- `Live Hugging Face Smoke` uses `HF_TOKEN`.\n- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n- `Live OpenRouter Smoke` uses `OPENROUTER_API_KEY`.\n"
     }
 
     #[derive(Default)]

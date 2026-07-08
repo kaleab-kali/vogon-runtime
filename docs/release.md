@@ -18,7 +18,6 @@ python -m unittest scripts.test_check_spdx_sbom_json
 python -m unittest scripts.test_check_sha256_file
 python -m unittest scripts.test_check_archive_contents
 python -m unittest scripts.test_check_benchmark_output
-python -m unittest scripts.test_check_contributing_checklist
 python -m unittest scripts.test_check_container_policy
 python -m unittest scripts.test_check_container_image
 python -m unittest scripts.test_check_dependabot_config
@@ -44,7 +43,7 @@ python -m unittest scripts.test_check_security_workflows
 python -m unittest scripts.test_check_workflow_policies
 cargo run -p vogon-xtask -- check-cargo-manifests --root .
 cargo run -p vogon-xtask -- check-changelog --root .
-python scripts/check_contributing_checklist.py --root .
+cargo run -p vogon-xtask -- check-contributing-checklist --root .
 python scripts/check_deployment_checklist.py --root .
 python scripts/check_docs_links.py --root .
 python scripts/check_public_status_docs.py --root .

@@ -18,6 +18,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool to reduce long-lived non-Rust project tooling.
 - The pull request template check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving README checklist coverage.
+- The contributing checklist check moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving live provider workflow guidance checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
