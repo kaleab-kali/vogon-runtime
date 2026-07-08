@@ -31,7 +31,7 @@ REQUIRED_SNIPPETS = {
         '--build-arg "VOGON_IMAGE_REVISION=${{ github.sha }}"'
     ),
     "dependency metadata": "cargo metadata --locked --format-version 1",
-    "dependency metadata validator": "scripts/check_cargo_metadata_json.py",
+    "dependency metadata validator": "check-cargo-metadata-json",
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
     "SHA-256 checksum validator": "check-sha256-file",

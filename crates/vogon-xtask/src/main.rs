@@ -653,6 +653,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_cargo_manifests(&root)
         }
+        "check-cargo-metadata-json" => {
+            let options = parse_cargo_metadata_json_args(args.collect());
+            check_cargo_metadata_json_file(&options.metadata_file, &options.expected_packages)
+        }
         "check-ci-workflow" => {
             let root = parse_root(args.collect());
             check_ci_workflow(&root)
@@ -755,13 +759,18 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
 
 struct BenchmarkOutputOptions {
     expected_iterations: i64,
+}
+
+struct CargoMetadataJsonOptions {
+    metadata_file: PathBuf,
+    expected_packages: Vec<String>,
 }
 
 struct Sha256FileOptions {
@@ -805,6 +814,39 @@ fn parse_benchmark_output_args(args: Vec<String>) -> BenchmarkOutputOptions {
 fn print_benchmark_output_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations COUNT"
+    );
+    std::process::exit(2);
+}
+
+fn parse_cargo_metadata_json_args(args: Vec<String>) -> CargoMetadataJsonOptions {
+    let Some((metadata_file, rest)) = args.split_first() else {
+        print_cargo_metadata_json_usage_and_exit();
+    };
+
+    let mut expected_packages = Vec::new();
+    let mut index = 0;
+    while index < rest.len() {
+        match rest[index].as_str() {
+            "--expected-workspace-package" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_cargo_metadata_json_usage_and_exit();
+                };
+                expected_packages.push(value.clone());
+                index += 2;
+            }
+            _ => print_cargo_metadata_json_usage_and_exit(),
+        }
+    }
+
+    CargoMetadataJsonOptions {
+        metadata_file: PathBuf::from(metadata_file),
+        expected_packages,
+    }
+}
+
+fn print_cargo_metadata_json_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-cargo-metadata-json METADATA_FILE [--expected-workspace-package NAME ...]"
     );
     std::process::exit(2);
 }
@@ -994,6 +1036,160 @@ fn parse_float_metric(
             None
         }
     }
+}
+
+fn check_cargo_metadata_json_file(
+    metadata_file: &Path,
+    expected_packages: &[String],
+) -> Result<(), Vec<String>> {
+    let output = fs::read_to_string(metadata_file)
+        .map_err(|error| vec![format!("Cargo metadata JSON file cannot be read: {error}")])?;
+    check_cargo_metadata_json(output.trim_start_matches('\u{feff}'), expected_packages)
+}
+
+fn check_cargo_metadata_json(
+    output: &str,
+    expected_packages: &[String],
+) -> Result<(), Vec<String>> {
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("Cargo metadata JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec![
+            "Cargo metadata JSON root must be an object".to_owned(),
+        ]);
+    };
+
+    let mut errors = Vec::new();
+    let mut package_ids = BTreeSet::new();
+    let mut package_names_by_id = BTreeMap::new();
+
+    let packages = match data.get("packages").and_then(JsonValue::as_array) {
+        Some(packages) if !packages.is_empty() => packages.as_slice(),
+        _ => {
+            errors.push("Cargo metadata JSON packages must be a non-empty array".to_owned());
+            &[]
+        }
+    };
+
+    for (index, package) in packages.iter().enumerate() {
+        let context = format!("Cargo metadata package {}", index + 1);
+        let Some(package) = package.as_object() else {
+            errors.push(format!("{context} must be an object"));
+            continue;
+        };
+        let package_id = require_cargo_metadata_string(package, "id", &context, &mut errors);
+        let package_name = require_cargo_metadata_string(package, "name", &context, &mut errors);
+        require_cargo_metadata_string(package, "version", &context, &mut errors);
+        require_cargo_metadata_string(package, "manifest_path", &context, &mut errors);
+        if let Some(package_id) = package_id {
+            package_ids.insert(package_id.to_owned());
+            if let Some(package_name) = package_name {
+                package_names_by_id.insert(package_id.to_owned(), package_name.to_owned());
+            }
+        }
+    }
+
+    let workspace_members = match data.get("workspace_members").and_then(JsonValue::as_array) {
+        Some(workspace_members) if !workspace_members.is_empty() => workspace_members.as_slice(),
+        _ => {
+            errors
+                .push("Cargo metadata JSON workspace_members must be a non-empty array".to_owned());
+            &[]
+        }
+    };
+
+    for (index, member_id) in workspace_members.iter().enumerate() {
+        let Some(member_id) = member_id.as_str().filter(|value| !value.is_empty()) else {
+            errors.push(format!(
+                "Cargo metadata workspace member {} must be a non-empty string",
+                index + 1
+            ));
+            continue;
+        };
+        if !package_ids.is_empty() && !package_ids.contains(member_id) {
+            errors.push(format!(
+                "Cargo metadata workspace member {} is missing from packages",
+                index + 1
+            ));
+        }
+    }
+
+    let workspace_package_names = workspace_members
+        .iter()
+        .filter_map(JsonValue::as_str)
+        .filter_map(|member_id| package_names_by_id.get(member_id))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for package_name in expected_packages {
+        if !workspace_package_names.contains(package_name) {
+            errors.push(format!(
+                "Cargo metadata workspace package missing: expected {package_name}, got {}",
+                json_string_array_display(workspace_package_names.iter().map(String::as_str))
+            ));
+        }
+    }
+
+    let nodes = match data.get("resolve").and_then(JsonValue::as_object) {
+        Some(resolve) => match resolve.get("nodes").and_then(JsonValue::as_array) {
+            Some(nodes) if !nodes.is_empty() => nodes.as_slice(),
+            _ => {
+                errors
+                    .push("Cargo metadata JSON resolve.nodes must be a non-empty array".to_owned());
+                &[]
+            }
+        },
+        None => {
+            errors.push("Cargo metadata JSON resolve must be an object".to_owned());
+            errors.push("Cargo metadata JSON resolve.nodes must be a non-empty array".to_owned());
+            &[]
+        }
+    };
+
+    for (index, node) in nodes.iter().enumerate() {
+        let context = format!("Cargo metadata resolve node {}", index + 1);
+        let Some(node) = node.as_object() else {
+            errors.push(format!("{context} must be an object"));
+            continue;
+        };
+        let node_id = require_cargo_metadata_string(node, "id", &context, &mut errors);
+        if !matches!(node.get("deps"), Some(JsonValue::Array(_))) {
+            errors.push(format!("{context} deps must be an array"));
+        }
+        if let Some(node_id) = node_id {
+            if !package_ids.is_empty() && !package_ids.contains(node_id) {
+                errors.push(format!("{context} is missing from packages"));
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn require_cargo_metadata_string<'a>(
+    data: &'a serde_json::Map<String, JsonValue>,
+    field: &str,
+    context: &str,
+    errors: &mut Vec<String>,
+) -> Option<&'a str> {
+    let value = data.get(field).and_then(JsonValue::as_str);
+    match value {
+        Some(value) if !value.is_empty() => Some(value),
+        _ => {
+            errors.push(format!("{context} {field} must be a non-empty string"));
+            None
+        }
+    }
+}
+
+fn json_string_array_display<'a>(values: impl Iterator<Item = &'a str>) -> String {
+    let array = values
+        .map(|value| JsonValue::String(value.to_owned()))
+        .collect::<Vec<_>>();
+    serde_json::to_string(&array).unwrap_or_else(|_| "[]".to_owned())
 }
 
 fn check_contributing_checklist(root: &Path) -> Result<(), Vec<String>> {
@@ -6273,6 +6469,113 @@ and this project follows semantic versioning once the first release is tagged.
         );
     }
 
+    #[test]
+    fn accepts_expected_cargo_metadata_json() {
+        let output = valid_cargo_metadata_json();
+        let expected_packages = vec!["vogon-core".to_owned(), "vogon-cli".to_owned()];
+
+        assert_eq!(
+            check_cargo_metadata_json(&output, &expected_packages),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_cargo_metadata_json_file_path() {
+        let root = temp_root("cargo-metadata-json-file");
+        let metadata_file = root.join("metadata.json");
+        fs::write(&metadata_file, valid_cargo_metadata_json()).unwrap();
+
+        assert_eq!(
+            check_cargo_metadata_json_file(&metadata_file, &["vogon-core".to_owned()]),
+            Ok(())
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_invalid_cargo_metadata_json() {
+        let errors = check_cargo_metadata_json("{", &[]).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("Cargo metadata JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_missing_cargo_metadata_package_fields() {
+        let output = serde_json::json!({
+            "packages": [{"id": "", "name": "vogon-core"}],
+            "workspace_members": [
+                "path+file:///repo#vogon-core@0.1.0",
+                "path+file:///repo#vogon-cli@0.1.0"
+            ],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": "path+file:///repo#vogon-core@0.1.0",
+                        "deps": []
+                    },
+                    {
+                        "id": "path+file:///repo#vogon-cli@0.1.0",
+                        "deps": []
+                    }
+                ]
+            }
+        })
+        .to_string();
+
+        let errors = check_cargo_metadata_json(&output, &[]).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Cargo metadata package 1 id must be a non-empty string",
+                "Cargo metadata package 1 version must be a non-empty string",
+                "Cargo metadata package 1 manifest_path must be a non-empty string",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_missing_expected_cargo_metadata_workspace_package() {
+        let expected_packages = vec!["vogon-adapters".to_owned()];
+        let errors = check_cargo_metadata_json(&valid_cargo_metadata_json(), &expected_packages)
+            .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Cargo metadata workspace package missing: expected vogon-adapters, got [\"vogon-cli\",\"vogon-core\"]",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_missing_cargo_metadata_resolve_nodes() {
+        let output = serde_json::json!({
+            "packages": [
+                {
+                    "id": "path+file:///repo#vogon-core@0.1.0",
+                    "name": "vogon-core",
+                    "version": "0.1.0",
+                    "manifest_path": "/repo/crates/vogon-core/Cargo.toml"
+                }
+            ],
+            "workspace_members": ["path+file:///repo#vogon-core@0.1.0"],
+            "resolve": {
+                "nodes": []
+            }
+        })
+        .to_string();
+
+        let errors = check_cargo_metadata_json(&output, &[]).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["Cargo metadata JSON resolve.nodes must be a non-empty array"]
+        );
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -6293,6 +6596,42 @@ and this project follows semantic versioning once the first release is tagged.
 
     fn write_archive_entry(root: &Path, name: &str, contents: &str) {
         fs::write(root.join(name), contents).unwrap();
+    }
+
+    fn valid_cargo_metadata_json() -> String {
+        serde_json::json!({
+            "packages": [
+                {
+                    "id": "path+file:///repo#vogon-core@0.1.0",
+                    "name": "vogon-core",
+                    "version": "0.1.0",
+                    "manifest_path": "/repo/crates/vogon-core/Cargo.toml"
+                },
+                {
+                    "id": "path+file:///repo#vogon-cli@0.1.0",
+                    "name": "vogon-cli",
+                    "version": "0.1.0",
+                    "manifest_path": "/repo/crates/vogon-cli/Cargo.toml"
+                }
+            ],
+            "workspace_members": [
+                "path+file:///repo#vogon-core@0.1.0",
+                "path+file:///repo#vogon-cli@0.1.0"
+            ],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": "path+file:///repo#vogon-core@0.1.0",
+                        "deps": []
+                    },
+                    {
+                        "id": "path+file:///repo#vogon-cli@0.1.0",
+                        "deps": []
+                    }
+                ]
+            }
+        })
+        .to_string()
     }
 
     fn write_ci_workflow(root: &Path, text: &str) {

@@ -191,7 +191,7 @@ jobs:
       - run: cargo build --release -p vogon-cli --locked
       - run: |
           cargo metadata --locked --format-version 1
-          python3 scripts/check_cargo_metadata_json.py
+          cargo run -p vogon-xtask -- check-cargo-metadata-json
           python3 scripts/write_spdx_sbom.py
           python3 scripts/check_spdx_sbom_json.py
           check-sha256-file

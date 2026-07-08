@@ -82,7 +82,7 @@ jobs:
       - name: Write dependency metadata
         run: |
           cargo metadata --locked --format-version 1 > "vogon-${{ github.ref_name }}-cargo-metadata.json"
-          python3 scripts/check_cargo_metadata_json.py "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
+          cargo run -p vogon-xtask -- check-cargo-metadata-json "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
           sha256sum "vogon-${{ github.ref_name }}-cargo-metadata.json" > "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256"
           cargo run -p vogon-xtask -- check-sha256-file "vogon-${{ github.ref_name }}-cargo-metadata.json"
 
@@ -356,7 +356,7 @@ jobs:
             cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-sha256-file "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz"
             cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-sha256-file "vogon-${{ github.ref_name }}-cargo-metadata.json"
             cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-sha256-file "vogon-${{ github.ref_name }}-cargo-spdx.json"
-            python3 "$GITHUB_WORKSPACE/scripts/check_cargo_metadata_json.py" "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
+            cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-cargo-metadata-json "vogon-${{ github.ref_name }}-cargo-metadata.json" --expected-workspace-package vogon-core --expected-workspace-package vogon-adapters --expected-workspace-package vogon-cli
             python3 "$GITHUB_WORKSPACE/scripts/check_spdx_sbom_json.py" "vogon-${{ github.ref_name }}-cargo-spdx.json" --expected-name "vogon-runtime ${{ github.ref_name }}" --expected-package vogon-runtime-source --expected-package vogon-core --expected-package vogon-adapters --expected-package vogon-cli
             mkdir -p linux-archive-smoke
             tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C linux-archive-smoke
