@@ -7,6 +7,8 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-08
+
 ### Changed
 
 - Public status documentation now reflects the published `v0.1.0` release while
