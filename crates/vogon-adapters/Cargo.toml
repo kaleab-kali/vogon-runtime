@@ -13,6 +13,9 @@ readme = "../../README.md"
 keywords = ["ai", "model-adapters", "workflow", "runtime"]
 categories = ["development-tools"]
 
+[lints]
+workspace = true
+
 [features]
 default = ["gemini", "openai-compatible"]
 gemini = ["dep:serde", "dep:serde_json", "dep:ureq"]
