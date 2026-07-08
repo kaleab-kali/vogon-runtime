@@ -28,6 +28,17 @@ REQUIRED_DOCKERFILE_SNIPPETS = {
     "minimal certificate install": (
         "apt-get install -y --no-install-recommends ca-certificates"
     ),
+    "OCI title label": 'org.opencontainers.image.title="Vogon Runtime"',
+    "OCI description label": (
+        'org.opencontainers.image.description="Deterministic, replayable AI workflow runtime CLI."'
+    ),
+    "OCI source label": (
+        'org.opencontainers.image.source="https://github.com/kaleab-kali/vogon-runtime"'
+    ),
+    "OCI documentation label": (
+        'org.opencontainers.image.documentation="https://github.com/kaleab-kali/vogon-runtime#readme"'
+    ),
+    "OCI license label": 'org.opencontainers.image.licenses="MIT"',
     "apt package list cleanup": "rm -rf /var/lib/apt/lists/*",
     "non-root runtime user": "useradd --create-home --uid 10001 vogon",
     "release binary copy": (

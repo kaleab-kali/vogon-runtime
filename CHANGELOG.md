@@ -124,6 +124,8 @@ and this project follows semantic versioning once the first release is tagged.
   CI validates that each release upload keeps it.
 - Dependency review workflow runs now use a per-ref concurrency guard, and CI
   validates the guard.
+- Container policy validation now enforces OCI image metadata labels for title,
+  description, source, documentation, and license.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
