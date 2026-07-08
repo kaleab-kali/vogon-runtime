@@ -45,6 +45,8 @@ and this project follows semantic versioning.
   scripts.
 - The schema file and fixture shape check moved from Python scripts into the
   Rust `vogon-xtask` tool while preserving workflow and replay schema guards.
+- The release archive contents check moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving archive layout guards.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
