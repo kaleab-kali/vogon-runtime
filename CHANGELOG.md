@@ -99,6 +99,8 @@ and this project follows semantic versioning once the first release is tagged.
 - Container smoke tests now validate OCI labels and the non-root runtime user
   with a reusable script.
 - Security workflow coverage is now validated locally and in CI.
+- Live real-provider smoke workflow defaults and operational controls are now
+  validated locally and in CI.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.

@@ -108,9 +108,70 @@ def live_workflow_text(
     omit_live_validator: bool = False,
 ) -> str:
     provider = PROVIDERS[expectation.provider]
+    workflow_dispatch_inputs = ""
+    workflow_call_inputs = ""
+    job_env_inputs = ""
+    model_setup = ""
+    model_run_flag = ""
+    validator_model = f"            --model {expectation.default_model} \\"
+
+    if expectation.provider != "gemini":
+        workflow_dispatch_inputs = f"""
+    inputs:
+      model:
+        description: {check_live_workflows.model_description(expectation)}
+        required: false
+        default: {expectation.default_model}"""
+        workflow_call_inputs = f"""
+    inputs:
+      model:
+        type: string
+        required: false
+        default: {expectation.default_model}"""
+        job_env_inputs = f"""
+      {expectation.model_env}: ${{{{ inputs.model }}}}"""
+        model_setup = f"""
+          model="${{{expectation.model_env}:-{expectation.default_model}}}"
+          export {expectation.model_env}="$model"
+"""
+        model_run_flag = f"""
+            --{expectation.flag_prefix}-model "$model" \\"""
+        validator_model = '            --model "$model" \\'
+
     base_url_run_flag = ""
     base_url_validator_flag = ""
     if expectation.requires_base_url:
+        assert expectation.default_base_url is not None
+        assert expectation.base_url_env is not None
+        workflow_dispatch_inputs = f"""
+    inputs:
+      base_url:
+        description: OpenAI-compatible API base URL.
+        required: false
+        default: {expectation.default_base_url}
+      model:
+        description: {check_live_workflows.model_description(expectation)}
+        required: false
+        default: {expectation.default_model}"""
+        workflow_call_inputs = f"""
+    inputs:
+      base_url:
+        type: string
+        required: false
+        default: {expectation.default_base_url}
+      model:
+        type: string
+        required: false
+        default: {expectation.default_model}"""
+        job_env_inputs = f"""
+      {expectation.base_url_env}: ${{{{ inputs.base_url }}}}
+      {expectation.model_env}: ${{{{ inputs.model }}}}"""
+        model_setup = f"""
+          base_url="${{{expectation.base_url_env}:-{expectation.default_base_url}}}"
+          model="${{{expectation.model_env}:-{expectation.default_model}}}"
+          export {expectation.base_url_env}="$base_url"
+          export {expectation.model_env}="$model"
+"""
         base_url_run_flag = (
             f"\n            --{expectation.flag_prefix}-base-url \"$base_url\" \\"
         )
@@ -122,14 +183,14 @@ def live_workflow_text(
           python3 scripts/check_live_replay.py \\
             --replay {expectation.replay_path} \\
             --provider {expectation.provider} \\{base_url_validator_flag}
-            --model "$model" \\
+{validator_model}
             --secret-env {provider.secret_env}"""
 
     return f"""name: Live {expectation.provider} Smoke
 
 on:
-  workflow_dispatch:
-  workflow_call:
+  workflow_dispatch:{workflow_dispatch_inputs}
+  workflow_call:{workflow_call_inputs}
     secrets:
       {provider.secret_env}:
         required: true
@@ -137,12 +198,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
 jobs:
   live:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      {provider.secret_env}: ${{{{ secrets.{provider.secret_env} }}}}
+      {provider.secret_env}: ${{{{ secrets.{provider.secret_env} }}}}{job_env_inputs}
 
     steps:
       - name: Checkout
@@ -159,11 +227,10 @@ jobs:
           if [ -z "${{{provider.secret_env}:-}}" ]; then
             exit 1
           fi
-
-          model="test-model"
+{model_setup}
           ./target/release/vogon run \\
             --provider {expectation.provider}{base_url_run_flag}
-            --{expectation.flag_prefix}-model "$model" \\
+{model_run_flag}
             --{expectation.flag_prefix}-timeout-seconds 60 \\
             --{expectation.flag_prefix}-max-retries 2 \\
             --redact {provider.redaction_label}="${provider.secret_env}" \\

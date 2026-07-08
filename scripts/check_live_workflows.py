@@ -23,7 +23,11 @@ class LiveWorkflowExpectation:
     file_name: str
     flag_prefix: str
     replay_path: str
+    default_model: str
+    model_env: str
     requires_base_url: bool = False
+    default_base_url: str | None = None
+    base_url_env: str | None = None
 
 
 EXPECTED_WORKFLOWS = {
@@ -32,31 +36,43 @@ EXPECTED_WORKFLOWS = {
         file_name="live-gemini-smoke.yml",
         flag_prefix="gemini",
         replay_path="target/live-gemini-smoke.replay.json",
+        default_model="gemini-3.1-flash-lite",
+        model_env="GEMINI_MODEL",
     ),
     "groq": LiveWorkflowExpectation(
         provider="groq",
         file_name="live-groq-smoke.yml",
         flag_prefix="groq",
         replay_path="target/live-groq-smoke.replay.json",
+        default_model="llama-3.1-8b-instant",
+        model_env="GROQ_MODEL",
     ),
     "hugging-face": LiveWorkflowExpectation(
         provider="hugging-face",
         file_name="live-hugging-face-smoke.yml",
         flag_prefix="hugging-face",
         replay_path="target/live-hugging-face-smoke.replay.json",
+        default_model="openai/gpt-oss-120b:fastest",
+        model_env="HUGGING_FACE_MODEL",
     ),
     "openai-compatible": LiveWorkflowExpectation(
         provider="openai-compatible",
         file_name="live-openai-compatible-smoke.yml",
         flag_prefix="openai-compatible",
         replay_path="target/live-openai-compatible-smoke.replay.json",
+        default_model="openai/gpt-oss-120b:fastest",
+        model_env="OPENAI_COMPATIBLE_MODEL",
         requires_base_url=True,
+        default_base_url="https://router.huggingface.co/v1",
+        base_url_env="OPENAI_COMPATIBLE_BASE_URL",
     ),
     "openrouter": LiveWorkflowExpectation(
         provider="openrouter",
         file_name="live-openrouter-smoke.yml",
         flag_prefix="openrouter",
         replay_path="target/live-openrouter-smoke.replay.json",
+        default_model="openrouter/free",
+        model_env="OPENROUTER_MODEL",
     ),
 }
 
@@ -118,6 +134,10 @@ def check_workflow_file(
         "workflow_dispatch trigger": "  workflow_dispatch:",
         "workflow_call trigger": "  workflow_call:",
         "read-only top-level contents permission": "permissions:\n  contents: read",
+        "concurrency group": "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+        "concurrency preserves live runs": "  cancel-in-progress: false",
+        "cargo network retry env": "env:\n  CARGO_NET_RETRY: 10",
+        "ubuntu runner": "    runs-on: ubuntu-24.04",
         "job timeout": "    timeout-minutes:",
         "workflow_call secret declaration": (
             f"      {provider.secret_env}:\n        required: true"
@@ -140,11 +160,58 @@ def check_workflow_file(
         "live replay validator": "          python3 scripts/check_live_replay.py",
         "validator replay path": f"            --replay {expectation.replay_path}",
         "validator provider": f"            --provider {expectation.provider}",
-        "validator model": "            --model",
+        "validator model": validator_model_snippet(expectation),
         "validator secret env": f"            --secret-env {provider.secret_env}",
     }
 
+    if expectation.provider != "gemini":
+        required_snippets["workflow_dispatch model input"] = (
+            "      model:\n"
+            f"        description: {model_description(expectation)}\n"
+            "        required: false\n"
+            f"        default: {expectation.default_model}"
+        )
+        required_snippets["workflow_call model input"] = (
+            "      model:\n"
+            "        type: string\n"
+            "        required: false\n"
+            f"        default: {expectation.default_model}"
+        )
+        required_snippets["model env wiring"] = (
+            f"      {expectation.model_env}: ${{{{ inputs.model }}}}"
+        )
+        required_snippets["model fallback"] = (
+            f'model="${{{expectation.model_env}:-{expectation.default_model}}}"'
+        )
+        required_snippets["model export"] = f'export {expectation.model_env}="$model"'
+        required_snippets["model run flag"] = (
+            f"            --{expectation.flag_prefix}-model \"$model\""
+        )
+
     if expectation.requires_base_url:
+        assert expectation.default_base_url is not None
+        assert expectation.base_url_env is not None
+        required_snippets["workflow_dispatch base URL input"] = (
+            "      base_url:\n"
+            "        description: OpenAI-compatible API base URL.\n"
+            "        required: false\n"
+            f"        default: {expectation.default_base_url}"
+        )
+        required_snippets["workflow_call base URL input"] = (
+            "      base_url:\n"
+            "        type: string\n"
+            "        required: false\n"
+            f"        default: {expectation.default_base_url}"
+        )
+        required_snippets["base URL env wiring"] = (
+            f"      {expectation.base_url_env}: ${{{{ inputs.base_url }}}}"
+        )
+        required_snippets["base URL fallback"] = (
+            f'base_url="${{{expectation.base_url_env}:-{expectation.default_base_url}}}"'
+        )
+        required_snippets["base URL export"] = (
+            f'export {expectation.base_url_env}="$base_url"'
+        )
         required_snippets["base URL run flag"] = (
             f"            --{expectation.flag_prefix}-base-url"
         )
@@ -156,6 +223,28 @@ def check_workflow_file(
             errors.append(f"{relative_path}: missing {description}")
 
     return errors
+
+
+def model_description(expectation: LiveWorkflowExpectation) -> str:
+    if expectation.provider == "openai-compatible":
+        return "OpenAI-compatible model name."
+    if expectation.provider == "hugging-face":
+        return "Hugging Face model name."
+    return f"{provider_display_name(expectation.provider)} model name."
+
+
+def validator_model_snippet(expectation: LiveWorkflowExpectation) -> str:
+    if expectation.provider == "gemini":
+        return f"            --model {expectation.default_model}"
+    return '            --model "$model"'
+
+
+def provider_display_name(provider: str) -> str:
+    names = {
+        "groq": "Groq",
+        "openrouter": "OpenRouter",
+    }
+    return names.get(provider, provider)
 
 
 if __name__ == "__main__":
