@@ -17,6 +17,7 @@ ALLOWED_UNRELEASED_SECTIONS = {
     "Security",
     "Documentation",
 }
+RELEASE_HEADING_PREFIX = "## ["
 
 
 def main() -> int:
@@ -58,8 +59,10 @@ def check_repository(root: Path) -> list[str]:
         errors.append("CHANGELOG.md: missing `## [Unreleased]` section")
         return errors
 
-    unreleased_lines = lines[unreleased_start + 1 : next_release_heading(lines, unreleased_start + 1)]
-    errors.extend(check_unreleased_section(unreleased_lines))
+    next_heading = next_release_heading(lines, unreleased_start + 1)
+    unreleased_lines = lines[unreleased_start + 1 : next_heading]
+    errors.extend(check_unreleased_section(unreleased_lines, has_release=next_heading < len(lines)))
+    errors.extend(check_release_headings(lines[next_heading:]))
     return errors
 
 
@@ -70,10 +73,12 @@ def next_release_heading(lines: list[str], start: int) -> int:
     return len(lines)
 
 
-def check_unreleased_section(lines: list[str]) -> list[str]:
+def check_unreleased_section(lines: list[str], *, has_release: bool) -> list[str]:
     errors: list[str] = []
     section_names = [line[4:] for line in lines if line.startswith("### ")]
     if not section_names:
+        if has_release and not any(line.strip() for line in lines):
+            return []
         return ["CHANGELOG.md: `## [Unreleased]` must contain at least one subsection"]
 
     for section_name in section_names:
@@ -84,6 +89,17 @@ def check_unreleased_section(lines: list[str]) -> list[str]:
         if not section_has_entry(lines, section_name):
             errors.append(f"CHANGELOG.md: Unreleased `{section_name}` subsection has no entries")
 
+    return errors
+
+
+def check_release_headings(lines: list[str]) -> list[str]:
+    errors: list[str] = []
+    for line in lines:
+        if line.startswith("## "):
+            if not line.startswith(RELEASE_HEADING_PREFIX) or " - " not in line:
+                errors.append(
+                    f"CHANGELOG.md: release heading `{line}` must include a version and date"
+                )
     return errors
 
 
