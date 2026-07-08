@@ -49,7 +49,7 @@ class CheckPublicStatusDocsTests(unittest.TestCase):
             errors = check_public_status_docs.check_repository(root)
 
             self.assertIn(
-                'SECURITY.md: missing "`v0.1.0` is the first public release of Vogon Runtime."',
+                'SECURITY.md: missing "`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first public release."',
                 errors,
             )
 
@@ -65,8 +65,9 @@ def write_status_docs(
         readme
         or (
             "# README\n\n"
-            "Vogon Runtime has a first public release, `v0.1.0`. The project is still in\n"
-            "the `0.x` series, so command and library APIs may change as the runtime\n"
+            "Vogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first\n"
+            "public release. The project is still in the `0.x` series, so command and\n"
+            "library APIs may change as the runtime\n"
             "stabilizes.\n"
         ),
         encoding="utf-8",
@@ -75,9 +76,9 @@ def write_status_docs(
         security
         or (
             "# Security\n\n"
-            "`v0.1.0` is the first public release of Vogon Runtime. Security fixes are\n"
-            "handled on the `main` branch and shipped in follow-up patch or minor releases\n"
-            "when they affect published artifacts.\n"
+            "`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first\n"
+            "public release. Security fixes are handled on the `main` branch and shipped in\n"
+            "follow-up patch or minor releases when they affect published artifacts.\n"
         ),
         encoding="utf-8",
     )
@@ -88,6 +89,7 @@ def write_status_docs(
     (root / "CHANGELOG.md").write_text(
         "# Changelog\n\n"
         "and this project follows semantic versioning.\n\n"
+        "## [0.1.1] - 2026-07-08\n\n"
         "## [0.1.0] - 2026-07-08\n",
         encoding="utf-8",
     )

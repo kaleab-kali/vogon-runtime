@@ -179,11 +179,11 @@ Create a semantic version tag from `main`:
 ```sh
 git checkout main
 git pull --ff-only
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
-Use the real version number in place of `v0.1.0`.
+Use the real version number in place of `v0.1.1`.
 
 ## Automated Release Artifact
 
@@ -206,8 +206,8 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
   packaged container image.
 - Includes only the CLI binary, `README.md`, and `LICENSE` in each CLI archive.
 - Writes `cargo metadata --locked` dependency metadata as
-  `vogon-v0.1.0-cargo-metadata.json`.
-- Writes an SPDX 2.3 JSON SBOM as `vogon-v0.1.0-cargo-spdx.json`.
+  `vogon-v0.1.1-cargo-metadata.json`.
+- Writes an SPDX 2.3 JSON SBOM as `vogon-v0.1.1-cargo-spdx.json`.
 - Writes SHA-256 checksum files for each archive.
 - Writes SHA-256 checksum files for the dependency metadata and SBOM.
 - Generates GitHub artifact attestations for each release archive.
@@ -228,62 +228,62 @@ and its matching checksum file before extracting the binary.
 On Linux:
 
 ```sh
-sha256sum -c vogon-v0.1.0-linux-x86_64.tar.gz.sha256
-tar -xzf vogon-v0.1.0-linux-x86_64.tar.gz
+sha256sum -c vogon-v0.1.1-linux-x86_64.tar.gz.sha256
+tar -xzf vogon-v0.1.1-linux-x86_64.tar.gz
 ./vogon --version
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$expected = (Get-Content .\vogon-v0.1.0-windows-x86_64.zip.sha256).Split()[0]
-$actual = (Get-FileHash -Algorithm SHA256 .\vogon-v0.1.0-windows-x86_64.zip).Hash.ToLowerInvariant()
+$expected = (Get-Content .\vogon-v0.1.1-windows-x86_64.zip.sha256).Split()[0]
+$actual = (Get-FileHash -Algorithm SHA256 .\vogon-v0.1.1-windows-x86_64.zip).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "Checksum mismatch" }
-Expand-Archive .\vogon-v0.1.0-windows-x86_64.zip -DestinationPath .\vogon-release -Force
+Expand-Archive .\vogon-v0.1.1-windows-x86_64.zip -DestinationPath .\vogon-release -Force
 .\vogon-release\vogon.exe --version
 ```
 
-Use the real version number in place of `v0.1.0`.
+Use the real version number in place of `v0.1.1`.
 
-The release also publishes `vogon-v0.1.0-cargo-metadata.json`,
-`vogon-v0.1.0-cargo-spdx.json`, and matching `.sha256` files. Verify them the
+The release also publishes `vogon-v0.1.1-cargo-metadata.json`,
+`vogon-v0.1.1-cargo-spdx.json`, and matching `.sha256` files. Verify them the
 same way before inspecting locked dependency metadata or SBOM contents:
 
 ```sh
-sha256sum -c vogon-v0.1.0-cargo-metadata.json.sha256
-sha256sum -c vogon-v0.1.0-cargo-spdx.json.sha256
+sha256sum -c vogon-v0.1.1-cargo-metadata.json.sha256
+sha256sum -c vogon-v0.1.1-cargo-spdx.json.sha256
 ```
 
 The release also publishes a container image archive and checksum:
 
 ```sh
-sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
-docker load --input vogon-v0.1.0-container-image.tar.gz
-python scripts/check_container_image.py vogon-runtime:v0.1.0 --expected-version v0.1.0 --expected-revision <release-commit-sha>
-docker run --rm vogon-runtime:v0.1.0 --version
-docker run --rm --read-only vogon-runtime:v0.1.0 --version
-docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
+sha256sum -c vogon-v0.1.1-container-image.tar.gz.sha256
+docker load --input vogon-v0.1.1-container-image.tar.gz
+python scripts/check_container_image.py vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
+docker run --rm vogon-runtime:v0.1.1 --version
+docker run --rm --read-only vogon-runtime:v0.1.1 --version
+docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.0 init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.0 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.1 init --force --output /work/starter.toml
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.1 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
-Use the real version number in place of `v0.1.0` and the release commit SHA in
+Use the real version number in place of `v0.1.1` and the release commit SHA in
 place of `<release-commit-sha>`.
 
 If the release was built by GitHub Actions, verify the archive provenance with
 GitHub CLI:
 
 ```sh
-gh attestation verify vogon-v0.1.0-linux-x86_64.tar.gz -R kaleab-kali/vogon-runtime
-gh attestation verify vogon-v0.1.0-container-image.tar.gz -R kaleab-kali/vogon-runtime
+gh attestation verify vogon-v0.1.1-linux-x86_64.tar.gz -R kaleab-kali/vogon-runtime
+gh attestation verify vogon-v0.1.1-container-image.tar.gz -R kaleab-kali/vogon-runtime
 ```
 
 On Windows PowerShell:
 
 ```powershell
-gh attestation verify .\vogon-v0.1.0-windows-x86_64.zip -R kaleab-kali/vogon-runtime
+gh attestation verify .\vogon-v0.1.1-windows-x86_64.zip -R kaleab-kali/vogon-runtime
 ```
 
 ## Manual Publishing

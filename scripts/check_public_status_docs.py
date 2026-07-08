@@ -10,19 +10,23 @@ from pathlib import Path
 
 REQUIRED_SNIPPETS = {
     "README.md": [
-        "Vogon Runtime has a first public release, `v0.1.0`.",
-        "The project is still in\n"
-        "the `0.x` series, so command and library APIs may change",
+        "Vogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first\n"
+        "public release.",
+        "The project is still in the `0.x` series, so command and\n"
+        "library APIs may change",
     ],
     "SECURITY.md": [
-        "`v0.1.0` is the first public release of Vogon Runtime.",
-        "shipped in follow-up patch or minor releases",
+        "`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first\n"
+        "public release.",
+        "shipped in\n"
+        "follow-up patch or minor releases",
     ],
     "SUPPORT.md": [
         "Vogon Runtime is released open-source software in the `0.x` series.",
     ],
     "CHANGELOG.md": [
         "and this project follows semantic versioning.",
+        "## [0.1.1] - 2026-07-08",
         "## [0.1.0] - 2026-07-08",
     ],
     "docs/release.md": [
@@ -34,6 +38,7 @@ STALE_PHRASES = [
     "Vogon Runtime is pre-release",
     "has not published a stable release yet",
     "until `v0.1.0` is tagged",
+    "Vogon Runtime has a first public release, `v0.1.0`.",
     "once the first release is tagged",
     "public API is\npre-release",
 ]

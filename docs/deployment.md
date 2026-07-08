@@ -127,17 +127,17 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 `.sha256` checksum file. Verify and load the archive before running it:
 
 ```sh
-sha256sum -c vogon-v0.1.0-container-image.tar.gz.sha256
-docker load --input vogon-v0.1.0-container-image.tar.gz
-python scripts/check_container_image.py vogon-runtime:v0.1.0 --expected-version v0.1.0 --expected-revision <release-commit-sha>
-docker run --rm vogon-runtime:v0.1.0 --version
-docker run --rm --read-only vogon-runtime:v0.1.0 --version
-docker run --rm --read-only vogon-runtime:v0.1.0 doctor --json | python scripts/check_doctor_json.py
+sha256sum -c vogon-v0.1.1-container-image.tar.gz.sha256
+docker load --input vogon-v0.1.1-container-image.tar.gz
+python scripts/check_container_image.py vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
+docker run --rm vogon-runtime:v0.1.1 --version
+docker run --rm --read-only vogon-runtime:v0.1.1 --version
+docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | python scripts/check_doctor_json.py
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.0 init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.0 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.1 init --force --output /work/starter.toml
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.1 check --json /work/starter.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
-Use the real version number in place of `v0.1.0` and the release commit SHA in
+Use the real version number in place of `v0.1.1` and the release commit SHA in
 place of `<release-commit-sha>`.
