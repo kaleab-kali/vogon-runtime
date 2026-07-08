@@ -121,6 +121,7 @@ jobs:
             vogon-${{ github.ref_name }}-cargo-spdx.json
             vogon-${{ github.ref_name }}-cargo-spdx.json.sha256
           if-no-files-found: error
+          retention-days: 30
 
   windows-cli:
     name: Windows CLI artifact
@@ -207,6 +208,7 @@ jobs:
             vogon-${{ github.ref_name }}-windows-x86_64.zip
             vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256
           if-no-files-found: error
+          retention-days: 30
 
   container-image:
     name: Container image artifact
@@ -287,6 +289,7 @@ jobs:
             vogon-${{ github.ref_name }}-container-image.tar.gz
             vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
           if-no-files-found: error
+          retention-days: 30
 
   release-artifact-smoke:
     name: Release artifact download smoke

@@ -59,6 +59,25 @@ class CheckReleaseWorkflowTests(unittest.TestCase):
                 errors,
             )
 
+    def test_reports_missing_artifact_retention_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_release_workflow(
+                root,
+                release_workflow_text().replace(
+                    "          retention-days: 30\n",
+                    "",
+                    1,
+                ),
+            )
+
+            errors = check_release_workflow.check_repository(root)
+
+            self.assertIn(
+                ".github/workflows/release.yml: expected at least 3 occurrence(s) of `retention-days: 30`, found 2",
+                errors,
+            )
+
 
 def write_release_workflow(root: Path, text: str) -> None:
     workflows = root / ".github" / "workflows"
@@ -118,6 +137,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
+          retention-days: 30
   windows-cli:
     steps:
       - uses: actions/checkout@v7
@@ -135,6 +155,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
+          retention-days: 30
   container-image:
     steps:
       - uses: actions/checkout@v7
@@ -156,6 +177,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
+          retention-days: 30
   release-artifact-smoke:
     steps:
       - uses: actions/checkout@v7
