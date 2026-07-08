@@ -86,6 +86,43 @@ const EXPECTED_RELEASE_PROFILE: &[(&str, ExpectedValue)] = &[
 ];
 const EXPECTED_WORKSPACE_RUST_LINTS: &[(&str, ExpectedValue)] =
     &[("unsafe_code", ExpectedValue::String("forbid"))];
+const REQUIRED_PUBLIC_STATUS_SNIPPETS: &[(&str, &[&str])] = &[
+    (
+        "README.md",
+        &[
+            "Vogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first\npublic release.",
+            "The project is still in the `0.x` series, so command and\nlibrary APIs may change",
+        ],
+    ),
+    (
+        "SECURITY.md",
+        &[
+            "`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release.",
+            "shipped in\nfollow-up patch or minor releases",
+        ],
+    ),
+    (
+        "SUPPORT.md",
+        &["Vogon Runtime is released open-source software in the `0.x` series."],
+    ),
+    (
+        "CHANGELOG.md",
+        &[
+            "and this project follows semantic versioning.",
+            "## [0.1.1] - 2026-07-08",
+            "## [0.1.0] - 2026-07-08",
+        ],
+    ),
+    ("docs/release.md", &["still in the `0.x` series"]),
+];
+const STALE_PUBLIC_STATUS_PHRASES: &[&str] = &[
+    "Vogon Runtime is pre-release",
+    "has not published a stable release yet",
+    "until `v0.1.0` is tagged",
+    "Vogon Runtime has a first public release, `v0.1.0`.",
+    "once the first release is tagged",
+    "public API is\npre-release",
+];
 
 #[derive(Clone, Copy)]
 enum ExpectedValue {
@@ -125,6 +162,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_pr_template(&root)
         }
+        "check-public-status-docs" => {
+            let root = parse_root(args.collect());
+            check_public_status_docs(&root)
+        }
         "check-release-checklist" => {
             let root = parse_root(args.collect());
             check_release_checklist(&root)
@@ -159,7 +200,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-pr-template|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-contributing-checklist|check-deployment-checklist|check-env-example|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -361,6 +402,52 @@ fn check_release_checklist(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn check_public_status_docs(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    for (relative_path, snippets) in REQUIRED_PUBLIC_STATUS_SNIPPETS {
+        let path = root.join(relative_path);
+        if !path.is_file() {
+            errors.push(format!("{relative_path}: missing public status document"));
+            continue;
+        }
+
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: {error}"));
+                continue;
+            }
+        };
+
+        for snippet in *snippets {
+            if !text.contains(snippet) {
+                errors.push(format!(
+                    "{relative_path}: missing \"{}\"",
+                    single_line(snippet)
+                ));
+            }
+        }
+        for phrase in STALE_PUBLIC_STATUS_PHRASES {
+            if text.contains(phrase) {
+                errors.push(format!(
+                    "{relative_path}: stale status phrase \"{}\"",
+                    single_line(phrase)
+                ));
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn single_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn extract_shell_commands(path: &Path, marker: &str) -> Result<Vec<String>, Vec<String>> {
@@ -1226,6 +1313,61 @@ mod tests {
     }
 
     #[test]
+    fn accepts_current_public_status_docs() {
+        let root = temp_root("public-status-accepts");
+        write_status_docs(&root, None, None);
+
+        assert_eq!(check_public_status_docs(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_public_status_document() {
+        let root = temp_root("public-status-missing-doc");
+        write_status_docs(&root, None, None);
+        fs::remove_file(root.join("SUPPORT.md")).unwrap();
+
+        let errors = check_public_status_docs(&root).unwrap_err();
+
+        assert!(errors.contains(&"SUPPORT.md: missing public status document".to_owned()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_stale_public_status_wording() {
+        let root = temp_root("public-status-stale-wording");
+        write_status_docs(
+            &root,
+            Some(
+                "# README\n\nVogon Runtime is pre-release. The current codebase is a small Rust workspace.\n",
+            ),
+            None,
+        );
+
+        let errors = check_public_status_docs(&root).unwrap_err();
+
+        assert!(errors.contains(
+            &"README.md: stale status phrase \"Vogon Runtime is pre-release\"".to_owned()
+        ));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_first_release_wording() {
+        let root = temp_root("public-status-missing-wording");
+        write_status_docs(
+            &root,
+            None,
+            Some("# Security\n\nSecurity fixes are handled.\n"),
+        );
+
+        let errors = check_public_status_docs(&root).unwrap_err();
+
+        assert!(errors.contains(&"SECURITY.md: missing \"`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first public release.\"".to_owned()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -1628,6 +1770,39 @@ and this project follows semantic versioning once the first release is tagged.
                 "# Deployment\n\nBefore publishing or deploying an image, run:\n\n```sh\n{}\n```\n",
                 deployment_commands.join("\n")
             ),
+        )
+        .unwrap();
+    }
+
+    fn write_status_docs(root: &Path, readme: Option<&str>, security: Option<&str>) {
+        fs::create_dir(root.join("docs")).unwrap();
+        fs::write(
+            root.join("README.md"),
+            readme.unwrap_or(
+                "# README\n\nVogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first\npublic release. The project is still in the `0.x` series, so command and\nlibrary APIs may change as the runtime\nstabilizes.\n",
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("SECURITY.md"),
+            security.unwrap_or(
+                "# Security\n\n`v0.1.1` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release. Security fixes are handled on the `main` branch and shipped in\nfollow-up patch or minor releases when they affect published artifacts.\n",
+            ),
+        )
+        .unwrap();
+        fs::write(
+            root.join("SUPPORT.md"),
+            "# Support\n\nVogon Runtime is released open-source software in the `0.x` series.\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("CHANGELOG.md"),
+            "# Changelog\n\nand this project follows semantic versioning.\n\n## [0.1.1] - 2026-07-08\n\n## [0.1.0] - 2026-07-08\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("docs").join("release.md"),
+            "# Release\n\nCrate publishing is manual while still in the `0.x` series.\n",
         )
         .unwrap();
     }
