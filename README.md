@@ -256,7 +256,6 @@ cargo check -p vogon-cli --no-default-features --locked
 python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_cargo_metadata_json
 python -m unittest scripts.test_check_spdx_sbom_json
-python -m unittest scripts.test_check_sha256_file
 python -m unittest scripts.test_check_benchmark_output
 python -m unittest scripts.test_check_container_image
 python -m unittest scripts.test_check_doctor_json

@@ -51,6 +51,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving required CI job and smoke guards.
 - The security workflow coverage check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving dependency review and CodeQL guards.
+- The release SHA-256 checksum-file validator moved from Python scripts into
+  the Rust `vogon-xtask` tool while preserving artifact digest checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
