@@ -7,7 +7,7 @@ vary, but it provides a repeatable command for comparing changes.
 Run the benchmark locally:
 
 ```sh
-cargo bench -p vogon-core --bench runtime -- --iterations 1000
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 1000
 ```
 
 The benchmark prints:
@@ -26,7 +26,7 @@ changing runtime behavior.
 CI validates the benchmark smoke output shape with:
 
 ```sh
-cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
 ```
 
 The validator checks the expected iteration count and requires positive finite

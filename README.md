@@ -248,9 +248,9 @@ Run local checks:
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo check -p vogon-cli --no-default-features
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-features --locked
+cargo check -p vogon-cli --no-default-features --locked
 python -m unittest scripts.test_write_spdx_sbom
 python -m unittest scripts.test_check_cargo_metadata_json
 python -m unittest scripts.test_check_spdx_sbom_json
@@ -303,8 +303,8 @@ python scripts/check_ci_workflow.py --root .
 python scripts/check_security_workflows.py --root .
 python scripts/check_workflow_policies.py --root .
 cargo +1.85.0 test --workspace --all-features --locked
-cargo bench -p vogon-core --bench runtime -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
-cargo build --release --workspace --all-features
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | python scripts/check_benchmark_output.py --expected-iterations 100
+cargo build --release --workspace --all-features --locked
 cargo run --release -p vogon-cli -- doctor --json | python scripts/check_doctor_json.py
 cargo run --release -p vogon-cli -- init --force --output target/vogon-init-smoke/workflow.toml
 cargo run --release -p vogon-cli -- check --json target/vogon-init-smoke/workflow.toml | python scripts/check_workflow_json.py --expected-workflow-name starter-workflow --expected-step-count 2
@@ -337,9 +337,9 @@ docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runt
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke check --json fixtures/workflows/support-triage.toml | python scripts/check_workflow_json.py --expected-workflow-name support-triage --expected-step-count 2
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json | python scripts/check_verify_json.py --expected-workflow-name support-triage --expect-match
 docker run --rm --read-only -v "$PWD:/work:ro" vogon-runtime:smoke trace --jsonl fixtures/replays/support-triage.replay.json | python scripts/check_trace_jsonl.py --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
-RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
-cargo package -p vogon-core --allow-dirty --offline
-cargo package --workspace --allow-dirty --no-verify --offline
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --locked
+cargo package -p vogon-core --allow-dirty --offline --locked
+cargo package --workspace --allow-dirty --no-verify --offline --locked
 ```
 
 The package command uses `--no-verify` for the offline workspace check because

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-PACKAGE_COMMAND = "cargo package --workspace --allow-dirty --no-verify --offline"
+PACKAGE_COMMAND = "cargo package --workspace --allow-dirty --no-verify --offline --locked"
 RATIONALE_SNIPPETS = [
     "Cargo can fail offline verification while resolving unpublished internal workspace crates",
     "preceding build, test, docs, install, and smoke commands",
