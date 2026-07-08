@@ -34,7 +34,7 @@ REQUIRED_SNIPPETS = {
     "dependency metadata validator": "scripts/check_cargo_metadata_json.py",
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
     "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
-    "SHA-256 checksum validator": "scripts/check_sha256_file.py",
+    "SHA-256 checksum validator": "check-sha256-file",
     "archive contents validator": "check-archive-contents",
     "linux archive contents before smoke outputs": (
         "tar -xzf \"vogon-${{ github.ref_name }}-linux-x86_64.tar.gz\" -C archive-smoke\n"
@@ -106,7 +106,7 @@ REQUIRED_COUNTS = {
     "uses: actions/download-artifact@v8": 2,
     "retention-days: 30": 3,
     "sha256sum -c": 5,
-    "scripts/check_sha256_file.py": 10,
+    "check-sha256-file": 10,
     "check-archive-contents": 4,
     "scripts/check_providers_json.py": 5,
     "scripts/check_container_image.py": 3,

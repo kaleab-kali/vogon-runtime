@@ -1,6 +1,8 @@
 use serde_json::Value as JsonValue;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -82,7 +84,7 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
     ("hugging-face", "HF_TOKEN"),
     ("openrouter", "OPENROUTER_API_KEY"),
 ];
-const REQUIRED_README_COMMANDS: &[&str] = &["python -m unittest scripts.test_check_sha256_file"];
+const REQUIRED_README_COMMANDS: &[&str] = &[];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
 const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ("workflow name", "name: CI"),
@@ -693,6 +695,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_schema_files(&root)
         }
+        "check-sha256-file" => {
+            let options = parse_sha256_file_args(args.collect());
+            check_sha256_file(&options.artifact, options.checksum_file.as_deref())
+        }
         "check-security-workflows" => {
             let root = parse_root(args.collect());
             check_security_workflows(&root)
@@ -731,8 +737,32 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file> [--root PATH]"
     );
+    std::process::exit(2);
+}
+
+struct Sha256FileOptions {
+    artifact: PathBuf,
+    checksum_file: Option<PathBuf>,
+}
+
+fn parse_sha256_file_args(args: Vec<String>) -> Sha256FileOptions {
+    match args.as_slice() {
+        [artifact] => Sha256FileOptions {
+            artifact: PathBuf::from(artifact),
+            checksum_file: None,
+        },
+        [artifact, checksum_file] => Sha256FileOptions {
+            artifact: PathBuf::from(artifact),
+            checksum_file: Some(PathBuf::from(checksum_file)),
+        },
+        _ => print_sha256_file_usage_and_exit(),
+    }
+}
+
+fn print_sha256_file_usage_and_exit() -> ! {
+    eprintln!("usage: cargo run -p vogon-xtask -- check-sha256-file ARTIFACT [CHECKSUM_FILE]");
     std::process::exit(2);
 }
 
@@ -2825,6 +2855,81 @@ fn check_security_workflows(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_sha256_file(artifact: &Path, checksum_file: Option<&Path>) -> Result<(), Vec<String>> {
+    let checksum_path = checksum_file
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from(format!("{}.sha256", artifact.to_string_lossy())));
+
+    let artifact_bytes = match fs::read(artifact) {
+        Ok(bytes) => bytes,
+        Err(error) => return Err(vec![format!("Artifact cannot be read: {error}")]),
+    };
+
+    let checksum_output = match fs::read_to_string(&checksum_path) {
+        Ok(text) => text.trim_start_matches('\u{feff}').to_owned(),
+        Err(error) => return Err(vec![format!("Checksum file cannot be read: {error}")]),
+    };
+
+    let errors = check_sha256_output(
+        artifact
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default(),
+        &artifact_bytes,
+        &checksum_output,
+    );
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_sha256_output(
+    artifact_name: &str,
+    artifact_bytes: &[u8],
+    checksum_output: &str,
+) -> Vec<String> {
+    let lines = checksum_output.lines().collect::<Vec<_>>();
+    if lines.len() != 1 || lines[0].trim().is_empty() {
+        return vec!["Checksum file must contain exactly one checksum line".to_owned()];
+    }
+
+    let Some((digest, recorded_name)) = lines[0].split_once(char::is_whitespace) else {
+        return vec![
+            "Checksum line must contain a SHA-256 digest and artifact filename".to_owned(),
+        ];
+    };
+    let recorded_name = recorded_name.trim_start();
+    if recorded_name.is_empty() {
+        return vec![
+            "Checksum line must contain a SHA-256 digest and artifact filename".to_owned(),
+        ];
+    }
+    let recorded_name = recorded_name.strip_prefix('*').unwrap_or(recorded_name);
+
+    let mut errors = Vec::new();
+    if !is_sha256_hex(digest) {
+        errors.push("Checksum digest must be 64 hexadecimal characters".to_owned());
+    }
+
+    if recorded_name != artifact_name {
+        errors.push(format!(
+            "Checksum filename mismatch: expected {artifact_name}, got {recorded_name}"
+        ));
+    }
+
+    let actual_digest = hex_sha256(artifact_bytes);
+    let expected_digest = digest.to_ascii_lowercase();
+    if expected_digest != actual_digest {
+        errors.push(format!(
+            "Checksum digest mismatch: expected {expected_digest}, got {actual_digest}"
+        ));
+    }
+
+    errors
+}
+
 fn check_archive_contents(
     archive_directory: &Path,
     binary: &str,
@@ -3365,6 +3470,19 @@ fn is_sha256(value: &str) -> bool {
             .all(|character| matches!(character, '0'..='9' | 'a'..='f'))
 }
 
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
+}
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut output = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").unwrap();
+    }
+    output
+}
+
 fn parse_assignments(path: &Path) -> Result<BTreeMap<String, String>, Vec<String>> {
     let text = fs::read_to_string(path).map_err(|error| vec![error.to_string()])?;
     let mut assignments = BTreeMap::new();
@@ -3397,14 +3515,9 @@ mod tests {
         let root = temp_root("contributing-accepts");
         write_contributing_docs(
             &root,
+            &["cargo test", "python scripts/check_docs_links.py --root ."],
             &[
                 "cargo test",
-                "python -m unittest scripts.test_check_sha256_file",
-                "python scripts/check_docs_links.py --root .",
-            ],
-            &[
-                "cargo test",
-                "python -m unittest scripts.test_check_sha256_file",
                 "python scripts/check_docs_links.py --root .",
                 "docker build --tag vogon-runtime:smoke .",
             ],
@@ -3420,15 +3533,8 @@ mod tests {
         let root = temp_root("contributing-missing-command");
         write_contributing_docs(
             &root,
-            &[
-                "cargo test",
-                "cargo clippy -- -D warnings",
-                "python -m unittest scripts.test_check_sha256_file",
-            ],
-            &[
-                "cargo test",
-                "python -m unittest scripts.test_check_sha256_file",
-            ],
+            &["cargo test", "cargo clippy -- -D warnings"],
+            &["cargo test"],
             live_guidance_text(),
         );
 
@@ -3442,39 +3548,12 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_required_readme_release_validator_tests() {
-        let root = temp_root("contributing-missing-required-readme");
-        write_contributing_docs(
-            &root,
-            &["cargo test"],
-            &["cargo test"],
-            live_guidance_text(),
-        );
-
-        let errors = check_contributing_checklist(&root).unwrap_err();
-
-        assert_eq!(
-            errors,
-            [
-                "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
-            ]
-        );
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
     fn reports_missing_live_workflow_guidance() {
         let root = temp_root("contributing-missing-live-guidance");
         write_contributing_docs(
             &root,
-            &[
-                "cargo test",
-                "python -m unittest scripts.test_check_sha256_file",
-            ],
-            &[
-                "cargo test",
-                "python -m unittest scripts.test_check_sha256_file",
-            ],
+            &["cargo test"],
+            &["cargo test"],
             &live_guidance_text().replace(
                 "- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n",
                 "",
@@ -3510,7 +3589,6 @@ mod tests {
             [
                 "README.md: missing local check command block",
                 "CONTRIBUTING.md: missing development command block",
-                "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
             ]
         );
         fs::remove_dir_all(root).unwrap();
@@ -3719,6 +3797,124 @@ mod tests {
             [".github/dependency-review-config.yml: missing CDLA permissive license allowed"]
         );
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_matching_sha256_output() {
+        let artifact_bytes = b"release artifact";
+        let digest = hex_sha256(artifact_bytes);
+
+        assert_eq!(
+            check_sha256_output(
+                "vogon.tar.gz",
+                artifact_bytes,
+                &format!("{digest}  vogon.tar.gz\n"),
+            ),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn accepts_binary_marker_from_sha256sum() {
+        let artifact_bytes = b"release artifact";
+        let digest = hex_sha256(artifact_bytes);
+
+        assert_eq!(
+            check_sha256_output(
+                "vogon.tar.gz",
+                artifact_bytes,
+                &format!("{digest} *vogon.tar.gz\n"),
+            ),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn accepts_artifact_and_default_checksum_paths() {
+        let root = temp_root("sha256-default-path");
+        let artifact = root.join("vogon.zip");
+        fs::write(&artifact, b"release artifact").unwrap();
+        let digest = hex_sha256(&fs::read(&artifact).unwrap());
+        fs::write(
+            PathBuf::from(format!("{}.sha256", artifact.to_string_lossy())),
+            format!("{digest}  vogon.zip"),
+        )
+        .unwrap();
+
+        assert_eq!(check_sha256_file(&artifact, None), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_sha256_artifact() {
+        let root = temp_root("sha256-missing-artifact");
+
+        let errors = check_sha256_file(&root.join("missing.tar.gz"), None).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("Artifact cannot be read:"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_bad_sha256_format() {
+        assert_eq!(
+            check_sha256_output("vogon.tar.gz", b"release artifact", "not-a-checksum\n"),
+            ["Checksum line must contain a SHA-256 digest and artifact filename"]
+        );
+    }
+
+    #[test]
+    fn reports_extra_sha256_lines() {
+        assert_eq!(
+            check_sha256_output("vogon.tar.gz", b"release artifact", "first\nsecond\n"),
+            ["Checksum file must contain exactly one checksum line"]
+        );
+    }
+
+    #[test]
+    fn reports_invalid_sha256_digest() {
+        let actual_digest = hex_sha256(b"release artifact");
+
+        assert_eq!(
+            check_sha256_output("vogon.tar.gz", b"release artifact", "abc  vogon.tar.gz\n"),
+            [
+                "Checksum digest must be 64 hexadecimal characters",
+                &format!("Checksum digest mismatch: expected abc, got {actual_digest}"),
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_sha256_filename_mismatch() {
+        let artifact_bytes = b"release artifact";
+        let digest = hex_sha256(artifact_bytes);
+
+        assert_eq!(
+            check_sha256_output(
+                "vogon.tar.gz",
+                artifact_bytes,
+                &format!("{digest}  other.tar.gz\n"),
+            ),
+            ["Checksum filename mismatch: expected vogon.tar.gz, got other.tar.gz"]
+        );
+    }
+
+    #[test]
+    fn reports_sha256_digest_mismatch() {
+        let wrong_digest = hex_sha256(b"other artifact");
+        let actual_digest = hex_sha256(b"release artifact");
+
+        assert_eq!(
+            check_sha256_output(
+                "vogon.tar.gz",
+                b"release artifact",
+                &format!("{wrong_digest}  vogon.tar.gz\n"),
+            ),
+            [format!(
+                "Checksum digest mismatch: expected {wrong_digest}, got {actual_digest}"
+            )]
+        );
     }
 
     #[test]
