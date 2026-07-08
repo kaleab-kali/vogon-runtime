@@ -99,6 +99,7 @@ jobs:
           cargo run -p vogon-xtask -- check-contributing-checklist --root .
           cargo run -p vogon-xtask -- check-deployment-checklist --root .
           cargo run -p vogon-xtask -- check-pr-template --root .
+          cargo run -p vogon-xtask -- check-docs-links --root .
           cargo run -p vogon-xtask -- check-release-checklist --root .
           cargo run -p vogon-xtask -- check-cargo-manifests --root .
           cargo run -p vogon-xtask -- check-env-example --root .

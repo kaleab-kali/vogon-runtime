@@ -22,7 +22,7 @@ python -m unittest scripts.test_check_cache_json
 python -m unittest scripts.test_check_workflow_json
 python -m unittest scripts.test_check_verify_json
 python -m unittest scripts.test_check_trace_jsonl
-python -m unittest scripts.test_check_docs_links
+cargo run -p vogon-xtask -- check-docs-links --root .
 python -m unittest scripts.test_check_issue_templates
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
@@ -36,7 +36,7 @@ cargo run -p vogon-xtask -- check-cargo-manifests --root .
 cargo run -p vogon-xtask -- check-changelog --root .
 cargo run -p vogon-xtask -- check-contributing-checklist --root .
 cargo run -p vogon-xtask -- check-deployment-checklist --root .
-python scripts/check_docs_links.py --root .
+cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-public-status-docs --root .
 cargo run -p vogon-xtask -- check-env-example --root .
 python scripts/check_issue_templates.py --root .
