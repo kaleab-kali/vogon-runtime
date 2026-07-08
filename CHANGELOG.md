@@ -26,6 +26,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving deployment smoke command coverage.
 - The public status docs check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving release wording guards.
+- The package verification docs check moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving offline package rationale checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while

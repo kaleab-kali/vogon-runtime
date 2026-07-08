@@ -272,7 +272,6 @@ python -m unittest scripts.test_check_docs_links
 python -m unittest scripts.test_check_issue_templates
 python -m unittest scripts.test_check_live_replay
 python -m unittest scripts.test_check_live_workflows
-python -m unittest scripts.test_check_package_verification_docs
 python -m unittest scripts.test_check_release_workflow
 python -m unittest scripts.test_check_schema_files
 python -m unittest scripts.test_check_secrets
@@ -290,7 +289,7 @@ python scripts/check_issue_templates.py --root .
 python scripts/check_container_policy.py --root .
 python scripts/check_dependabot_config.py --root .
 python scripts/check_live_workflows.py --root .
-python scripts/check_package_verification_docs.py --root .
+cargo run -p vogon-xtask -- check-package-verification-docs --root .
 cargo run -p vogon-xtask -- check-pr-template --root .
 cargo run -p vogon-xtask -- check-release-checklist --root .
 python scripts/check_release_workflow.py --root .

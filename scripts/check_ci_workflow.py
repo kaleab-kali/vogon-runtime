@@ -53,6 +53,9 @@ REQUIRED_SNIPPETS = {
     "public status docs validator": (
         "cargo run -p vogon-xtask -- check-public-status-docs --root ."
     ),
+    "package verification docs validator": (
+        "cargo run -p vogon-xtask -- check-package-verification-docs --root ."
+    ),
     "live workflow validator": "python3 scripts/check_live_workflows.py --root .",
     "format check": "cargo fmt --all -- --check",
     "clippy check": "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings",
