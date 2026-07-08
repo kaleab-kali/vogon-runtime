@@ -13,6 +13,8 @@ REQUIRED_SNIPPETS = {
     "semantic version tag trigger": '      - "v*.*.*"',
     "manual dispatch trigger": "  workflow_dispatch:",
     "read-only top-level contents permission": "permissions:\n  contents: read",
+    "concurrency group": "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+    "no release cancellation": "  cancel-in-progress: false",
     "linux artifact job": "  linux-cli:",
     "windows artifact job": "  windows-cli:",
     "container artifact job": "  container-image:",
