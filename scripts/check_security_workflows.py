@@ -9,6 +9,26 @@ from pathlib import Path
 
 
 WORKFLOW_REQUIREMENTS = {
+    ".github/workflows/codeql.yml": {
+        "workflow name": "name: CodeQL",
+        "pull request trigger": "  pull_request:",
+        "push main trigger": "  push:",
+        "scheduled scan": '    - cron: "31 5 * * 2"',
+        "manual dispatch trigger": "  workflow_dispatch:",
+        "read-only contents permission": "  contents: read",
+        "security events write permission": "  security-events: write",
+        "concurrency group": "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+        "stale run cancellation": "  cancel-in-progress: true",
+        "cargo network retry env": "env:\n  CARGO_NET_RETRY: 10",
+        "ubuntu runner": "    runs-on: ubuntu-24.04",
+        "job timeout": "    timeout-minutes: 30",
+        "checkout action": "uses: actions/checkout@v7",
+        "CodeQL init action": "uses: github/codeql-action/init@v4",
+        "Rust language configuration": "          languages: rust",
+        "no-build analysis mode": "          build-mode: none",
+        "extended security queries": "          queries: security-extended,security-and-quality",
+        "CodeQL analyze action": "uses: github/codeql-action/analyze@v4",
+    },
     ".github/workflows/security-audit.yml": {
         "workflow name": "name: Security Audit",
         "pull request trigger": "  pull_request:",

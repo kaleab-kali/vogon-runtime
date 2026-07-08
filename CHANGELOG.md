@@ -126,6 +126,8 @@ and this project follows semantic versioning once the first release is tagged.
   validates the guard.
 - Container policy validation now enforces OCI image metadata labels for title,
   description, source, documentation, and license.
+- Security workflow validation now enforces the CodeQL Rust scan trigger,
+  permissions, query suite, and analysis steps.
 - Release jobs now build, smoke test, checksum, attest, and upload a container
   image archive.
 - Compile-time unsafe Rust prohibition across workspace crates.
