@@ -25,7 +25,6 @@
 - [ ] `python -m unittest scripts.test_check_live_replay`
 - [ ] `python -m unittest scripts.test_check_live_workflows`
 - [ ] `python -m unittest scripts.test_check_release_workflow`
-- [ ] `python -m unittest scripts.test_check_ci_workflow`
 - [ ] `python -m unittest scripts.test_check_security_workflows`
 - [ ] `python -m unittest scripts.test_check_workflow_policies`
 - [ ] `cargo run -p vogon-xtask -- check-cargo-manifests --root .`
@@ -45,7 +44,7 @@
 - [ ] `python scripts/check_release_workflow.py --root .`
 - [ ] `cargo run -p vogon-xtask -- check-schema-files --root .`
 - [ ] `cargo run -p vogon-xtask -- check-secrets --root .`
-- [ ] `python scripts/check_ci_workflow.py --root .`
+- [ ] `cargo run -p vogon-xtask -- check-ci-workflow --root .`
 - [ ] `python scripts/check_security_workflows.py --root .`
 - [ ] `python scripts/check_workflow_policies.py --root .`
 - [ ] `cargo +1.85.0 test --workspace --all-features --locked`
