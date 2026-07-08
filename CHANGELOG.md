@@ -67,6 +67,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving workflow name and step-count checks.
 - The replay verification JSON validator moved from Python scripts into the
   Rust `vogon-xtask` tool while preserving match and mismatch checks.
+- The trace JSONL validator moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving runtime and step-event checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while
