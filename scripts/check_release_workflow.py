@@ -47,7 +47,7 @@ REQUIRED_SNIPPETS = {
         "          .\\archive-smoke\\vogon.exe --version"
     ),
     "doctor JSON validator": "scripts/check_doctor_json.py",
-    "providers JSON validator": "scripts/check_providers_json.py",
+    "providers JSON validator": "check-providers-json",
     "cache JSON validator": "scripts/check_cache_json.py",
     "workflow check JSON validator": "scripts/check_workflow_json.py",
     "verify JSON validator": "scripts/check_verify_json.py",
@@ -91,7 +91,7 @@ REQUIRED_SNIPPETS = {
     "read-only container smoke": "docker run --rm --read-only",
     "downloaded container doctor validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_doctor_json.py"',
     "downloaded container providers validator": (
-        'python3 "$GITHUB_WORKSPACE/scripts/check_providers_json.py"'
+        'cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-providers-json'
     ),
     "downloaded container workflow validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_workflow_json.py"',
     "downloaded container cache validator": 'python3 "$GITHUB_WORKSPACE/scripts/check_cache_json.py"',
@@ -108,7 +108,7 @@ REQUIRED_COUNTS = {
     "sha256sum -c": 5,
     "check-sha256-file": 10,
     "check-archive-contents": 4,
-    "scripts/check_providers_json.py": 5,
+    "check-providers-json": 5,
     "scripts/check_container_image.py": 3,
 }
 
