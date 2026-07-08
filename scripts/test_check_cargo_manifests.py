@@ -62,12 +62,31 @@ class CheckCargoManifestsTests(unittest.TestCase):
                 errors,
             )
 
+    def test_reports_weakened_release_profile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_workspace(
+                root,
+                release_profile=release_profile_text().replace(
+                    "lto = \"thin\"",
+                    "lto = false",
+                ),
+            )
+
+            errors = check_cargo_manifests.check_repository(root)
+
+            self.assertIn(
+                "Cargo.toml: release profile `lto` must be 'thin'",
+                errors,
+            )
+
 
 def write_workspace(
     root: Path,
     *,
     workspace_package: str | None = None,
     adapters_dependency_version: str = "0.1.0",
+    release_profile: str | None = None,
 ) -> None:
     (root / "README.md").write_text("# Vogon Runtime\n", encoding="utf-8")
     (root / "Cargo.toml").write_text(
@@ -86,7 +105,8 @@ members = [
 [workspace.dependencies]
 vogon-adapters = {{ version = "{adapters_dependency_version}", path = "crates/vogon-adapters" }}
 vogon-core = {{ version = "0.1.0", path = "crates/vogon-core" }}
-""",
+"""
+        + (release_profile or release_profile_text()),
         encoding="utf-8",
     )
     write_crate_manifest(
@@ -120,6 +140,15 @@ repository = "https://github.com/kaleab-kali/vogon-runtime"
 homepage = "https://github.com/kaleab-kali/vogon-runtime"
 documentation = "https://github.com/kaleab-kali/vogon-runtime/tree/main/docs"
 authors = ["Vogon Runtime Contributors"]
+"""
+
+
+def release_profile_text() -> str:
+    return """
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
 """
 
 

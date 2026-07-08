@@ -39,6 +39,11 @@ EXPECTED_CRATES = {
     "vogon-cli": "crates/vogon-cli",
     "vogon-core": "crates/vogon-core",
 }
+EXPECTED_RELEASE_PROFILE = {
+    "lto": "thin",
+    "codegen-units": 1,
+    "strip": "symbols",
+}
 
 
 def main() -> int:
@@ -76,6 +81,12 @@ def check_repository(root: Path) -> list[str]:
             "Cargo.toml: workspace members must be "
             + ", ".join(sorted(EXPECTED_CRATES.values()))
         )
+
+    release_profile = workspace.get("profile", {}).get("release")
+    if not isinstance(release_profile, dict):
+        errors.append("Cargo.toml: missing [profile.release]")
+        release_profile = {}
+    errors.extend(check_release_profile(release_profile))
 
     workspace_deps = workspace.get("workspace", {}).get("dependencies", {})
     if not isinstance(workspace_deps, dict):
@@ -123,6 +134,14 @@ def check_workspace_package(package: dict[str, Any]) -> list[str]:
     for key, expected in EXPECTED_WORKSPACE_PACKAGE.items():
         if package.get(key) != expected:
             errors.append(f"Cargo.toml: workspace package `{key}` must be {expected!r}")
+    return errors
+
+
+def check_release_profile(profile: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for key, expected in EXPECTED_RELEASE_PROFILE.items():
+        if profile.get(key) != expected:
+            errors.append(f"Cargo.toml: release profile `{key}` must be {expected!r}")
     return errors
 
 
