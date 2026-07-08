@@ -117,9 +117,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-container-policy --root .
 
       - name: Check Dependabot configuration
-        run: |
-          python3 -m unittest scripts.test_check_dependabot_config
-          python3 scripts/check_dependabot_config.py --root .
+        run: cargo run -p vogon-xtask -- check-dependabot-config --root .
 
       - name: Check committed secret patterns
         run: |

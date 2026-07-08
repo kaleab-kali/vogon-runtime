@@ -102,6 +102,7 @@ jobs:
           cargo run -p vogon-xtask -- check-release-checklist --root .
           cargo run -p vogon-xtask -- check-cargo-manifests --root .
           cargo run -p vogon-xtask -- check-env-example --root .
+          cargo run -p vogon-xtask -- check-dependabot-config --root .
           cargo run -p vogon-xtask -- check-public-status-docs --root .
           cargo run -p vogon-xtask -- check-package-verification-docs --root .
           python3 scripts/check_live_workflows.py --root .

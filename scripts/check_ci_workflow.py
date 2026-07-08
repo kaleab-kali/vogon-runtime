@@ -50,6 +50,9 @@ REQUIRED_SNIPPETS = {
     "provider env example validator": (
         "cargo run -p vogon-xtask -- check-env-example --root ."
     ),
+    "Dependabot configuration validator": (
+        "cargo run -p vogon-xtask -- check-dependabot-config --root ."
+    ),
     "public status docs validator": (
         "cargo run -p vogon-xtask -- check-public-status-docs --root ."
     ),

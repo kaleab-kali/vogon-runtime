@@ -205,6 +205,44 @@ const REQUIRED_DOCKERFILE_SNIPPETS: &[(&str, &str)] = &[
     ("runtime workdir", "WORKDIR /work"),
     ("exec entrypoint", "ENTRYPOINT [\"vogon\"]"),
 ];
+const EXPECTED_DEPENDABOT_UPDATES: &[(&str, &[(&str, &str)])] = &[
+    (
+        "cargo",
+        &[
+            ("directory", "/"),
+            ("interval", "weekly"),
+            ("open-pull-requests-limit", "5"),
+            ("groups.cargo-minor-patch.patterns", "*"),
+            ("groups.cargo-minor-patch.update-types", "minor,patch"),
+            ("commit-message.prefix", "deps"),
+        ],
+    ),
+    (
+        "github-actions",
+        &[
+            ("directory", "/"),
+            ("interval", "weekly"),
+            ("open-pull-requests-limit", "5"),
+            ("groups.github-actions-minor-patch.patterns", "*"),
+            (
+                "groups.github-actions-minor-patch.update-types",
+                "minor,patch",
+            ),
+            ("commit-message.prefix", "ci"),
+        ],
+    ),
+    (
+        "docker",
+        &[
+            ("directory", "/"),
+            ("interval", "weekly"),
+            ("open-pull-requests-limit", "5"),
+            ("groups.docker-minor-patch.patterns", "*"),
+            ("groups.docker-minor-patch.update-types", "minor,patch"),
+            ("commit-message.prefix", "deps"),
+        ],
+    ),
+];
 
 #[derive(Clone, Copy)]
 enum ExpectedValue {
@@ -235,6 +273,10 @@ fn main() {
         "check-container-policy" => {
             let root = parse_root(args.collect());
             check_container_policy(&root)
+        }
+        "check-dependabot-config" => {
+            let root = parse_root(args.collect());
+            check_dependabot_config(&root)
         }
         "check-contributing-checklist" => {
             let root = parse_root(args.collect());
@@ -290,7 +332,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-contributing-checklist|check-deployment-checklist|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -585,6 +627,195 @@ fn check_container_policy(root: &Path) -> Result<(), Vec<String>> {
     } else {
         Err(errors)
     }
+}
+
+fn check_dependabot_config(root: &Path) -> Result<(), Vec<String>> {
+    let path = root.join(".github").join("dependabot.yml");
+    if !path.is_file() {
+        return Err(vec![
+            ".github/dependabot.yml: missing Dependabot configuration".to_owned(),
+        ]);
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return Err(vec![format!(".github/dependabot.yml: {error}")]),
+    };
+    let updates = parse_dependabot_update_blocks(&text);
+    let mut errors = Vec::new();
+
+    if !text.starts_with("version: 2\n") {
+        errors.push(".github/dependabot.yml: missing version 2 declaration".to_owned());
+    }
+
+    for (ecosystem, expected_config) in EXPECTED_DEPENDABOT_UPDATES {
+        let Some(config) = updates.get(*ecosystem) else {
+            errors.push(format!(
+                ".github/dependabot.yml: missing {ecosystem} updates"
+            ));
+            continue;
+        };
+
+        for (key, expected_value) in *expected_config {
+            if config.get(*key).map(String::as_str) != Some(*expected_value) {
+                errors.push(format!(
+                    ".github/dependabot.yml: {ecosystem} `{key}` must be '{}'",
+                    expected_value
+                ));
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn parse_dependabot_update_blocks(text: &str) -> BTreeMap<String, BTreeMap<String, String>> {
+    let mut updates = BTreeMap::<String, BTreeMap<String, String>>::new();
+    let mut current_ecosystem: Option<String> = None;
+    let mut in_schedule = false;
+    let mut in_commit_message = false;
+    let mut in_groups = false;
+    let mut current_group: Option<String> = None;
+    let mut in_group_patterns = false;
+    let mut in_group_update_types = false;
+
+    for raw_line in text.lines() {
+        let line = raw_line.trim_end();
+        let stripped = line.trim();
+        if stripped.is_empty() {
+            continue;
+        }
+
+        if let Some(ecosystem) = stripped.strip_prefix("- package-ecosystem:") {
+            let ecosystem = ecosystem.trim().to_owned();
+            updates.entry(ecosystem.clone()).or_default();
+            current_ecosystem = Some(ecosystem);
+            in_schedule = false;
+            in_commit_message = false;
+            in_groups = false;
+            current_group = None;
+            in_group_patterns = false;
+            in_group_update_types = false;
+            continue;
+        }
+
+        let Some(ecosystem) = current_ecosystem.as_ref() else {
+            continue;
+        };
+
+        match stripped {
+            "schedule:" => {
+                in_schedule = true;
+                in_commit_message = false;
+                in_groups = false;
+                continue;
+            }
+            "commit-message:" => {
+                in_commit_message = true;
+                in_schedule = false;
+                in_groups = false;
+                current_group = None;
+                continue;
+            }
+            "groups:" => {
+                in_groups = true;
+                in_schedule = false;
+                in_commit_message = false;
+                current_group = None;
+                continue;
+            }
+            _ => {}
+        }
+
+        if in_groups
+            && stripped.ends_with(':')
+            && !matches!(stripped, "patterns:" | "update-types:")
+        {
+            current_group = Some(stripped.trim_end_matches(':').to_owned());
+            in_group_patterns = false;
+            in_group_update_types = false;
+            continue;
+        }
+        if in_groups && stripped == "patterns:" {
+            let Some(group) = current_group.as_ref() else {
+                continue;
+            };
+            in_group_patterns = true;
+            in_group_update_types = false;
+            updates
+                .entry(ecosystem.clone())
+                .or_default()
+                .insert(format!("groups.{group}.patterns"), String::new());
+            continue;
+        }
+        if in_groups && stripped == "update-types:" {
+            let Some(group) = current_group.as_ref() else {
+                continue;
+            };
+            in_group_patterns = false;
+            in_group_update_types = true;
+            updates
+                .entry(ecosystem.clone())
+                .or_default()
+                .insert(format!("groups.{group}.update-types"), String::new());
+            continue;
+        }
+        if in_groups && stripped.starts_with("- ") {
+            let Some(group) = current_group.as_ref() else {
+                continue;
+            };
+            let value = stripped
+                .trim_start_matches("- ")
+                .trim()
+                .trim_matches('"')
+                .to_owned();
+            let suffix = if in_group_patterns {
+                "patterns"
+            } else if in_group_update_types {
+                "update-types"
+            } else {
+                continue;
+            };
+            let key = format!("groups.{group}.{suffix}");
+            let config = updates.entry(ecosystem.clone()).or_default();
+            let existing = config.get(&key).cloned().unwrap_or_default();
+            config.insert(
+                key,
+                if existing.is_empty() {
+                    value
+                } else {
+                    format!("{existing},{value}")
+                },
+            );
+            continue;
+        }
+        if stripped.ends_with(':') && !matches!(stripped, "schedule:" | "commit-message:") {
+            in_schedule = false;
+            in_commit_message = false;
+        }
+
+        let Some((key, value)) = stripped.split_once(':') else {
+            continue;
+        };
+        let key = key.trim();
+        let value = value.trim();
+        let config = updates.entry(ecosystem.clone()).or_default();
+        if key == "directory" {
+            config.insert("directory".to_owned(), value.to_owned());
+        } else if key == "open-pull-requests-limit" {
+            config.insert("open-pull-requests-limit".to_owned(), value.to_owned());
+        } else if in_schedule && key == "interval" {
+            config.insert("interval".to_owned(), value.to_owned());
+        } else if in_commit_message && key == "prefix" {
+            config.insert("commit-message.prefix".to_owned(), value.to_owned());
+        }
+    }
+
+    updates
 }
 
 fn check_dockerfile(root: &Path) -> Vec<String> {
@@ -1756,6 +1987,96 @@ mod tests {
     }
 
     #[test]
+    fn accepts_expected_dependabot_config() {
+        let root = temp_root("dependabot-accepts");
+        write_dependabot_config(&root, &dependabot_config_text());
+
+        assert_eq!(check_dependabot_config(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_dependabot_config() {
+        let root = temp_root("dependabot-missing-config");
+
+        let errors = check_dependabot_config(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/dependabot.yml: missing Dependabot configuration"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_docker_updates() {
+        let root = temp_root("dependabot-missing-docker");
+        write_dependabot_config(
+            &root,
+            &dependabot_config_text().replace(&docker_update_text(), ""),
+        );
+
+        let errors = check_dependabot_config(&root).unwrap_err();
+
+        assert_eq!(errors, [".github/dependabot.yml: missing docker updates"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_weakened_dependabot_update_schedule() {
+        let root = temp_root("dependabot-weakened-schedule");
+        write_dependabot_config(
+            &root,
+            &dependabot_config_text().replacen("interval: weekly", "interval: monthly", 1),
+        );
+
+        let errors = check_dependabot_config(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/dependabot.yml: cargo `interval` must be 'weekly'"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_wrong_dependabot_commit_prefix() {
+        let root = temp_root("dependabot-wrong-prefix");
+        write_dependabot_config(
+            &root,
+            &dependabot_config_text().replace("prefix: ci", "prefix: deps"),
+        );
+
+        let errors = check_dependabot_config(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/dependabot.yml: github-actions `commit-message.prefix` must be 'ci'",]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_dependabot_update_group() {
+        let root = temp_root("dependabot-missing-group");
+        write_dependabot_config(
+            &root,
+            &dependabot_config_text().replace(&cargo_group_text(), ""),
+        );
+
+        let errors = check_dependabot_config(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                ".github/dependabot.yml: cargo `groups.cargo-minor-patch.patterns` must be '*'",
+                ".github/dependabot.yml: cargo `groups.cargo-minor-patch.update-types` must be 'minor,patch'",
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_valid_changelog() {
         let root = temp_root("changelog-accepts");
         write_changelog(
@@ -2261,6 +2582,71 @@ and this project follows semantic versioning once the first release is tagged.
             ),
         )
         .unwrap();
+    }
+
+    fn write_dependabot_config(root: &Path, text: &str) {
+        let github = root.join(".github");
+        fs::create_dir(&github).unwrap();
+        fs::write(github.join("dependabot.yml"), text).unwrap();
+    }
+
+    fn dependabot_config_text() -> String {
+        format!(
+            "{}{}{}",
+            "version: 2\n\
+updates:\n\
+  - package-ecosystem: cargo\n\
+    directory: /\n\
+    schedule:\n\
+      interval: weekly\n\
+    open-pull-requests-limit: 5\n",
+            cargo_group_text(),
+            "    commit-message:\n\
+      prefix: deps\n\n\
+  - package-ecosystem: github-actions\n\
+    directory: /\n\
+    schedule:\n\
+      interval: weekly\n\
+    open-pull-requests-limit: 5\n\
+    groups:\n\
+      github-actions-minor-patch:\n\
+        patterns:\n\
+          - \"*\"\n\
+        update-types:\n\
+          - minor\n\
+          - patch\n\
+    commit-message:\n\
+      prefix: ci\n\n",
+        ) + &docker_update_text()
+    }
+
+    fn cargo_group_text() -> String {
+        "    groups:\n\
+      cargo-minor-patch:\n\
+        patterns:\n\
+          - \"*\"\n\
+        update-types:\n\
+          - minor\n\
+          - patch\n"
+            .to_owned()
+    }
+
+    fn docker_update_text() -> String {
+        "  - package-ecosystem: docker\n\
+    directory: /\n\
+    schedule:\n\
+      interval: weekly\n\
+    open-pull-requests-limit: 5\n\
+    groups:\n\
+      docker-minor-patch:\n\
+        patterns:\n\
+          - \"*\"\n\
+        update-types:\n\
+          - minor\n\
+          - patch\n\
+    commit-message:\n\
+      prefix: deps\n"
+            .to_owned()
     }
 
     fn write_contributing_docs(
