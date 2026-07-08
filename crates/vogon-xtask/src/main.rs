@@ -84,6 +84,186 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
 ];
 const REQUIRED_README_COMMANDS: &[&str] = &["python -m unittest scripts.test_check_sha256_file"];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
+const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
+    ("workflow name", "name: CI"),
+    ("pull request trigger", "  pull_request:"),
+    ("push main trigger", "  push:\n    branches:\n      - main"),
+    (
+        "read-only contents permission",
+        "permissions:\n  contents: read",
+    ),
+    (
+        "concurrency group",
+        "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+    ),
+    ("stale run cancellation", "  cancel-in-progress: true"),
+    ("cargo network retry env", "env:\n  CARGO_NET_RETRY: 10"),
+    ("Rust workspace job", "  rust:"),
+    ("MSRV job", "  msrv:"),
+    ("container smoke job", "  container-smoke:"),
+    ("Windows release smoke job", "  windows-release-smoke:"),
+    ("Rust workspace runner", "    runs-on: ubuntu-24.04"),
+    ("Windows runner", "    runs-on: windows-2025-vs2026"),
+    ("Rust workspace timeout", "    timeout-minutes: 30"),
+    ("MSRV timeout", "    timeout-minutes: 20"),
+    ("checkout action", "uses: actions/checkout@v7"),
+    (
+        "CI workflow validator",
+        "cargo run -p vogon-xtask -- check-ci-workflow --root .",
+    ),
+    (
+        "workflow policy validator",
+        "python3 scripts/check_workflow_policies.py --root .",
+    ),
+    (
+        "security workflow validator",
+        "python3 scripts/check_security_workflows.py --root .",
+    ),
+    (
+        "container policy validator",
+        "cargo run -p vogon-xtask -- check-container-policy --root .",
+    ),
+    (
+        "committed secret validator",
+        "cargo run -p vogon-xtask -- check-secrets --root .",
+    ),
+    (
+        "release workflow validator",
+        "python3 scripts/check_release_workflow.py --root .",
+    ),
+    (
+        "changelog validator",
+        "cargo run -p vogon-xtask -- check-changelog --root .",
+    ),
+    (
+        "contributing checklist validator",
+        "cargo run -p vogon-xtask -- check-contributing-checklist --root .",
+    ),
+    (
+        "deployment checklist validator",
+        "cargo run -p vogon-xtask -- check-deployment-checklist --root .",
+    ),
+    (
+        "deployment docs validator",
+        "cargo run -p vogon-xtask -- check-deployment-docs --root .",
+    ),
+    (
+        "pull request template validator",
+        "cargo run -p vogon-xtask -- check-pr-template --root .",
+    ),
+    (
+        "documentation link checker",
+        "cargo run -p vogon-xtask -- check-docs-links --root .",
+    ),
+    (
+        "issue template validator",
+        "cargo run -p vogon-xtask -- check-issue-templates --root .",
+    ),
+    (
+        "release checklist validator",
+        "cargo run -p vogon-xtask -- check-release-checklist --root .",
+    ),
+    (
+        "Cargo manifest validator",
+        "cargo run -p vogon-xtask -- check-cargo-manifests --root .",
+    ),
+    (
+        "provider env example validator",
+        "cargo run -p vogon-xtask -- check-env-example --root .",
+    ),
+    (
+        "Dependabot configuration validator",
+        "cargo run -p vogon-xtask -- check-dependabot-config --root .",
+    ),
+    (
+        "public status docs validator",
+        "cargo run -p vogon-xtask -- check-public-status-docs --root .",
+    ),
+    (
+        "package verification docs validator",
+        "cargo run -p vogon-xtask -- check-package-verification-docs --root .",
+    ),
+    (
+        "live workflow validator",
+        "python3 scripts/check_live_workflows.py --root .",
+    ),
+    ("format check", "cargo fmt --all -- --check"),
+    (
+        "clippy check",
+        "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings",
+    ),
+    (
+        "workspace tests",
+        "cargo test --workspace --all-features --locked",
+    ),
+    (
+        "deterministic-only CLI build",
+        "cargo check -p vogon-cli --no-default-features --locked",
+    ),
+    (
+        "MSRV test",
+        "cargo +1.85.0 test --workspace --all-features --locked",
+    ),
+    (
+        "benchmark smoke",
+        "cargo bench -p vogon-core --bench runtime --locked -- --iterations 100",
+    ),
+    (
+        "release build",
+        "cargo build --release --workspace --all-features --locked",
+    ),
+    (
+        "release CLI doctor smoke",
+        "./target/release/vogon doctor --json",
+    ),
+    (
+        "release CLI providers smoke",
+        "./target/release/vogon providers --json",
+    ),
+    (
+        "providers JSON validator unit test",
+        "python3 -m unittest scripts.test_check_providers_json",
+    ),
+    (
+        "providers JSON validator",
+        "scripts/check_providers_json.py",
+    ),
+    (
+        "release replay verification smoke",
+        "./target/release/vogon verify",
+    ),
+    (
+        "offline install smoke",
+        "cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force",
+    ),
+    ("rustdoc warnings denied", "RUSTDOCFLAGS: -D warnings"),
+    (
+        "core package verification",
+        "cargo package -p vogon-core --allow-dirty --offline --locked",
+    ),
+    (
+        "workspace package smoke",
+        "cargo package --workspace --allow-dirty --no-verify --offline --locked",
+    ),
+    (
+        "container build smoke",
+        "docker build --tag vogon-runtime:ci .",
+    ),
+    ("read-only container smoke", "docker run --rm --read-only"),
+    (
+        "Windows release build",
+        "cargo build --release -p vogon-cli --locked",
+    ),
+    (
+        "Windows replay verification smoke",
+        ".\\target\\release\\vogon.exe verify",
+    ),
+];
+const REQUIRED_CI_WORKFLOW_COUNTS: &[(&str, usize)] = &[
+    ("uses: actions/checkout@v7", 4),
+    ("runs-on: ubuntu-24.04", 3),
+    ("timeout-minutes: 30", 3),
+];
 const ALLOWED_UNRELEASED_CHANGELOG_SECTIONS: &[&str] = &[
     "Added",
     "Changed",
@@ -350,6 +530,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_cargo_manifests(&root)
         }
+        "check-ci-workflow" => {
+            let root = parse_root(args.collect());
+            check_ci_workflow(&root)
+        }
         "check-changelog" => {
             let root = parse_root(args.collect());
             check_changelog(&root)
@@ -436,7 +620,7 @@ fn parse_root(args: Vec<String>) -> PathBuf {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-cargo-manifests|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-env-example|check-package-verification-docs|check-pr-template|check-public-status-docs|check-release-checklist|check-schema-files|check-secrets> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -2442,6 +2626,42 @@ fn check_env_example(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_ci_workflow(root: &Path) -> Result<(), Vec<String>> {
+    let path = root.join(".github").join("workflows").join("ci.yml");
+    if !path.is_file() {
+        return Err(vec![
+            ".github/workflows/ci.yml: missing CI workflow".to_owned(),
+        ]);
+    }
+
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) => return Err(vec![format!(".github/workflows/ci.yml: {error}")]),
+    };
+
+    let mut errors = Vec::new();
+    for (description, snippet) in REQUIRED_CI_WORKFLOW_SNIPPETS {
+        if !text.contains(snippet) {
+            errors.push(format!(".github/workflows/ci.yml: missing {description}"));
+        }
+    }
+
+    for (snippet, expected_count) in REQUIRED_CI_WORKFLOW_COUNTS {
+        let actual_count = text.matches(snippet).count();
+        if actual_count < *expected_count {
+            errors.push(format!(
+                ".github/workflows/ci.yml: expected at least {expected_count} occurrence(s) of `{snippet}`, found {actual_count}",
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn check_archive_contents(
     archive_directory: &Path,
     binary: &str,
@@ -3130,6 +3350,61 @@ mod tests {
                 "README.md: missing required local check `python -m unittest scripts.test_check_sha256_file`",
             ]
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_ci_workflow_contract() {
+        let root = temp_root("ci-workflow-accepts");
+        write_ci_workflow(&root, ci_workflow_text());
+
+        assert_eq!(check_ci_workflow(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_ci_workflow() {
+        let root = temp_root("ci-workflow-missing");
+
+        let errors = check_ci_workflow(&root).unwrap_err();
+
+        assert_eq!(errors, [".github/workflows/ci.yml: missing CI workflow"]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_required_ci_command() {
+        let root = temp_root("ci-workflow-missing-command");
+        write_ci_workflow(
+            &root,
+            &ci_workflow_text().replace(
+                "cargo run -p vogon-xtask -- check-ci-workflow --root .",
+                "python3 scripts/check_other_workflow.py --root .",
+            ),
+        );
+
+        let errors = check_ci_workflow(&root).unwrap_err();
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error == ".github/workflows/ci.yml: missing CI workflow validator")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_required_ci_occurrence_count() {
+        let root = temp_root("ci-workflow-missing-count");
+        write_ci_workflow(
+            &root,
+            &ci_workflow_text().replace("uses: actions/checkout@v7", "uses: actions/checkout@v6"),
+        );
+
+        let errors = check_ci_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| error
+            == ".github/workflows/ci.yml: expected at least 4 occurrence(s) of `uses: actions/checkout@v7`, found 0"));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -4538,6 +4813,103 @@ and this project follows semantic versioning once the first release is tagged.
 
     fn write_archive_entry(root: &Path, name: &str, contents: &str) {
         fs::write(root.join(name), contents).unwrap();
+    }
+
+    fn write_ci_workflow(root: &Path, text: &str) {
+        let workflows = root.join(".github").join("workflows");
+        fs::create_dir_all(&workflows).unwrap();
+        fs::write(workflows.join("ci.yml"), text).unwrap();
+    }
+
+    fn ci_workflow_text() -> &'static str {
+        r#"name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          cargo run -p vogon-xtask -- check-ci-workflow --root .
+          python3 scripts/check_workflow_policies.py --root .
+          python3 scripts/check_security_workflows.py --root .
+          cargo run -p vogon-xtask -- check-container-policy --root .
+          cargo run -p vogon-xtask -- check-secrets --root .
+          python3 scripts/check_release_workflow.py --root .
+          cargo run -p vogon-xtask -- check-changelog --root .
+          cargo run -p vogon-xtask -- check-contributing-checklist --root .
+          cargo run -p vogon-xtask -- check-deployment-checklist --root .
+          cargo run -p vogon-xtask -- check-deployment-docs --root .
+          cargo run -p vogon-xtask -- check-pr-template --root .
+          cargo run -p vogon-xtask -- check-docs-links --root .
+          cargo run -p vogon-xtask -- check-issue-templates --root .
+          cargo run -p vogon-xtask -- check-release-checklist --root .
+          cargo run -p vogon-xtask -- check-cargo-manifests --root .
+          cargo run -p vogon-xtask -- check-env-example --root .
+          cargo run -p vogon-xtask -- check-dependabot-config --root .
+          cargo run -p vogon-xtask -- check-public-status-docs --root .
+          cargo run -p vogon-xtask -- check-package-verification-docs --root .
+          python3 scripts/check_live_workflows.py --root .
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+          cargo test --workspace --all-features --locked
+          cargo check -p vogon-cli --no-default-features --locked
+          cargo bench -p vogon-core --bench runtime --locked -- --iterations 100
+          cargo build --release --workspace --all-features --locked
+          ./target/release/vogon doctor --json
+          ./target/release/vogon providers --json
+          python3 -m unittest scripts.test_check_providers_json
+          python3 scripts/check_providers_json.py
+          ./target/release/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
+          cargo install --path crates/vogon-cli --locked --offline --root target/install-smoke --force
+          cargo package -p vogon-core --allow-dirty --offline --locked
+          cargo package --workspace --allow-dirty --no-verify --offline --locked
+      - env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --all-features --no-deps --locked
+
+  msrv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo +1.85.0 test --workspace --all-features --locked
+
+  container-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          docker build --tag vogon-runtime:ci .
+          docker run --rm --read-only vogon-runtime:ci --version
+
+  windows-release-smoke:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          cargo build --release -p vogon-cli --locked
+          .\target\release\vogon.exe verify fixtures\workflows\support-triage.toml fixtures\replays\support-triage.replay.json
+"#
     }
 
     fn write_schema_files(root: &Path, workflow_schema: Option<&str>, replay_schema: Option<&str>) {
