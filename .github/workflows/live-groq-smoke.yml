@@ -67,7 +67,7 @@ jobs:
             --output target/live-groq-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 
-          python3 scripts/check_live_replay.py \
+          cargo run -p vogon-xtask -- check-live-replay \
             --replay target/live-groq-smoke.replay.json \
             --provider groq \
             --model "$model" \

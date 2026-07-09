@@ -79,7 +79,7 @@ jobs:
             --output target/live-openai-compatible-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 
-          python3 scripts/check_live_replay.py \
+          cargo run -p vogon-xtask -- check-live-replay \
             --replay target/live-openai-compatible-smoke.replay.json \
             --provider openai-compatible \
             --base-url "$base_url" \

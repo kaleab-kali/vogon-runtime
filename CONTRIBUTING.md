@@ -15,7 +15,7 @@ cargo test -p vogon-xtask --locked container_image
 cargo test -p vogon-xtask --locked cache_json
 cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
-python -m unittest scripts.test_check_live_replay
+cargo test -p vogon-xtask --locked live_replay
 python -m unittest scripts.test_check_live_workflows
 python -m unittest scripts.test_check_release_workflow
 cargo run -p vogon-xtask -- check-cargo-manifests --root .

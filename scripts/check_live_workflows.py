@@ -8,13 +8,56 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-try:
-    from scripts.check_live_replay import PROVIDERS
-except ModuleNotFoundError:
-    from check_live_replay import PROVIDERS
-
 
 WORKFLOW_PATTERN = "live-*-smoke.y*ml"
+
+
+@dataclass(frozen=True)
+class ProviderExpectation:
+    provider: str
+    adapter: str
+    base_url: str | None
+    secret_env: str
+    redaction_label: str
+
+
+PROVIDERS = {
+    "gemini": ProviderExpectation(
+        provider="gemini",
+        adapter="gemini-generate-content",
+        base_url="https://generativelanguage.googleapis.com",
+        secret_env="GEMINI_API_KEY",
+        redaction_label="gemini_api_key",
+    ),
+    "groq": ProviderExpectation(
+        provider="groq",
+        adapter="groq-openai-compatible-chat-completions",
+        base_url="https://api.groq.com/openai/v1",
+        secret_env="GROQ_API_KEY",
+        redaction_label="groq_api_key",
+    ),
+    "hugging-face": ProviderExpectation(
+        provider="hugging-face",
+        adapter="hugging-face-openai-compatible-chat-completions",
+        base_url="https://router.huggingface.co/v1",
+        secret_env="HF_TOKEN",
+        redaction_label="hf_token",
+    ),
+    "openai-compatible": ProviderExpectation(
+        provider="openai-compatible",
+        adapter="openai-compatible-chat-completions",
+        base_url=None,
+        secret_env="OPENAI_COMPATIBLE_API_KEY",
+        redaction_label="openai_compatible_api_key",
+    ),
+    "openrouter": ProviderExpectation(
+        provider="openrouter",
+        adapter="openrouter-openai-compatible-chat-completions",
+        base_url="https://openrouter.ai/api/v1",
+        secret_env="OPENROUTER_API_KEY",
+        redaction_label="openrouter_api_key",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -157,7 +200,7 @@ def check_workflow_file(
             f'{provider.secret_env}"'
         ),
         "replay output path": f"            --output {expectation.replay_path}",
-        "live replay validator": "          python3 scripts/check_live_replay.py",
+        "live replay validator": "          cargo run -p vogon-xtask -- check-live-replay",
         "validator replay path": f"            --replay {expectation.replay_path}",
         "validator provider": f"            --provider {expectation.provider}",
         "validator model": validator_model_snippet(expectation),

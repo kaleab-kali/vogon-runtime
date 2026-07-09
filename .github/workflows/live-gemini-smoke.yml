@@ -52,7 +52,7 @@ jobs:
             --output target/live-gemini-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 
-          python3 scripts/check_live_replay.py \
+          cargo run -p vogon-xtask -- check-live-replay \
             --replay target/live-gemini-smoke.replay.json \
             --provider gemini \
             --model gemini-3.1-flash-lite \
