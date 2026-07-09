@@ -71,6 +71,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving runtime and step-event checks.
 - The live provider replay validator moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving provider metadata and secret leak checks.
+- The live provider workflow wiring validator moved from Python scripts into
+  the Rust `vogon-xtask` tool while preserving live smoke workflow guards.
 - The cache JSON validator moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving cache bounds and entry-order checks.
 - The SPDX SBOM JSON validator moved from Python scripts into the Rust

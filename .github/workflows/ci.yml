@@ -115,9 +115,7 @@ jobs:
         run: cargo run -p vogon-xtask -- check-security-workflows --root .
 
       - name: Check live provider smoke workflows
-        run: |
-          python3 -m unittest scripts.test_check_live_workflows
-          python3 scripts/check_live_workflows.py --root .
+        run: cargo run -p vogon-xtask -- check-live-workflows --root .
 
       - name: Test live provider replay validator
         run: cargo test -p vogon-xtask --locked live_replay
