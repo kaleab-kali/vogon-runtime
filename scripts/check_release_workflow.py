@@ -33,7 +33,7 @@ REQUIRED_SNIPPETS = {
     "dependency metadata": "cargo metadata --locked --format-version 1",
     "dependency metadata validator": "check-cargo-metadata-json",
     "SPDX SBOM writer": "python3 scripts/write_spdx_sbom.py",
-    "SPDX SBOM validator": "scripts/check_spdx_sbom_json.py",
+    "SPDX SBOM validator": "check-spdx-sbom-json",
     "SHA-256 checksum validator": "check-sha256-file",
     "archive contents validator": "check-archive-contents",
     "linux archive contents before smoke outputs": (

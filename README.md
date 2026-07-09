@@ -254,7 +254,7 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 cargo check -p vogon-cli --no-default-features --locked
 python -m unittest scripts.test_write_spdx_sbom
-python -m unittest scripts.test_check_spdx_sbom_json
+cargo test -p vogon-xtask --locked spdx_sbom_json
 python -m unittest scripts.test_check_container_image
 cargo test -p vogon-xtask --locked cache_json
 cargo run -p vogon-xtask -- check-docs-links --root .

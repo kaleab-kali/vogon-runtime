@@ -37,7 +37,7 @@ jobs:
       - name: Test release scripts
         run: |
           python3 -m unittest scripts.test_write_spdx_sbom
-          python3 -m unittest scripts.test_check_spdx_sbom_json
+          cargo test -p vogon-xtask --locked spdx_sbom_json
           python3 -m unittest scripts.test_check_container_image
 
       - name: Check Cargo manifests
