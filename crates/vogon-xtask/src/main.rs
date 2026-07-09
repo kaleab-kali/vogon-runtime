@@ -303,7 +303,7 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ),
     (
         "release workflow validator",
-        "python3 scripts/check_release_workflow.py --root .",
+        "cargo run -p vogon-xtask -- check-release-workflow --root .",
     ),
     (
         "changelog validator",
@@ -465,6 +465,157 @@ const REQUIRED_CI_WORKFLOW_COUNTS: &[(&str, usize)] = &[
     ("uses: actions/checkout@v7", 4),
     ("runs-on: ubuntu-24.04", 3),
     ("timeout-minutes: 30", 3),
+];
+const REQUIRED_RELEASE_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
+    ("release workflow name", "name: Release"),
+    ("semantic version tag trigger", "      - \"v*.*.*\""),
+    ("manual dispatch trigger", "  workflow_dispatch:"),
+    (
+        "read-only top-level contents permission",
+        "permissions:\n  contents: read",
+    ),
+    (
+        "concurrency group",
+        "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}",
+    ),
+    ("no release cancellation", "  cancel-in-progress: false"),
+    ("linux artifact job", "  linux-cli:"),
+    ("windows artifact job", "  windows-cli:"),
+    ("container artifact job", "  container-image:"),
+    (
+        "release artifact download smoke job",
+        "  release-artifact-smoke:",
+    ),
+    ("publish release job", "  publish-release:"),
+    (
+        "linux release build",
+        "cargo build --release -p vogon-cli --locked",
+    ),
+    (
+        "linux archive",
+        "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz",
+    ),
+    (
+        "windows archive",
+        "vogon-${{ github.ref_name }}-windows-x86_64.zip",
+    ),
+    (
+        "container archive",
+        "vogon-${{ github.ref_name }}-container-image.tar.gz",
+    ),
+    (
+        "container version build argument",
+        "--build-arg \"VOGON_IMAGE_VERSION=${{ github.ref_name }}\"",
+    ),
+    (
+        "container revision build argument",
+        "--build-arg \"VOGON_IMAGE_REVISION=${{ github.sha }}\"",
+    ),
+    (
+        "dependency metadata",
+        "cargo metadata --locked --format-version 1",
+    ),
+    ("dependency metadata validator", "check-cargo-metadata-json"),
+    ("SPDX SBOM writer", "python3 scripts/write_spdx_sbom.py"),
+    ("SPDX SBOM validator", "check-spdx-sbom-json"),
+    ("SHA-256 checksum validator", "check-sha256-file"),
+    ("archive contents validator", "check-archive-contents"),
+    (
+        "linux archive contents before smoke outputs",
+        "tar -xzf \"vogon-${{ github.ref_name }}-linux-x86_64.tar.gz\" -C archive-smoke\n          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon\n          ./archive-smoke/vogon --version",
+    ),
+    (
+        "windows archive contents before smoke outputs",
+        "Expand-Archive \"vogon-${{ github.ref_name }}-windows-x86_64.zip\" -DestinationPath archive-smoke -Force\n          cargo run -p vogon-xtask -- check-archive-contents archive-smoke --binary vogon.exe\n          .\\archive-smoke\\vogon.exe --version",
+    ),
+    ("doctor JSON validator", "check-doctor-json"),
+    ("providers JSON validator", "check-providers-json"),
+    ("cache JSON validator", "check-cache-json"),
+    ("workflow check JSON validator", "check-workflow-json"),
+    ("verify JSON validator", "check-verify-json"),
+    ("trace JSONL validator", "check-trace-jsonl"),
+    ("container image validator", "check-container-image"),
+    (
+        "container version label validation",
+        "--expected-version \"${{ github.ref_name }}\"",
+    ),
+    (
+        "container revision label validation",
+        "--expected-revision \"${{ github.sha }}\"",
+    ),
+    (
+        "Linux checksum",
+        "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256",
+    ),
+    (
+        "Windows checksum",
+        "vogon-${{ github.ref_name }}-windows-x86_64.zip.sha256",
+    ),
+    (
+        "container checksum",
+        "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256",
+    ),
+    (
+        "metadata checksum",
+        "vogon-${{ github.ref_name }}-cargo-metadata.json.sha256",
+    ),
+    (
+        "SBOM checksum",
+        "vogon-${{ github.ref_name }}-cargo-spdx.json.sha256",
+    ),
+    ("artifact attestation", "uses: actions/attest@v4"),
+    (
+        "read-only release job contents permission",
+        "      contents: read",
+    ),
+    (
+        "release attestation OIDC permission",
+        "      id-token: write",
+    ),
+    (
+        "release attestation write permission",
+        "      attestations: write",
+    ),
+    ("artifact upload", "uses: actions/upload-artifact@v7"),
+    ("artifact download", "uses: actions/download-artifact@v8"),
+    (
+        "publish release checkout",
+        "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false",
+    ),
+    ("missing artifact failure", "if-no-files-found: error"),
+    ("artifact retention", "retention-days: 30"),
+    ("GitHub release creation", "gh release create"),
+    ("read-only container smoke", "docker run --rm --read-only"),
+    (
+        "downloaded container doctor validator",
+        "cargo run --manifest-path \"$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml\" -- check-doctor-json",
+    ),
+    (
+        "downloaded container providers validator",
+        "cargo run --manifest-path \"$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml\" -- check-providers-json",
+    ),
+    (
+        "downloaded container workflow validator",
+        "cargo run --manifest-path \"$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml\" -- check-workflow-json",
+    ),
+    (
+        "downloaded container cache validator",
+        "cargo run --manifest-path \"$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml\" -- check-cache-json",
+    ),
+];
+const REQUIRED_RELEASE_WORKFLOW_COUNTS: &[(&str, usize)] = &[
+    ("uses: actions/checkout@v7", 5),
+    ("uses: actions/attest@v4", 3),
+    ("      id-token: write", 3),
+    ("      attestations: write", 3),
+    ("uses: actions/upload-artifact@v7", 3),
+    ("uses: actions/download-artifact@v8", 2),
+    ("retention-days: 30", 3),
+    ("sha256sum -c", 5),
+    ("check-sha256-file", 10),
+    ("check-archive-contents", 4),
+    ("check-providers-json", 5),
+    ("check-container-image", 3),
 ];
 const SECURITY_WORKFLOW_REQUIREMENTS: &[(&str, &[(&str, &str)])] = &[
     (
@@ -952,6 +1103,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_release_checklist(&root)
         }
+        "check-release-workflow" => {
+            let root = parse_root(args.collect());
+            check_release_workflow(&root)
+        }
         "check-schema-files" => {
             let root = parse_root(args.collect());
             check_schema_files(&root)
@@ -1012,7 +1167,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-release-workflow|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -5330,6 +5485,44 @@ fn check_ci_workflow(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_release_workflow(root: &Path) -> Result<(), Vec<String>> {
+    let path = root.join(".github").join("workflows").join("release.yml");
+    if !path.is_file() {
+        return Err(vec![
+            ".github/workflows/release.yml: missing release workflow".to_owned(),
+        ]);
+    }
+    let text = fs::read_to_string(&path).map_err(|error| {
+        vec![format!(
+            ".github/workflows/release.yml: cannot read release workflow: {error}"
+        )]
+    })?;
+
+    let mut errors = Vec::new();
+    for (description, snippet) in REQUIRED_RELEASE_WORKFLOW_SNIPPETS {
+        if !text.contains(snippet) {
+            errors.push(format!(
+                ".github/workflows/release.yml: missing {description}"
+            ));
+        }
+    }
+
+    for (snippet, expected_count) in REQUIRED_RELEASE_WORKFLOW_COUNTS {
+        let actual_count = text.matches(snippet).count();
+        if actual_count < *expected_count {
+            errors.push(format!(
+                ".github/workflows/release.yml: expected at least {expected_count} occurrence(s) of `{snippet}`, found {actual_count}",
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn check_workflow_policies(root: &Path) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     for workflow_file in workflow_policy_files(root) {
@@ -6559,6 +6752,139 @@ mod tests {
 
         assert!(errors.iter().any(|error| error
             == ".github/workflows/ci.yml: expected at least 4 occurrence(s) of `uses: actions/checkout@v7`, found 0"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_release_workflow_contract() {
+        let root = temp_root("release-workflow-accepts");
+        write_release_workflow(&root, release_workflow_text());
+
+        assert_eq!(check_release_workflow(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_workflow() {
+        let root = temp_root("release-workflow-missing");
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/workflows/release.yml: missing release workflow"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_container_provenance_labels() {
+        let root = temp_root("release-workflow-missing-provenance");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replace(
+                "            --build-arg \"VOGON_IMAGE_REVISION=${{ github.sha }}\" \\\n",
+                "",
+            ),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/release.yml: missing container revision build argument"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_required_snippet() {
+        let root = temp_root("release-workflow-missing-snippet");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replace(
+                "python3 scripts/write_spdx_sbom.py",
+                "python3 scripts/write_other_sbom.py",
+            ),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error == ".github/workflows/release.yml: missing SPDX SBOM writer")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_required_occurrence_count() {
+        let root = temp_root("release-workflow-missing-count");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replacen(
+                "uses: actions/attest@v4",
+                "uses: actions/checkout@v7",
+                1,
+            ),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/release.yml: expected at least 3 occurrence(s) of `uses: actions/attest@v4`, found 2"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_artifact_retention_count() {
+        let root = temp_root("release-workflow-missing-retention");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replacen("          retention-days: 30\n", "", 1),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/release.yml: expected at least 3 occurrence(s) of `retention-days: 30`, found 2"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_release_attestation_permission_count() {
+        let root = temp_root("release-workflow-missing-oidc");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replacen("      id-token: write\n", "", 1),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/release.yml: expected at least 3 occurrence(s) of `      id-token: write`, found 2"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_publish_release_checkout() {
+        let root = temp_root("release-workflow-missing-publish-checkout");
+        write_release_workflow(
+            &root,
+            &release_workflow_text().replace(
+                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false\n",
+                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n",
+            ),
+        );
+
+        let errors = check_release_workflow(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/release.yml: missing publish release checkout"
+        }));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -10277,6 +10603,16 @@ jobs:
         fs::write(workflows.join("ci.yml"), text).unwrap();
     }
 
+    fn write_release_workflow(root: &Path, text: &str) {
+        let workflows = root.join(".github").join("workflows");
+        fs::create_dir_all(&workflows).unwrap();
+        fs::write(workflows.join("release.yml"), text).unwrap();
+    }
+
+    fn release_workflow_text() -> &'static str {
+        include_str!("../../../.github/workflows/release.yml")
+    }
+
     fn ci_workflow_text() -> &'static str {
         r#"name: CI
 
@@ -10308,7 +10644,7 @@ jobs:
           cargo run -p vogon-xtask -- check-security-workflows --root .
           cargo run -p vogon-xtask -- check-container-policy --root .
           cargo run -p vogon-xtask -- check-secrets --root .
-          python3 scripts/check_release_workflow.py --root .
+          cargo run -p vogon-xtask -- check-release-workflow --root .
           cargo run -p vogon-xtask -- check-changelog --root .
           cargo run -p vogon-xtask -- check-contributing-checklist --root .
           cargo run -p vogon-xtask -- check-deployment-checklist --root .

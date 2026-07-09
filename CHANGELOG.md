@@ -49,6 +49,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving archive layout guards.
 - The CI workflow contract check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving required CI job and smoke guards.
+- The release workflow contract check moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving release artifact and provenance guards.
 - The security workflow coverage check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving dependency review and CodeQL guards.
 - The release SHA-256 checksum-file validator moved from Python scripts into
