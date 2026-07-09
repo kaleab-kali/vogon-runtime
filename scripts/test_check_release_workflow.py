@@ -264,9 +264,9 @@ jobs:
           check-sha256-file
           echo vogon-${{ github.ref_name }}-container-image.tar.gz
           echo vogon-${{ github.ref_name }}-container-image.tar.gz.sha256
-          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
-          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
-          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          cargo run -p vogon-xtask -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          cargo run -p vogon-xtask -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json

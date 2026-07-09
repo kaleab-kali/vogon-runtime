@@ -249,7 +249,7 @@ jobs:
       - name: Smoke test container image
         run: |
           image="vogon-runtime:${{ github.ref_name }}"
-          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          cargo run -p vogon-xtask -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"
@@ -288,7 +288,7 @@ jobs:
           sha256sum -c "vogon-${{ github.ref_name }}-container-image.tar.gz.sha256"
           gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
           docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-          python3 scripts/check_container_image.py "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+          cargo run -p vogon-xtask -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           docker run --rm --read-only "$image" doctor --json | cargo run -p vogon-xtask -- check-doctor-json
@@ -377,7 +377,7 @@ jobs:
             cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-sha256-file "vogon-${{ github.ref_name }}-container-image.tar.gz"
             gzip -t "vogon-${{ github.ref_name }}-container-image.tar.gz"
             docker load --input "vogon-${{ github.ref_name }}-container-image.tar.gz"
-            python3 "$GITHUB_WORKSPACE/scripts/check_container_image.py" "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
+            cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-container-image "$image" --expected-version "${{ github.ref_name }}" --expected-revision "${{ github.sha }}"
             docker run --rm "$image" --version
             docker run --rm --read-only "$image" --version
             docker run --rm --read-only "$image" doctor --json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-doctor-json

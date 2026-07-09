@@ -52,7 +52,7 @@ REQUIRED_SNIPPETS = {
     "workflow check JSON validator": "check-workflow-json",
     "verify JSON validator": "check-verify-json",
     "trace JSONL validator": "check-trace-jsonl",
-    "container image validator": "scripts/check_container_image.py",
+    "container image validator": "check-container-image",
     "container version label validation": '--expected-version "${{ github.ref_name }}"',
     "container revision label validation": '--expected-revision "${{ github.sha }}"',
     "Linux checksum": "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz.sha256",
@@ -111,7 +111,7 @@ REQUIRED_COUNTS = {
     "check-sha256-file": 10,
     "check-archive-contents": 4,
     "check-providers-json": 5,
-    "scripts/check_container_image.py": 3,
+    "check-container-image": 3,
 }
 
 

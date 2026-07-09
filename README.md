@@ -255,7 +255,7 @@ cargo test --workspace --all-features --locked
 cargo check -p vogon-cli --no-default-features --locked
 python -m unittest scripts.test_write_spdx_sbom
 cargo test -p vogon-xtask --locked spdx_sbom_json
-python -m unittest scripts.test_check_container_image
+cargo test -p vogon-xtask --locked container_image
 cargo test -p vogon-xtask --locked cache_json
 cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
@@ -308,7 +308,7 @@ cargo run -p vogon-xtask -- check-cache-json target/install-smoke.cache.json --e
 target/install-smoke/bin/vogon verify fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 target/install-smoke/bin/vogon verify fixtures/workflows/writing-pipeline.toml fixtures/replays/writing-pipeline.replay.json
 docker build --tag vogon-runtime:smoke .
-python scripts/check_container_image.py vogon-runtime:smoke
+cargo run -p vogon-xtask -- check-container-image vogon-runtime:smoke
 docker run --rm vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke doctor --json | cargo run -p vogon-xtask -- check-doctor-json
