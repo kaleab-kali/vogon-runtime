@@ -19,7 +19,7 @@ cargo test -p vogon-xtask --locked cache_json
 cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
 cargo test -p vogon-xtask --locked live_replay
-python -m unittest scripts.test_check_live_workflows
+cargo test -p vogon-xtask --locked live_workflow
 python -m unittest scripts.test_check_release_workflow
 cargo run -p vogon-xtask -- check-cargo-manifests --root .
 cargo run -p vogon-xtask -- check-changelog --root .
@@ -31,7 +31,7 @@ cargo run -p vogon-xtask -- check-env-example --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
 cargo run -p vogon-xtask -- check-container-policy --root .
 cargo run -p vogon-xtask -- check-dependabot-config --root .
-python scripts/check_live_workflows.py --root .
+cargo run -p vogon-xtask -- check-live-workflows --root .
 cargo run -p vogon-xtask -- check-package-verification-docs --root .
 cargo run -p vogon-xtask -- check-pr-template --root .
 cargo run -p vogon-xtask -- check-release-checklist --root .

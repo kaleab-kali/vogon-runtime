@@ -202,6 +202,58 @@ const LIVE_REPLAY_EXPECTATIONS: &[LiveReplayProviderExpectation] = &[
         redaction_label: "openrouter_api_key",
     },
 ];
+const EXPECTED_LIVE_WORKFLOWS: &[LiveWorkflowExpectation] = &[
+    LiveWorkflowExpectation {
+        provider: "gemini",
+        file_name: "live-gemini-smoke.yml",
+        flag_prefix: "gemini",
+        replay_path: "target/live-gemini-smoke.replay.json",
+        default_model: "gemini-3.1-flash-lite",
+        model_env: "GEMINI_MODEL",
+        default_base_url: None,
+        base_url_env: None,
+    },
+    LiveWorkflowExpectation {
+        provider: "groq",
+        file_name: "live-groq-smoke.yml",
+        flag_prefix: "groq",
+        replay_path: "target/live-groq-smoke.replay.json",
+        default_model: "llama-3.1-8b-instant",
+        model_env: "GROQ_MODEL",
+        default_base_url: None,
+        base_url_env: None,
+    },
+    LiveWorkflowExpectation {
+        provider: "hugging-face",
+        file_name: "live-hugging-face-smoke.yml",
+        flag_prefix: "hugging-face",
+        replay_path: "target/live-hugging-face-smoke.replay.json",
+        default_model: "openai/gpt-oss-120b:fastest",
+        model_env: "HUGGING_FACE_MODEL",
+        default_base_url: None,
+        base_url_env: None,
+    },
+    LiveWorkflowExpectation {
+        provider: "openai-compatible",
+        file_name: "live-openai-compatible-smoke.yml",
+        flag_prefix: "openai-compatible",
+        replay_path: "target/live-openai-compatible-smoke.replay.json",
+        default_model: "openai/gpt-oss-120b:fastest",
+        model_env: "OPENAI_COMPATIBLE_MODEL",
+        default_base_url: Some("https://router.huggingface.co/v1"),
+        base_url_env: Some("OPENAI_COMPATIBLE_BASE_URL"),
+    },
+    LiveWorkflowExpectation {
+        provider: "openrouter",
+        file_name: "live-openrouter-smoke.yml",
+        flag_prefix: "openrouter",
+        replay_path: "target/live-openrouter-smoke.replay.json",
+        default_model: "openrouter/free",
+        model_env: "OPENROUTER_MODEL",
+        default_base_url: None,
+        base_url_env: None,
+    },
+];
 const WORKFLOW_SUFFIXES: &[&str] = &["yml", "yaml"];
 const ALLOWED_TOP_LEVEL_WRITE_SCOPES: &[&str] = &["security-events"];
 const FLOATING_RUNNERS: &[&str] = &["ubuntu-latest", "windows-latest", "macos-latest"];
@@ -307,7 +359,7 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ),
     (
         "live workflow validator",
-        "python3 scripts/check_live_workflows.py --root .",
+        "cargo run -p vogon-xtask -- check-live-workflows --root .",
     ),
     ("format check", "cargo fmt --all -- --check"),
     (
@@ -876,6 +928,10 @@ fn main() {
             let options = parse_live_replay_args(args.collect());
             check_live_replay_file(&options)
         }
+        "check-live-workflows" => {
+            let root = parse_root(args.collect());
+            check_live_workflows(&root)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -956,7 +1012,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -1041,6 +1097,17 @@ struct LiveReplayProviderExpectation {
     base_url: Option<&'static str>,
     secret_env: &'static str,
     redaction_label: &'static str,
+}
+
+struct LiveWorkflowExpectation {
+    provider: &'static str,
+    file_name: &'static str,
+    flag_prefix: &'static str,
+    replay_path: &'static str,
+    default_model: &'static str,
+    model_env: &'static str,
+    default_base_url: Option<&'static str>,
+    base_url_env: Option<&'static str>,
 }
 
 fn parse_benchmark_output_args(args: Vec<String>) -> BenchmarkOutputOptions {
@@ -2513,6 +2580,286 @@ fn live_replay_value_display(value: Option<&JsonValue>) -> String {
         Some(JsonValue::Bool(value)) => value.to_string(),
         Some(JsonValue::Null) | None => "None".to_owned(),
         Some(value) => value.to_string(),
+    }
+}
+
+fn check_live_workflows(root: &Path) -> Result<(), Vec<String>> {
+    let workflows_dir = root.join(".github").join("workflows");
+    let mut errors = Vec::new();
+
+    let expected_files = EXPECTED_LIVE_WORKFLOWS
+        .iter()
+        .map(|expectation| expectation.file_name.to_owned())
+        .collect::<BTreeSet<_>>();
+    let actual_files = match fs::read_dir(&workflows_dir) {
+        Ok(entries) => entries
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let path = entry.path();
+                let file_name = path.file_name()?.to_str()?;
+                let suffix = path.extension().and_then(|suffix| suffix.to_str())?;
+                if path.is_file()
+                    && file_name.starts_with("live-")
+                    && (file_name.ends_with("-smoke.yml") || file_name.ends_with("-smoke.yaml"))
+                    && matches!(suffix.to_ascii_lowercase().as_str(), "yml" | "yaml")
+                {
+                    Some(file_name.to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeSet<_>>(),
+        Err(_) => BTreeSet::new(),
+    };
+
+    for missing in expected_files.difference(&actual_files) {
+        errors.push(format!(
+            ".github/workflows/{missing}: missing live provider smoke workflow"
+        ));
+    }
+
+    for unexpected in actual_files
+        .iter()
+        .filter(|actual| !expected_files.contains(*actual))
+    {
+        errors.push(format!(
+            ".github/workflows/{unexpected}: unexpected live provider smoke workflow"
+        ));
+    }
+
+    for expectation in EXPECTED_LIVE_WORKFLOWS {
+        let path = workflows_dir.join(expectation.file_name);
+        if path.exists() {
+            errors.extend(check_live_workflow_file(root, &path, expectation));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn check_live_workflow_file(
+    root: &Path,
+    path: &Path,
+    expectation: &LiveWorkflowExpectation,
+) -> Vec<String> {
+    let relative_path = path
+        .strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) => {
+            return vec![format!("{relative_path}: cannot read workflow: {error}")];
+        }
+    };
+    let Some(provider) = live_replay_expectation(expectation.provider) else {
+        return vec![format!(
+            "{relative_path}: unknown live provider {}",
+            expectation.provider
+        )];
+    };
+    let secret_ref = format!("${{{{ secrets.{} }}}}", provider.secret_env);
+
+    let mut required_snippets = vec![
+        (
+            "workflow_dispatch trigger",
+            "  workflow_dispatch:".to_owned(),
+        ),
+        ("workflow_call trigger", "  workflow_call:".to_owned()),
+        (
+            "read-only top-level contents permission",
+            "permissions:\n  contents: read".to_owned(),
+        ),
+        (
+            "concurrency group",
+            "concurrency:\n  group: ${{ github.workflow }}-${{ github.ref }}".to_owned(),
+        ),
+        (
+            "concurrency preserves live runs",
+            "  cancel-in-progress: false".to_owned(),
+        ),
+        (
+            "cargo network retry env",
+            "env:\n  CARGO_NET_RETRY: 10".to_owned(),
+        ),
+        ("ubuntu runner", "    runs-on: ubuntu-24.04".to_owned()),
+        ("job timeout", "    timeout-minutes:".to_owned()),
+        (
+            "workflow_call secret declaration",
+            format!("      {}:\n        required: true", provider.secret_env),
+        ),
+        (
+            "checkout step",
+            "        uses: actions/checkout@v7".to_owned(),
+        ),
+        ("Rust toolchain step", "        run: rustup show".to_owned()),
+        (
+            "release CLI build",
+            "        run: cargo build --release -p vogon-cli --locked".to_owned(),
+        ),
+        (
+            "secret env wiring",
+            format!("      {}: {secret_ref}", provider.secret_env),
+        ),
+        (
+            "secret presence guard",
+            format!("if [ -z \"${{{}:-}}\" ]; then", provider.secret_env),
+        ),
+        (
+            "provider run flag",
+            format!("            --provider {}", expectation.provider),
+        ),
+        (
+            "timeout run flag",
+            format!(
+                "            --{}-timeout-seconds 60",
+                expectation.flag_prefix
+            ),
+        ),
+        (
+            "retry run flag",
+            format!("            --{}-max-retries 2", expectation.flag_prefix),
+        ),
+        (
+            "redaction run flag",
+            format!(
+                "            --redact {}=\"${}\"",
+                provider.redaction_label, provider.secret_env
+            ),
+        ),
+        (
+            "replay output path",
+            format!("            --output {}", expectation.replay_path),
+        ),
+        (
+            "live replay validator",
+            "          cargo run -p vogon-xtask -- check-live-replay".to_owned(),
+        ),
+        (
+            "validator replay path",
+            format!("            --replay {}", expectation.replay_path),
+        ),
+        (
+            "validator provider",
+            format!("            --provider {}", expectation.provider),
+        ),
+        (
+            "validator model",
+            live_workflow_validator_model_snippet(expectation),
+        ),
+        (
+            "validator secret env",
+            format!("            --secret-env {}", provider.secret_env),
+        ),
+    ];
+
+    if expectation.provider != "gemini" {
+        required_snippets.extend([
+            (
+                "workflow_dispatch model input",
+                format!(
+                    "      model:\n        description: {}\n        required: false\n        default: {}",
+                    live_workflow_model_description(expectation),
+                    expectation.default_model
+                ),
+            ),
+            (
+                "workflow_call model input",
+                format!(
+                    "      model:\n        type: string\n        required: false\n        default: {}",
+                    expectation.default_model
+                ),
+            ),
+            (
+                "model env wiring",
+                format!("      {}: ${{{{ inputs.model }}}}", expectation.model_env),
+            ),
+            (
+                "model fallback",
+                format!(
+                    "model=\"${{{}:-{}}}\"",
+                    expectation.model_env, expectation.default_model
+                ),
+            ),
+            (
+                "model export",
+                format!("export {}=\"$model\"", expectation.model_env),
+            ),
+            (
+                "model run flag",
+                format!("            --{}-model \"$model\"", expectation.flag_prefix),
+            ),
+        ]);
+    }
+
+    if let (Some(default_base_url), Some(base_url_env)) =
+        (expectation.default_base_url, expectation.base_url_env)
+    {
+        required_snippets.extend([
+            (
+                "workflow_dispatch base URL input",
+                format!(
+                    "      base_url:\n        description: OpenAI-compatible API base URL.\n        required: false\n        default: {default_base_url}"
+                ),
+            ),
+            (
+                "workflow_call base URL input",
+                format!(
+                    "      base_url:\n        type: string\n        required: false\n        default: {default_base_url}"
+                ),
+            ),
+            (
+                "base URL env wiring",
+                format!("      {base_url_env}: ${{{{ inputs.base_url }}}}"),
+            ),
+            (
+                "base URL fallback",
+                format!("base_url=\"${{{base_url_env}:-{default_base_url}}}\""),
+            ),
+            (
+                "base URL export",
+                format!("export {base_url_env}=\"$base_url\""),
+            ),
+            (
+                "base URL run flag",
+                format!("            --{}-base-url", expectation.flag_prefix),
+            ),
+            ("validator base URL", "            --base-url".to_owned()),
+        ]);
+    }
+
+    required_snippets
+        .into_iter()
+        .filter_map(|(description, snippet)| {
+            if text.contains(&snippet) {
+                None
+            } else {
+                Some(format!("{relative_path}: missing {description}"))
+            }
+        })
+        .collect()
+}
+
+fn live_workflow_model_description(expectation: &LiveWorkflowExpectation) -> &'static str {
+    match expectation.provider {
+        "openai-compatible" => "OpenAI-compatible model name.",
+        "hugging-face" => "Hugging Face model name.",
+        "groq" => "Groq model name.",
+        "openrouter" => "OpenRouter model name.",
+        _ => "model name.",
+    }
+}
+
+fn live_workflow_validator_model_snippet(expectation: &LiveWorkflowExpectation) -> String {
+    if expectation.provider == "gemini" {
+        format!("            --model {}", expectation.default_model)
+    } else {
+        "            --model \"$model\"".to_owned()
     }
 }
 
@@ -8778,6 +9125,87 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_current_live_workflow_contract() {
+        let root = temp_root("live-workflows-accepts");
+        write_all_live_workflows(&root, None, None);
+
+        assert_eq!(check_live_workflows(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_expected_live_workflow() {
+        let root = temp_root("live-workflows-missing");
+        write_all_live_workflows(&root, Some("groq"), None);
+
+        let errors = check_live_workflows(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/workflows/live-groq-smoke.yml: missing live provider smoke workflow"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_unexpected_live_workflow() {
+        let root = temp_root("live-workflows-unexpected");
+        write_all_live_workflows(&root, None, None);
+        fs::write(
+            root.join(".github")
+                .join("workflows")
+                .join("live-extra-smoke.yml"),
+            "name: Extra\n",
+        )
+        .unwrap();
+
+        let errors = check_live_workflows(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/workflows/live-extra-smoke.yml: unexpected live provider smoke workflow"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_missing_live_workflow_replay_validator() {
+        let root = temp_root("live-workflows-missing-validator");
+        write_all_live_workflows(&root, None, Some("openrouter"));
+
+        let errors = check_live_workflows(&root).unwrap_err();
+
+        assert!(errors.iter().any(|error| {
+            error == ".github/workflows/live-openrouter-smoke.yml: missing live replay validator"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_wrong_live_workflow_secret_wiring() {
+        let root = temp_root("live-workflows-wrong-secret");
+        write_all_live_workflows(&root, None, None);
+        let workflow = root
+            .join(".github")
+            .join("workflows")
+            .join("live-gemini-smoke.yml");
+        let text = fs::read_to_string(&workflow).unwrap();
+        fs::write(
+            &workflow,
+            text.replace("--secret-env GEMINI_API_KEY", "--secret-env WRONG_SECRET"),
+        )
+        .unwrap();
+
+        let errors = check_live_workflows(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [".github/workflows/live-gemini-smoke.yml: missing validator secret env"]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn accepts_expected_trace_jsonl() {
         assert_eq!(
             check_trace_jsonl(
@@ -9523,6 +9951,165 @@ and this project follows semantic versioning once the first release is tagged.
         })
     }
 
+    fn write_all_live_workflows(
+        root: &Path,
+        skip_provider: Option<&str>,
+        omit_live_validator_for: Option<&str>,
+    ) {
+        let workflows = root.join(".github").join("workflows");
+        fs::create_dir_all(&workflows).unwrap();
+        for expectation in EXPECTED_LIVE_WORKFLOWS {
+            if skip_provider == Some(expectation.provider) {
+                continue;
+            }
+            fs::write(
+                workflows.join(expectation.file_name),
+                live_workflow_text(
+                    expectation,
+                    omit_live_validator_for == Some(expectation.provider),
+                ),
+            )
+            .unwrap();
+        }
+    }
+
+    fn live_workflow_text(
+        expectation: &LiveWorkflowExpectation,
+        omit_live_validator: bool,
+    ) -> String {
+        let provider = live_replay_expectation(expectation.provider).unwrap();
+        let mut workflow_dispatch_inputs = String::new();
+        let mut workflow_call_inputs = String::new();
+        let mut job_env_inputs = String::new();
+        let mut model_setup = String::new();
+        let mut model_run_flag = String::new();
+        let mut validator_model = format!("            --model {} \\", expectation.default_model);
+        let mut base_url_run_flag = String::new();
+        let mut base_url_validator_flag = String::new();
+
+        if expectation.provider != "gemini" {
+            workflow_dispatch_inputs = format!(
+                "\n    inputs:\n      model:\n        description: {}\n        required: false\n        default: {}",
+                live_workflow_model_description(expectation),
+                expectation.default_model
+            );
+            workflow_call_inputs = format!(
+                "\n    inputs:\n      model:\n        type: string\n        required: false\n        default: {}",
+                expectation.default_model
+            );
+            job_env_inputs = format!("\n      {}: ${{{{ inputs.model }}}}", expectation.model_env);
+            model_setup = format!(
+                "\n          model=\"${{{}:-{}}}\"\n          export {}=\"$model\"\n",
+                expectation.model_env, expectation.default_model, expectation.model_env
+            );
+            model_run_flag = format!(
+                "\n            --{}-model \"$model\" \\",
+                expectation.flag_prefix
+            );
+            validator_model = "            --model \"$model\" \\".to_owned();
+        }
+
+        if let (Some(default_base_url), Some(base_url_env)) =
+            (expectation.default_base_url, expectation.base_url_env)
+        {
+            workflow_dispatch_inputs = format!(
+                "\n    inputs:\n      base_url:\n        description: OpenAI-compatible API base URL.\n        required: false\n        default: {default_base_url}\n      model:\n        description: {}\n        required: false\n        default: {}",
+                live_workflow_model_description(expectation),
+                expectation.default_model
+            );
+            workflow_call_inputs = format!(
+                "\n    inputs:\n      base_url:\n        type: string\n        required: false\n        default: {default_base_url}\n      model:\n        type: string\n        required: false\n        default: {}",
+                expectation.default_model
+            );
+            job_env_inputs = format!(
+                "\n      {base_url_env}: ${{{{ inputs.base_url }}}}\n      {}: ${{{{ inputs.model }}}}",
+                expectation.model_env
+            );
+            model_setup = format!(
+                "\n          base_url=\"${{{base_url_env}:-{default_base_url}}}\"\n          model=\"${{{}:-{}}}\"\n          export {base_url_env}=\"$base_url\"\n          export {}=\"$model\"\n",
+                expectation.model_env, expectation.default_model, expectation.model_env
+            );
+            base_url_run_flag = format!(
+                "\n            --{}-base-url \"$base_url\" \\",
+                expectation.flag_prefix
+            );
+            base_url_validator_flag = "\n            --base-url \"$base_url\" \\".to_owned();
+        }
+
+        let validator = if omit_live_validator {
+            String::new()
+        } else {
+            format!(
+                "\n          cargo run -p vogon-xtask -- check-live-replay \\\n            --replay {} \\\n            --provider {} \\{}\n{}\n            --secret-env {}",
+                expectation.replay_path,
+                expectation.provider,
+                base_url_validator_flag,
+                validator_model,
+                provider.secret_env
+            )
+        };
+
+        format!(
+            r#"name: Live {provider_name} Smoke
+
+on:
+  workflow_dispatch:{workflow_dispatch_inputs}
+  workflow_call:{workflow_call_inputs}
+    secrets:
+      {secret_env}:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
+  cancel-in-progress: false
+
+env:
+  CARGO_NET_RETRY: 10
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      {secret_env}: ${{{{ secrets.{secret_env} }}}}{job_env_inputs}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Show Rust toolchain
+        run: rustup show
+
+      - name: Build CLI
+        run: cargo build --release -p vogon-cli --locked
+
+      - name: Run workflow smoke
+        run: |
+          if [ -z "${{{secret_env}:-}}" ]; then
+            exit 1
+          fi
+{model_setup}
+          ./target/release/vogon run \
+            --provider {provider_name}{base_url_run_flag}
+{model_run_flag}
+            --{flag_prefix}-timeout-seconds 60 \
+            --{flag_prefix}-max-retries 2 \
+            --redact {redaction_label}="${secret_env}" \
+            --output {replay_path} \
+            fixtures/workflows/support-triage.toml
+{validator}
+"#,
+            provider_name = expectation.provider,
+            secret_env = provider.secret_env,
+            flag_prefix = expectation.flag_prefix,
+            redaction_label = provider.redaction_label,
+            replay_path = expectation.replay_path,
+        )
+    }
+
     fn valid_cache_json() -> String {
         serde_json::json!({
             "outputs": {
@@ -9735,7 +10322,7 @@ jobs:
           cargo run -p vogon-xtask -- check-dependabot-config --root .
           cargo run -p vogon-xtask -- check-public-status-docs --root .
           cargo run -p vogon-xtask -- check-package-verification-docs --root .
-          python3 scripts/check_live_workflows.py --root .
+          cargo run -p vogon-xtask -- check-live-workflows --root .
           cargo test -p vogon-xtask --locked spdx_sbom_json
           cargo test -p vogon-xtask --locked container_image
           cargo fmt --all -- --check
