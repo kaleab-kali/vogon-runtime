@@ -165,6 +165,43 @@ const EXPECTED_CONTAINER_LABELS: &[(&str, &str)] = &[
     ("org.opencontainers.image.revision", "unknown"),
 ];
 const EXPECTED_CONTAINER_USER_ID: &str = "10001";
+const LIVE_REPLAY_EXPECTATIONS: &[LiveReplayProviderExpectation] = &[
+    LiveReplayProviderExpectation {
+        provider: "gemini",
+        adapter: "gemini-generate-content",
+        base_url: Some("https://generativelanguage.googleapis.com"),
+        secret_env: "GEMINI_API_KEY",
+        redaction_label: "gemini_api_key",
+    },
+    LiveReplayProviderExpectation {
+        provider: "groq",
+        adapter: "groq-openai-compatible-chat-completions",
+        base_url: Some("https://api.groq.com/openai/v1"),
+        secret_env: "GROQ_API_KEY",
+        redaction_label: "groq_api_key",
+    },
+    LiveReplayProviderExpectation {
+        provider: "hugging-face",
+        adapter: "hugging-face-openai-compatible-chat-completions",
+        base_url: Some("https://router.huggingface.co/v1"),
+        secret_env: "HF_TOKEN",
+        redaction_label: "hf_token",
+    },
+    LiveReplayProviderExpectation {
+        provider: "openai-compatible",
+        adapter: "openai-compatible-chat-completions",
+        base_url: None,
+        secret_env: "OPENAI_COMPATIBLE_API_KEY",
+        redaction_label: "openai_compatible_api_key",
+    },
+    LiveReplayProviderExpectation {
+        provider: "openrouter",
+        adapter: "openrouter-openai-compatible-chat-completions",
+        base_url: Some("https://openrouter.ai/api/v1"),
+        secret_env: "OPENROUTER_API_KEY",
+        redaction_label: "openrouter_api_key",
+    },
+];
 const WORKFLOW_SUFFIXES: &[&str] = &["yml", "yaml"];
 const ALLOWED_TOP_LEVEL_WRITE_SCOPES: &[&str] = &["security-events"];
 const FLOATING_RUNNERS: &[&str] = &["ubuntu-latest", "windows-latest", "macos-latest"];
@@ -835,6 +872,10 @@ fn main() {
             let options = parse_trace_jsonl_args(args.collect());
             check_trace_jsonl_from_stdin(&options)
         }
+        "check-live-replay" => {
+            let options = parse_live_replay_args(args.collect());
+            check_live_replay_file(&options)
+        }
         "check-package-verification-docs" => {
             let root = parse_root(args.collect());
             check_package_verification_docs(&root)
@@ -915,7 +956,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -940,6 +981,16 @@ struct ContainerImageOptions {
     expected_user_id: String,
     expected_version: String,
     expected_revision: String,
+}
+
+struct LiveReplayOptions {
+    replay: PathBuf,
+    provider: String,
+    model: String,
+    base_url: Option<String>,
+    timeout_seconds: i64,
+    max_retries: i64,
+    secret_env: Option<String>,
 }
 
 struct SpdxSbomJsonOptions {
@@ -982,6 +1033,14 @@ struct WorkflowJob {
     runs_on_line: Option<usize>,
     timeout_minutes: Option<String>,
     timeout_line: Option<usize>,
+}
+
+struct LiveReplayProviderExpectation {
+    provider: &'static str,
+    adapter: &'static str,
+    base_url: Option<&'static str>,
+    secret_env: &'static str,
+    redaction_label: &'static str,
 }
 
 fn parse_benchmark_output_args(args: Vec<String>) -> BenchmarkOutputOptions {
@@ -1324,6 +1383,119 @@ fn parse_trace_jsonl_args(args: Vec<String>) -> TraceJsonlOptions {
 fn print_trace_jsonl_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-trace-jsonl [--expected-provider NAME] [--expected-model NAME] [--expected-schema-version VERSION] [--expected-step-count COUNT]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
+    let mut replay = None;
+    let mut provider = None;
+    let mut model = None;
+    let mut base_url = None;
+    let mut timeout_seconds = 60;
+    let mut max_retries = 2;
+    let mut secret_env = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--replay" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                replay = Some(PathBuf::from(value));
+                index += 2;
+            }
+            "--provider" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                provider = Some(value.clone());
+                index += 2;
+            }
+            "--model" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                model = Some(value.clone());
+                index += 2;
+            }
+            "--base-url" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                base_url = Some(value.clone());
+                index += 2;
+            }
+            "--timeout-seconds" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                timeout_seconds = value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--timeout-seconds must be an integer");
+                    std::process::exit(2);
+                });
+                if timeout_seconds <= 0 {
+                    eprintln!("--timeout-seconds must be greater than zero");
+                    std::process::exit(2);
+                }
+                index += 2;
+            }
+            "--max-retries" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                max_retries = value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--max-retries must be an integer");
+                    std::process::exit(2);
+                });
+                if !(0..=20).contains(&max_retries) {
+                    eprintln!("--max-retries must be between 0 and 20");
+                    std::process::exit(2);
+                }
+                index += 2;
+            }
+            "--secret-env" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                secret_env = Some(value.clone());
+                index += 2;
+            }
+            _ => print_live_replay_usage_and_exit(),
+        }
+    }
+
+    let Some(replay) = replay else {
+        print_live_replay_usage_and_exit();
+    };
+    let Some(provider) = provider else {
+        print_live_replay_usage_and_exit();
+    };
+    let Some(model) = model else {
+        print_live_replay_usage_and_exit();
+    };
+
+    if live_replay_expectation(&provider).is_none() {
+        eprintln!(
+            "--provider must be one of gemini, groq, hugging-face, openai-compatible, openrouter"
+        );
+        std::process::exit(2);
+    }
+
+    LiveReplayOptions {
+        replay,
+        provider,
+        model,
+        base_url,
+        timeout_seconds,
+        max_retries,
+        secret_env,
+    }
+}
+
+fn print_live_replay_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-live-replay --replay FILE --provider NAME --model MODEL [--base-url URL] [--timeout-seconds SECONDS] [--max-retries COUNT] [--secret-env NAME]"
     );
     std::process::exit(2);
 }
@@ -2152,6 +2324,195 @@ fn check_trace_jsonl_step_event(
                 "trace JSONL step {expected_index} field {field} must be a non-empty string"
             ));
         }
+    }
+}
+
+fn check_live_replay_file(options: &LiveReplayOptions) -> Result<(), Vec<String>> {
+    let replay = fs::read_to_string(&options.replay)
+        .map_err(|error| vec![format!("failed to read replay file: {error}")])?;
+    let secret_value = options
+        .secret_env
+        .as_deref()
+        .and_then(|name| env::var(name).ok());
+    check_live_replay(&replay, options, secret_value.as_deref())
+}
+
+fn check_live_replay(
+    replay: &str,
+    options: &LiveReplayOptions,
+    secret_value: Option<&str>,
+) -> Result<(), Vec<String>> {
+    let root_value = serde_json::from_str::<JsonValue>(replay)
+        .map_err(|error| vec![format!("live replay JSON is invalid: {error}")])?;
+    let Some(data) = root_value.as_object() else {
+        return Err(vec!["replay must be a JSON object".to_owned()]);
+    };
+
+    let Some(expectation) = live_replay_expectation(&options.provider) else {
+        return Err(vec![format!("unknown provider {}", options.provider)]);
+    };
+    let expected_base_url = options
+        .base_url
+        .as_deref()
+        .or(expectation.base_url)
+        .unwrap_or("")
+        .trim_end_matches('/');
+    let expected_timeout_nanos = (options.timeout_seconds * 1_000_000_000).to_string();
+    let expected_max_retries = options.max_retries.to_string();
+
+    let mut errors = Vec::new();
+    expect_live_equal(&mut errors, data, "workflow_name", "support-triage", None);
+    expect_live_equal(&mut errors, data, "schema_version", 1, None);
+
+    let runtime = match data.get("runtime").and_then(JsonValue::as_object) {
+        Some(runtime) => Some(runtime),
+        None => {
+            errors.push("runtime must be an object".to_owned());
+            None
+        }
+    };
+
+    if let Some(runtime) = runtime {
+        expect_live_equal(
+            &mut errors,
+            runtime,
+            "provider",
+            expectation.provider,
+            Some("runtime"),
+        );
+        expect_live_equal(
+            &mut errors,
+            runtime,
+            "adapter",
+            expectation.adapter,
+            Some("runtime"),
+        );
+        expect_live_equal(
+            &mut errors,
+            runtime,
+            "model",
+            options.model.as_str(),
+            Some("runtime"),
+        );
+
+        let parameters = match runtime.get("parameters").and_then(JsonValue::as_object) {
+            Some(parameters) => Some(parameters),
+            None => {
+                errors.push("runtime.parameters must be an object".to_owned());
+                None
+            }
+        };
+        if let Some(parameters) = parameters {
+            expect_live_equal(
+                &mut errors,
+                parameters,
+                "base_url",
+                expected_base_url,
+                Some("runtime.parameters"),
+            );
+            expect_live_equal(
+                &mut errors,
+                parameters,
+                "timeout_nanos",
+                expected_timeout_nanos.as_str(),
+                Some("runtime.parameters"),
+            );
+            expect_live_equal(
+                &mut errors,
+                parameters,
+                "max_retries",
+                expected_max_retries.as_str(),
+                Some("runtime.parameters"),
+            );
+        }
+    }
+
+    let steps = match data.get("steps").and_then(JsonValue::as_array) {
+        Some(steps) => Some(steps),
+        None => {
+            errors.push("steps must be an array".to_owned());
+            None
+        }
+    };
+
+    if let Some(steps) = steps {
+        if steps.len() != 2 {
+            errors.push(format!(
+                "steps length mismatch: expected 2, got {}",
+                steps.len()
+            ));
+        }
+
+        let redaction_marker = format!("[REDACTED:{}]", expectation.redaction_label);
+        for (index, step) in steps.iter().enumerate() {
+            let Some(step) = step.as_object() else {
+                errors.push(format!("steps[{index}] must be an object"));
+                continue;
+            };
+            match step.get("output").and_then(JsonValue::as_str) {
+                Some(output) if !output.is_empty() => {
+                    if output.contains(&redaction_marker) {
+                        errors.push(format!(
+                            "steps[{index}].output contains redaction marker {redaction_marker}"
+                        ));
+                    }
+                }
+                _ => errors.push(format!("steps[{index}].output must be a non-empty string")),
+            }
+        }
+    }
+
+    if let Some(secret_value) = secret_value.filter(|value| !value.is_empty()) {
+        if root_value.to_string().contains(secret_value) {
+            errors.push(format!(
+                "replay contains secret value from {}",
+                expectation.secret_env
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn live_replay_expectation(provider: &str) -> Option<&'static LiveReplayProviderExpectation> {
+    LIVE_REPLAY_EXPECTATIONS
+        .iter()
+        .find(|expectation| expectation.provider == provider)
+}
+
+fn expect_live_equal(
+    errors: &mut Vec<String>,
+    mapping: &serde_json::Map<String, JsonValue>,
+    key: &str,
+    expected: impl Into<JsonValue>,
+    prefix: Option<&str>,
+) {
+    let expected = expected.into();
+    let actual = mapping.get(key);
+    if actual != Some(&expected) {
+        let label = match prefix {
+            Some(prefix) => format!("{prefix}.{key}"),
+            None => key.to_owned(),
+        };
+        errors.push(format!(
+            "{label} mismatch: expected {}, got {}",
+            live_replay_value_display(Some(&expected)),
+            live_replay_value_display(actual)
+        ));
+    }
+}
+
+fn live_replay_value_display(value: Option<&JsonValue>) -> String {
+    match value {
+        Some(JsonValue::String(value)) => format!("'{value}'"),
+        Some(JsonValue::Number(value)) => value.to_string(),
+        Some(JsonValue::Bool(value)) => value.to_string(),
+        Some(JsonValue::Null) | None => "None".to_owned(),
+        Some(value) => value.to_string(),
     }
 }
 
@@ -8301,6 +8662,122 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_live_replay() {
+        assert_eq!(
+            check_live_replay(
+                &valid_live_replay().to_string(),
+                &live_replay_options("openrouter", "openrouter/free"),
+                Some("secret-value"),
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_configured_openai_compatible_live_replay_base_url() {
+        let replay = serde_json::json!({
+            "schema_version": 1,
+            "workflow_name": "support-triage",
+            "runtime": {
+                "provider": "openai-compatible",
+                "adapter": "openai-compatible-chat-completions",
+                "model": "model-name",
+                "parameters": {
+                    "base_url": "https://example.com/v1",
+                    "timeout_nanos": "60000000000",
+                    "max_retries": "2"
+                }
+            },
+            "steps": [
+                {"step_id": "classify", "output": "billing"},
+                {"step_id": "draft_response", "output": "Hello"}
+            ]
+        });
+        let options = LiveReplayOptions {
+            base_url: Some("https://example.com/v1/".to_owned()),
+            ..live_replay_options("openai-compatible", "model-name")
+        };
+
+        assert_eq!(
+            check_live_replay(&replay.to_string(), &options, None),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn reports_live_replay_runtime_and_step_mismatches() {
+        let replay = serde_json::json!({
+            "schema_version": 1,
+            "workflow_name": "other",
+            "runtime": {
+                "provider": "openrouter",
+                "adapter": "wrong",
+                "model": "wrong-model",
+                "parameters": {
+                    "base_url": "https://openrouter.ai/api/v1",
+                    "timeout_nanos": "1",
+                    "max_retries": "99"
+                }
+            },
+            "steps": [
+                {"output": ""},
+                {"output": "[REDACTED:openrouter_api_key]"},
+                {"output": "extra"}
+            ]
+        });
+
+        let errors = check_live_replay(
+            &replay.to_string(),
+            &live_replay_options("openrouter", "openrouter/free"),
+            Some("secret-value"),
+        )
+        .unwrap_err();
+
+        assert!(errors.contains(
+            &"workflow_name mismatch: expected 'support-triage', got 'other'".to_owned()
+        ));
+        assert!(errors.contains(&"runtime.adapter mismatch: expected 'openrouter-openai-compatible-chat-completions', got 'wrong'".to_owned()));
+        assert!(errors.contains(
+            &"runtime.model mismatch: expected 'openrouter/free', got 'wrong-model'".to_owned()
+        ));
+        assert!(
+            errors.contains(
+                &"runtime.parameters.timeout_nanos mismatch: expected '60000000000', got '1'"
+                    .to_owned()
+            )
+        );
+        assert!(errors.contains(
+            &"runtime.parameters.max_retries mismatch: expected '2', got '99'".to_owned()
+        ));
+        assert!(errors.contains(&"steps length mismatch: expected 2, got 3".to_owned()));
+        assert!(errors.contains(&"steps[0].output must be a non-empty string".to_owned()));
+        assert!(errors.contains(
+            &"steps[1].output contains redaction marker [REDACTED:openrouter_api_key]".to_owned()
+        ));
+    }
+
+    #[test]
+    fn reports_live_replay_secret_leak() {
+        let mut replay = valid_live_replay();
+        replay["steps"] = serde_json::json!([
+            {"output": "secret-value"},
+            {"output": "ok"}
+        ]);
+
+        let errors = check_live_replay(
+            &replay.to_string(),
+            &live_replay_options("openrouter", "openrouter/free"),
+            Some("secret-value"),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["replay contains secret value from OPENROUTER_API_KEY"]
+        );
+    }
+
+    #[test]
     fn accepts_expected_trace_jsonl() {
         assert_eq!(
             check_trace_jsonl(
@@ -9011,6 +9488,39 @@ and this project follows semantic versioning once the first release is tagged.
             expected_schema_version: 1,
             expected_step_count: None,
         }
+    }
+
+    fn live_replay_options(provider: &str, model: &str) -> LiveReplayOptions {
+        LiveReplayOptions {
+            replay: PathBuf::from("live.replay.json"),
+            provider: provider.to_owned(),
+            model: model.to_owned(),
+            base_url: None,
+            timeout_seconds: 60,
+            max_retries: 2,
+            secret_env: None,
+        }
+    }
+
+    fn valid_live_replay() -> JsonValue {
+        serde_json::json!({
+            "schema_version": 1,
+            "workflow_name": "support-triage",
+            "runtime": {
+                "provider": "openrouter",
+                "adapter": "openrouter-openai-compatible-chat-completions",
+                "model": "openrouter/free",
+                "parameters": {
+                    "base_url": "https://openrouter.ai/api/v1",
+                    "timeout_nanos": "60000000000",
+                    "max_retries": "2"
+                }
+            },
+            "steps": [
+                {"step_id": "classify", "output": "billing"},
+                {"step_id": "draft_response", "output": "Hello"}
+            ]
+        })
     }
 
     fn valid_cache_json() -> String {

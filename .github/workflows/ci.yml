@@ -120,7 +120,7 @@ jobs:
           python3 scripts/check_live_workflows.py --root .
 
       - name: Test live provider replay validator
-        run: python3 -m unittest scripts.test_check_live_replay
+        run: cargo test -p vogon-xtask --locked live_replay
 
       - name: Check formatting
         run: cargo fmt --all -- --check

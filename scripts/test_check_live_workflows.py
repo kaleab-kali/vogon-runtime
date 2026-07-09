@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from scripts import check_live_workflows
-from scripts.check_live_replay import PROVIDERS
+from scripts.check_live_workflows import PROVIDERS
 
 
 class CheckLiveWorkflowsTests(unittest.TestCase):
@@ -180,7 +180,7 @@ def live_workflow_text(
     validator = ""
     if not omit_live_validator:
         validator = f"""
-          python3 scripts/check_live_replay.py \\
+          cargo run -p vogon-xtask -- check-live-replay \\
             --replay {expectation.replay_path} \\
             --provider {expectation.provider} \\{base_url_validator_flag}
 {validator_model}
