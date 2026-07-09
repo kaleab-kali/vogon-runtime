@@ -38,7 +38,7 @@ jobs:
         run: |
           python3 -m unittest scripts.test_write_spdx_sbom
           cargo test -p vogon-xtask --locked spdx_sbom_json
-          python3 -m unittest scripts.test_check_container_image
+          cargo test -p vogon-xtask --locked container_image
 
       - name: Check Cargo manifests
         run: cargo run -p vogon-xtask -- check-cargo-manifests --root .
@@ -236,7 +236,7 @@ jobs:
       - name: Smoke test container CLI
         run: |
           image="vogon-runtime:ci"
-          python3 scripts/check_container_image.py "$image"
+          cargo run -p vogon-xtask -- check-container-image "$image"
           docker run --rm "$image" --version
           docker run --rm --read-only "$image" --version
           doctor_json="$(docker run --rm --read-only "$image" doctor --json)"

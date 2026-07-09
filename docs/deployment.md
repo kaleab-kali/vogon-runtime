@@ -108,7 +108,7 @@ Before publishing or deploying an image, run:
 
 ```sh
 docker build --tag vogon-runtime:smoke .
-python scripts/check_container_image.py vogon-runtime:smoke
+cargo run -p vogon-xtask -- check-container-image vogon-runtime:smoke
 docker run --rm vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke --version
 docker run --rm --read-only vogon-runtime:smoke doctor --json | cargo run -p vogon-xtask -- check-doctor-json
@@ -129,7 +129,7 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 ```sh
 sha256sum -c vogon-v0.1.1-container-image.tar.gz.sha256
 docker load --input vogon-v0.1.1-container-image.tar.gz
-python scripts/check_container_image.py vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
+cargo run -p vogon-xtask -- check-container-image vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
 docker run --rm vogon-runtime:v0.1.1 --version
 docker run --rm --read-only vogon-runtime:v0.1.1 --version
 docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | cargo run -p vogon-xtask -- check-doctor-json

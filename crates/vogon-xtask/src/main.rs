@@ -154,6 +154,17 @@ const EXPECTED_PROVIDER_JSON: &[ProviderJsonExpectation] = &[
 const REQUIRED_README_COMMANDS: &[&str] = &[];
 const DEFAULT_ARCHIVE_REQUIRED_FILES: &[&str] = &["README.md", "LICENSE"];
 const REQUIRED_BENCHMARK_METRICS: &[&str] = &["elapsed_ms", "iterations", "iterations_per_second"];
+const EXPECTED_CONTAINER_LABELS: &[(&str, &str)] = &[
+    ("org.opencontainers.image.title", "Vogon Runtime"),
+    (
+        "org.opencontainers.image.source",
+        "https://github.com/kaleab-kali/vogon-runtime",
+    ),
+    ("org.opencontainers.image.licenses", "MIT"),
+    ("org.opencontainers.image.version", "dev"),
+    ("org.opencontainers.image.revision", "unknown"),
+];
+const EXPECTED_CONTAINER_USER_ID: &str = "10001";
 const WORKFLOW_SUFFIXES: &[&str] = &["yml", "yaml"];
 const ALLOWED_TOP_LEVEL_WRITE_SCOPES: &[&str] = &["security-events"];
 const FLOATING_RUNNERS: &[&str] = &["ubuntu-latest", "windows-latest", "macos-latest"];
@@ -317,6 +328,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     (
         "trace JSONL validator",
         "cargo run -p vogon-xtask -- check-trace-jsonl",
+    ),
+    (
+        "container image validator",
+        "cargo run -p vogon-xtask -- check-container-image",
     ),
     (
         "SPDX SBOM validator",
@@ -776,6 +791,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_container_policy(&root)
         }
+        "check-container-image" => {
+            let options = parse_container_image_args(args.collect());
+            check_container_image(&options)
+        }
         "check-dependabot-config" => {
             let root = parse_root(args.collect());
             check_dependabot_config(&root)
@@ -896,7 +915,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -914,6 +933,13 @@ struct CacheJsonOptions {
     cache_file: PathBuf,
     expected_max_entries: Option<i64>,
     expected_entry_count: Option<i64>,
+}
+
+struct ContainerImageOptions {
+    image: String,
+    expected_user_id: String,
+    expected_version: String,
+    expected_revision: String,
 }
 
 struct SpdxSbomJsonOptions {
@@ -1061,6 +1087,57 @@ fn parse_cache_json_args(args: Vec<String>) -> CacheJsonOptions {
 fn print_cache_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-cache-json CACHE_FILE [--expected-max-entries COUNT] [--expected-entry-count COUNT]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_container_image_args(args: Vec<String>) -> ContainerImageOptions {
+    let Some((image, rest)) = args.split_first() else {
+        print_container_image_usage_and_exit();
+    };
+
+    let mut expected_user_id = EXPECTED_CONTAINER_USER_ID.to_owned();
+    let mut expected_version = "dev".to_owned();
+    let mut expected_revision = "unknown".to_owned();
+    let mut index = 0;
+    while index < rest.len() {
+        match rest[index].as_str() {
+            "--expected-user-id" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_container_image_usage_and_exit();
+                };
+                expected_user_id = value.clone();
+                index += 2;
+            }
+            "--expected-version" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_container_image_usage_and_exit();
+                };
+                expected_version = value.clone();
+                index += 2;
+            }
+            "--expected-revision" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_container_image_usage_and_exit();
+                };
+                expected_revision = value.clone();
+                index += 2;
+            }
+            _ => print_container_image_usage_and_exit(),
+        }
+    }
+
+    ContainerImageOptions {
+        image: image.clone(),
+        expected_user_id,
+        expected_version,
+        expected_revision,
+    }
+}
+
+fn print_container_image_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-container-image IMAGE [--expected-user-id ID] [--expected-version VERSION] [--expected-revision REVISION]"
     );
     std::process::exit(2);
 }
@@ -2350,6 +2427,138 @@ fn format_json_string_array<'a>(items: impl Iterator<Item = &'a str>) -> String 
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+struct ContainerCommandOutput {
+    status: i32,
+    stdout: String,
+    stderr: String,
+}
+
+fn check_container_image(options: &ContainerImageOptions) -> Result<(), Vec<String>> {
+    let expected_labels = expected_container_labels(options);
+    check_container_image_with_runner(
+        &options.image,
+        &expected_labels,
+        &options.expected_user_id,
+        run_container_command,
+    )
+}
+
+fn expected_container_labels(options: &ContainerImageOptions) -> Vec<(&'static str, String)> {
+    EXPECTED_CONTAINER_LABELS
+        .iter()
+        .map(|(label, expected)| {
+            let expected = match *label {
+                "org.opencontainers.image.version" => options.expected_version.clone(),
+                "org.opencontainers.image.revision" => options.expected_revision.clone(),
+                _ => (*expected).to_owned(),
+            };
+            (*label, expected)
+        })
+        .collect()
+}
+
+fn check_container_image_with_runner(
+    image: &str,
+    expected_labels: &[(&str, String)],
+    expected_user_id: &str,
+    mut runner: impl FnMut(&[String]) -> ContainerCommandOutput,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    for (label, expected_value) in expected_labels {
+        let command = vec![
+            "docker".to_owned(),
+            "image".to_owned(),
+            "inspect".to_owned(),
+            image.to_owned(),
+            "--format".to_owned(),
+            format!(r#"{{{{ index .Config.Labels "{label}" }}}}"#),
+        ];
+        let result = runner(&command);
+        if result.status != 0 {
+            errors.push(format_container_command_error(
+                &format!("Container label {label} cannot be read"),
+                &result,
+            ));
+            continue;
+        }
+
+        let actual_value = result.stdout.trim();
+        if actual_value != expected_value {
+            errors.push(format!(
+                "Container label {label} mismatch: expected {expected_value}, got {}",
+                empty_display(actual_value)
+            ));
+        }
+    }
+
+    let command = vec![
+        "docker".to_owned(),
+        "run".to_owned(),
+        "--rm".to_owned(),
+        "--entrypoint".to_owned(),
+        "id".to_owned(),
+        image.to_owned(),
+        "-u".to_owned(),
+    ];
+    let result = runner(&command);
+    if result.status != 0 {
+        errors.push(format_container_command_error(
+            "Container runtime user cannot be read",
+            &result,
+        ));
+    } else {
+        let actual_user_id = result.stdout.trim();
+        if actual_user_id != expected_user_id {
+            errors.push(format!(
+                "Container runtime user mismatch: expected {expected_user_id}, got {}",
+                empty_display(actual_user_id)
+            ));
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn run_container_command(command: &[String]) -> ContainerCommandOutput {
+    let Some((program, args)) = command.split_first() else {
+        return ContainerCommandOutput {
+            status: 127,
+            stdout: String::new(),
+            stderr: "empty command".to_owned(),
+        };
+    };
+    match Command::new(program).args(args).output() {
+        Ok(output) => ContainerCommandOutput {
+            status: output.status.code().unwrap_or(1),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        },
+        Err(error) => ContainerCommandOutput {
+            status: 127,
+            stdout: String::new(),
+            stderr: error.to_string(),
+        },
+    }
+}
+
+fn format_container_command_error(context: &str, result: &ContainerCommandOutput) -> String {
+    let stderr = result.stderr.trim();
+    if stderr.is_empty() {
+        format!("{context}: command exited with status {}", result.status)
+    } else {
+        format!("{context}: {stderr}")
+    }
+}
+
+fn empty_display(value: &str) -> &str {
+    if value.is_empty() { "<empty>" } else { value }
 }
 
 fn check_doctor_json_from_stdin() -> Result<(), Vec<String>> {
@@ -8425,6 +8634,147 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_container_image_metadata() {
+        let mut runner = FakeContainerRunner::default();
+        let expected_labels = default_expected_container_labels();
+
+        assert_eq!(
+            check_container_image_with_runner(
+                "vogon-runtime:ci",
+                &expected_labels,
+                EXPECTED_CONTAINER_USER_ID,
+                |command| runner.run(command),
+            ),
+            Ok(())
+        );
+        assert_eq!(runner.commands.len(), 6);
+    }
+
+    #[test]
+    fn accepts_release_container_image_version_and_revision_labels() {
+        let mut runner = FakeContainerRunner::default();
+        runner.labels.insert(
+            "org.opencontainers.image.version".to_owned(),
+            "v0.1.0".to_owned(),
+        );
+        runner.labels.insert(
+            "org.opencontainers.image.revision".to_owned(),
+            "abc123".to_owned(),
+        );
+        let expected_labels = default_expected_container_labels()
+            .into_iter()
+            .map(|(label, expected)| match label {
+                "org.opencontainers.image.version" => (label, "v0.1.0".to_owned()),
+                "org.opencontainers.image.revision" => (label, "abc123".to_owned()),
+                _ => (label, expected),
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            check_container_image_with_runner(
+                "vogon-runtime:v0.1.0",
+                &expected_labels,
+                EXPECTED_CONTAINER_USER_ID,
+                |command| runner.run(command),
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn reports_container_image_label_mismatch() {
+        let mut runner = FakeContainerRunner::default();
+        runner.labels.insert(
+            "org.opencontainers.image.licenses".to_owned(),
+            "Apache-2.0".to_owned(),
+        );
+
+        let errors = check_container_image_with_runner(
+            "vogon-runtime:ci",
+            &default_expected_container_labels(),
+            EXPECTED_CONTAINER_USER_ID,
+            |command| runner.run(command),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Container label org.opencontainers.image.licenses mismatch: expected MIT, got Apache-2.0"
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_missing_container_image_label_as_empty() {
+        let mut runner = FakeContainerRunner::default();
+        runner.labels.remove("org.opencontainers.image.source");
+
+        let errors = check_container_image_with_runner(
+            "vogon-runtime:ci",
+            &default_expected_container_labels(),
+            EXPECTED_CONTAINER_USER_ID,
+            |command| runner.run(command),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Container label org.opencontainers.image.source mismatch: expected https://github.com/kaleab-kali/vogon-runtime, got <empty>"
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_container_image_user_mismatch() {
+        let mut runner = FakeContainerRunner {
+            user_id: "0".to_owned(),
+            ..FakeContainerRunner::default()
+        };
+
+        let errors = check_container_image_with_runner(
+            "vogon-runtime:ci",
+            &default_expected_container_labels(),
+            EXPECTED_CONTAINER_USER_ID,
+            |command| runner.run(command),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["Container runtime user mismatch: expected 10001, got 0"]
+        );
+    }
+
+    #[test]
+    fn reports_container_image_command_failures_with_stderr() {
+        let mut runner = FakeContainerRunner::default();
+        runner
+            .failures
+            .insert("image inspect".to_owned(), "no such image".to_owned());
+
+        let errors = check_container_image_with_runner(
+            "vogon-runtime:ci",
+            &default_expected_container_labels(),
+            EXPECTED_CONTAINER_USER_ID,
+            |command| runner.run(command),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "Container label org.opencontainers.image.title cannot be read: no such image",
+                "Container label org.opencontainers.image.source cannot be read: no such image",
+                "Container label org.opencontainers.image.licenses cannot be read: no such image",
+                "Container label org.opencontainers.image.version cannot be read: no such image",
+                "Container label org.opencontainers.image.revision cannot be read: no such image",
+            ]
+        );
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -8712,6 +9062,82 @@ and this project follows semantic versioning once the first release is tagged.
         .to_string()
     }
 
+    fn default_expected_container_labels() -> Vec<(&'static str, String)> {
+        EXPECTED_CONTAINER_LABELS
+            .iter()
+            .map(|(label, expected)| (*label, (*expected).to_owned()))
+            .collect()
+    }
+
+    struct FakeContainerRunner {
+        labels: BTreeMap<String, String>,
+        user_id: String,
+        failures: BTreeMap<String, String>,
+        commands: Vec<Vec<String>>,
+    }
+
+    impl Default for FakeContainerRunner {
+        fn default() -> Self {
+            Self {
+                labels: EXPECTED_CONTAINER_LABELS
+                    .iter()
+                    .map(|(label, value)| ((*label).to_owned(), (*value).to_owned()))
+                    .collect(),
+                user_id: EXPECTED_CONTAINER_USER_ID.to_owned(),
+                failures: BTreeMap::new(),
+                commands: Vec::new(),
+            }
+        }
+    }
+
+    impl FakeContainerRunner {
+        fn run(&mut self, command: &[String]) -> ContainerCommandOutput {
+            self.commands.push(command.to_vec());
+            let command_text = command.join(" ");
+            for (failure_key, stderr) in &self.failures {
+                if command_text.contains(failure_key) {
+                    return ContainerCommandOutput {
+                        status: 1,
+                        stdout: String::new(),
+                        stderr: stderr.clone(),
+                    };
+                }
+            }
+
+            if command.first().map(String::as_str) == Some("docker")
+                && command.get(1).map(String::as_str) == Some("image")
+                && command.get(2).map(String::as_str) == Some("inspect")
+            {
+                let label = command
+                    .last()
+                    .and_then(|format| format.split('"').nth(1))
+                    .unwrap_or_default();
+                return ContainerCommandOutput {
+                    status: 0,
+                    stdout: format!("{}\n", self.labels.get(label).map_or("", String::as_str)),
+                    stderr: String::new(),
+                };
+            }
+
+            if command.first().map(String::as_str) == Some("docker")
+                && command.get(1).map(String::as_str) == Some("run")
+                && command.get(3).map(String::as_str) == Some("--entrypoint")
+            {
+                return ContainerCommandOutput {
+                    status: 0,
+                    stdout: format!("{}\n", self.user_id),
+                    stderr: String::new(),
+                };
+            }
+
+            ContainerCommandOutput {
+                status: 127,
+                stdout: String::new(),
+                stderr: "unexpected".to_owned(),
+            }
+        }
+    }
+
     fn valid_trace_jsonl() -> String {
         [
             serde_json::json!({
@@ -8801,6 +9227,7 @@ jobs:
           cargo run -p vogon-xtask -- check-package-verification-docs --root .
           python3 scripts/check_live_workflows.py --root .
           cargo test -p vogon-xtask --locked spdx_sbom_json
+          cargo test -p vogon-xtask --locked container_image
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
           cargo test --workspace --all-features --locked
@@ -8838,6 +9265,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           docker build --tag vogon-runtime:ci .
+          cargo run -p vogon-xtask -- check-container-image vogon-runtime:ci
           docker run --rm --read-only vogon-runtime:ci --version
 
   windows-release-smoke:
