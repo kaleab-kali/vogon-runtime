@@ -20,7 +20,7 @@ cargo run -p vogon-xtask -- check-docs-links --root .
 cargo run -p vogon-xtask -- check-issue-templates --root .
 cargo test -p vogon-xtask --locked live_replay
 cargo test -p vogon-xtask --locked live_workflow
-python -m unittest scripts.test_check_release_workflow
+cargo test -p vogon-xtask --locked release_workflow
 cargo run -p vogon-xtask -- check-cargo-manifests --root .
 cargo run -p vogon-xtask -- check-changelog --root .
 cargo run -p vogon-xtask -- check-contributing-checklist --root .
@@ -35,7 +35,7 @@ cargo run -p vogon-xtask -- check-live-workflows --root .
 cargo run -p vogon-xtask -- check-package-verification-docs --root .
 cargo run -p vogon-xtask -- check-pr-template --root .
 cargo run -p vogon-xtask -- check-release-checklist --root .
-python scripts/check_release_workflow.py --root .
+cargo run -p vogon-xtask -- check-release-workflow --root .
 cargo run -p vogon-xtask -- check-schema-files --root .
 cargo run -p vogon-xtask -- check-secrets --root .
 cargo run -p vogon-xtask -- check-ci-workflow --root .

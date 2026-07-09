@@ -90,8 +90,8 @@ jobs:
 
       - name: Check release workflow
         run: |
-          python3 -m unittest scripts.test_check_release_workflow
-          python3 scripts/check_release_workflow.py --root .
+          cargo test -p vogon-xtask --locked release_workflow
+          cargo run -p vogon-xtask -- check-release-workflow --root .
 
       - name: Check provider env example
         run: cargo run -p vogon-xtask -- check-env-example --root .
