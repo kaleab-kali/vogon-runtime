@@ -193,7 +193,7 @@ jobs:
           cargo metadata --locked --format-version 1
           cargo run -p vogon-xtask -- check-cargo-metadata-json
           python3 scripts/write_spdx_sbom.py
-          python3 scripts/check_spdx_sbom_json.py
+          cargo run -p vogon-xtask -- check-spdx-sbom-json
           check-sha256-file
           check-sha256-file
           check-sha256-file

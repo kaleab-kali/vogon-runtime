@@ -71,6 +71,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving runtime and step-event checks.
 - The cache JSON validator moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving cache bounds and entry-order checks.
+- The SPDX SBOM JSON validator moved from Python scripts into the Rust
+  `vogon-xtask` tool while preserving release artifact metadata checks.
 - The container build stage now uses the current Dependabot-suggested Rust
   `bookworm` image and the container policy validator enforces that base tag.
 - Dependabot now groups patch and minor dependency updates by ecosystem while

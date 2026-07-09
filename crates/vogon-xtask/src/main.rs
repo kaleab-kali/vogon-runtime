@@ -319,6 +319,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "cargo run -p vogon-xtask -- check-trace-jsonl",
     ),
     (
+        "SPDX SBOM validator",
+        "cargo test -p vogon-xtask --locked spdx_sbom_json",
+    ),
+    (
         "cache JSON validator",
         "cargo run -p vogon-xtask -- check-cache-json",
     ),
@@ -840,6 +844,10 @@ fn main() {
             let options = parse_sha256_file_args(args.collect());
             check_sha256_file(&options.artifact, options.checksum_file.as_deref())
         }
+        "check-spdx-sbom-json" => {
+            let options = parse_spdx_sbom_json_args(args.collect());
+            check_spdx_sbom_json_file(&options.sbom_file, &options)
+        }
         "check-security-workflows" => {
             let root = parse_root(args.collect());
             check_security_workflows(&root)
@@ -888,7 +896,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -906,6 +914,12 @@ struct CacheJsonOptions {
     cache_file: PathBuf,
     expected_max_entries: Option<i64>,
     expected_entry_count: Option<i64>,
+}
+
+struct SpdxSbomJsonOptions {
+    sbom_file: PathBuf,
+    expected_name: Option<String>,
+    expected_packages: Vec<String>,
 }
 
 struct WorkflowJsonOptions {
@@ -1047,6 +1061,48 @@ fn parse_cache_json_args(args: Vec<String>) -> CacheJsonOptions {
 fn print_cache_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-cache-json CACHE_FILE [--expected-max-entries COUNT] [--expected-entry-count COUNT]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_spdx_sbom_json_args(args: Vec<String>) -> SpdxSbomJsonOptions {
+    let Some((sbom_file, rest)) = args.split_first() else {
+        print_spdx_sbom_json_usage_and_exit();
+    };
+
+    let mut expected_name = None;
+    let mut expected_packages = Vec::new();
+    let mut index = 0;
+    while index < rest.len() {
+        match rest[index].as_str() {
+            "--expected-name" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_spdx_sbom_json_usage_and_exit();
+                };
+                expected_name = Some(value.clone());
+                index += 2;
+            }
+            "--expected-package" => {
+                let Some(value) = rest.get(index + 1) else {
+                    print_spdx_sbom_json_usage_and_exit();
+                };
+                expected_packages.push(value.clone());
+                index += 2;
+            }
+            _ => print_spdx_sbom_json_usage_and_exit(),
+        }
+    }
+
+    SpdxSbomJsonOptions {
+        sbom_file: PathBuf::from(sbom_file),
+        expected_name,
+        expected_packages,
+    }
+}
+
+fn print_spdx_sbom_json_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- check-spdx-sbom-json SBOM_FILE [--expected-name NAME] [--expected-package NAME ...]"
     );
     std::process::exit(2);
 }
@@ -2125,6 +2181,175 @@ fn check_cache_json(
     } else {
         Err(errors)
     }
+}
+
+fn check_spdx_sbom_json_file(
+    path: &Path,
+    options: &SpdxSbomJsonOptions,
+) -> Result<(), Vec<String>> {
+    let output = fs::read_to_string(path)
+        .map_err(|error| vec![format!("SPDX SBOM JSON file cannot be read: {error}")])?;
+    check_spdx_sbom_json(
+        &output,
+        options.expected_name.as_deref(),
+        &options.expected_packages,
+    )
+}
+
+fn check_spdx_sbom_json(
+    output: &str,
+    expected_name: Option<&str>,
+    expected_packages: &[String],
+) -> Result<(), Vec<String>> {
+    let output = output.trim_start_matches('\u{feff}');
+    let data = serde_json::from_str::<JsonValue>(output)
+        .map_err(|error| vec![format!("SPDX SBOM JSON is invalid: {error}")])?;
+    let Some(data) = data.as_object() else {
+        return Err(vec!["SPDX SBOM JSON root must be an object".to_owned()]);
+    };
+
+    let mut errors = Vec::new();
+    if data.get("spdxVersion").and_then(JsonValue::as_str) != Some("SPDX-2.3") {
+        errors.push(format!(
+            "SPDX SBOM spdxVersion mismatch: expected SPDX-2.3, got {}",
+            json_value_display(data.get("spdxVersion"))
+        ));
+    }
+    if data.get("dataLicense").and_then(JsonValue::as_str) != Some("CC0-1.0") {
+        errors.push(format!(
+            "SPDX SBOM dataLicense mismatch: expected CC0-1.0, got {}",
+            json_value_display(data.get("dataLicense"))
+        ));
+    }
+    if data.get("SPDXID").and_then(JsonValue::as_str) != Some("SPDXRef-DOCUMENT") {
+        errors.push("SPDX SBOM SPDXID must be SPDXRef-DOCUMENT".to_owned());
+    }
+
+    let name = data.get("name");
+    match name.and_then(JsonValue::as_str) {
+        Some(name) if !name.is_empty() => {
+            if let Some(expected) = expected_name.filter(|expected| name != *expected) {
+                errors.push(format!(
+                    "SPDX SBOM name mismatch: expected {expected}, got {}",
+                    json_value_display(data.get("name"))
+                ));
+            }
+        }
+        _ => errors.push("SPDX SBOM name must be a non-empty string".to_owned()),
+    }
+
+    if !data
+        .get("documentNamespace")
+        .and_then(JsonValue::as_str)
+        .is_some_and(|namespace| namespace.starts_with("https://"))
+    {
+        errors.push("SPDX SBOM documentNamespace must be an HTTPS URL".to_owned());
+    }
+
+    match data.get("creationInfo").and_then(JsonValue::as_object) {
+        Some(creation_info) => {
+            let has_creator = creation_info
+                .get("creators")
+                .and_then(JsonValue::as_array)
+                .is_some_and(|creators| {
+                    creators.iter().any(|creator| {
+                        creator.as_str() == Some("Tool: vogon-runtime scripts/write_spdx_sbom.py")
+                    })
+                });
+            if !has_creator {
+                errors.push("SPDX SBOM creators must include the Vogon SBOM writer".to_owned());
+            }
+        }
+        None => errors.push("SPDX SBOM creationInfo must be an object".to_owned()),
+    }
+
+    let empty_packages = Vec::new();
+    let packages = match data.get("packages").and_then(JsonValue::as_array) {
+        Some(packages) if !packages.is_empty() => packages,
+        _ => {
+            errors.push("SPDX SBOM packages must be a non-empty array".to_owned());
+            &empty_packages
+        }
+    };
+
+    let mut package_names = BTreeSet::new();
+    for (index, package) in packages.iter().enumerate() {
+        let context = format!("SPDX SBOM package {}", index + 1);
+        let Some(package) = package.as_object() else {
+            errors.push(format!("{context} must be an object"));
+            continue;
+        };
+        if let Some(package_name) = require_spdx_string(package, "name", &context, &mut errors) {
+            package_names.insert(package_name.to_owned());
+        }
+        require_spdx_string(package, "SPDXID", &context, &mut errors);
+        require_spdx_string(package, "downloadLocation", &context, &mut errors);
+    }
+
+    for expected_package in expected_packages {
+        if !package_names.contains(expected_package) {
+            errors.push(format!(
+                "SPDX SBOM package missing: expected {expected_package}, got {}",
+                format_json_string_array(package_names.iter().map(String::as_str))
+            ));
+        }
+    }
+
+    match data.get("relationships").and_then(JsonValue::as_array) {
+        Some(relationships) if !relationships.is_empty() => {
+            if !relationships.iter().any(|relationship| {
+                relationship
+                    .as_object()
+                    .and_then(|relationship| relationship.get("relationshipType"))
+                    .and_then(JsonValue::as_str)
+                    == Some("DESCRIBES")
+            }) {
+                errors.push("SPDX SBOM relationships must include DESCRIBES".to_owned());
+            }
+            if !relationships.iter().any(|relationship| {
+                relationship
+                    .as_object()
+                    .and_then(|relationship| relationship.get("relationshipType"))
+                    .and_then(JsonValue::as_str)
+                    == Some("DEPENDS_ON")
+            }) {
+                errors.push("SPDX SBOM relationships must include DEPENDS_ON".to_owned());
+            }
+        }
+        _ => errors.push("SPDX SBOM relationships must be a non-empty array".to_owned()),
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn require_spdx_string<'a>(
+    data: &'a serde_json::Map<String, JsonValue>,
+    field: &str,
+    context: &str,
+    errors: &mut Vec<String>,
+) -> Option<&'a str> {
+    let value = data.get(field).and_then(JsonValue::as_str);
+    match value {
+        Some(value) if !value.is_empty() => Some(value),
+        _ => {
+            errors.push(format!("{context} {field} must be a non-empty string"));
+            None
+        }
+    }
+}
+
+fn format_json_string_array<'a>(items: impl Iterator<Item = &'a str>) -> String {
+    format!(
+        "[{}]",
+        items
+            .map(|item| format!("\"{item}\""))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 fn check_doctor_json_from_stdin() -> Result<(), Vec<String>> {
@@ -8099,6 +8324,107 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_spdx_sbom_json() {
+        assert_eq!(
+            check_spdx_sbom_json(
+                &valid_spdx_sbom_json(),
+                Some("vogon-runtime v0.1.0"),
+                &["vogon-core".to_owned()],
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_spdx_sbom_json_file_path() {
+        let root = temp_root("spdx-sbom-json-accepts-file");
+        let sbom_file = root.join("sbom.spdx.json");
+        fs::write(&sbom_file, valid_spdx_sbom_json()).unwrap();
+
+        assert_eq!(
+            check_spdx_sbom_json_file(
+                &sbom_file,
+                &SpdxSbomJsonOptions {
+                    sbom_file: sbom_file.clone(),
+                    expected_name: Some("vogon-runtime v0.1.0".to_owned()),
+                    expected_packages: vec!["vogon-runtime-source".to_owned()],
+                },
+            ),
+            Ok(())
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_invalid_spdx_sbom_json() {
+        let errors = check_spdx_sbom_json("{", None, &[]).unwrap_err();
+
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].starts_with("SPDX SBOM JSON is invalid:"));
+    }
+
+    #[test]
+    fn reports_spdx_sbom_json_document_mismatches() {
+        let mut data: JsonValue = serde_json::from_str(&valid_spdx_sbom_json()).unwrap();
+        data["spdxVersion"] = JsonValue::String("SPDX-2.2".to_owned());
+        data["dataLicense"] = JsonValue::String("MIT".to_owned());
+        data["name"] = JsonValue::String("other".to_owned());
+        data["documentNamespace"] = JsonValue::String("not-a-url".to_owned());
+
+        let errors =
+            check_spdx_sbom_json(&data.to_string(), Some("vogon-runtime v0.1.0"), &[]).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "SPDX SBOM spdxVersion mismatch: expected SPDX-2.3, got \"SPDX-2.2\"",
+                "SPDX SBOM dataLicense mismatch: expected CC0-1.0, got \"MIT\"",
+                "SPDX SBOM name mismatch: expected vogon-runtime v0.1.0, got \"other\"",
+                "SPDX SBOM documentNamespace must be an HTTPS URL",
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_missing_expected_spdx_sbom_json_package() {
+        let errors = check_spdx_sbom_json(&valid_spdx_sbom_json(), None, &["vogon-cli".to_owned()])
+            .unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "SPDX SBOM package missing: expected vogon-cli, got [\"vogon-core\", \"vogon-runtime-source\"]"
+            ]
+        );
+    }
+
+    #[test]
+    fn reports_missing_spdx_sbom_json_relationship_types() {
+        let mut data: JsonValue = serde_json::from_str(&valid_spdx_sbom_json()).unwrap();
+        data["relationships"] = JsonValue::Array(Vec::new());
+
+        let errors = check_spdx_sbom_json(&data.to_string(), None, &[]).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["SPDX SBOM relationships must be a non-empty array"]
+        );
+
+        data["relationships"] = serde_json::json!([
+            {
+                "spdxElementId": "SPDXRef-DOCUMENT",
+                "relationshipType": "DESCRIBES",
+                "relatedSpdxElement": "SPDXRef-Package-vogon-core",
+            }
+        ]);
+
+        let errors = check_spdx_sbom_json(&data.to_string(), None, &[]).unwrap_err();
+
+        assert_eq!(errors, ["SPDX SBOM relationships must include DEPENDS_ON"]);
+    }
+
+    #[test]
     fn accepts_expected_doctor_json() {
         assert_eq!(check_doctor_json(&doctor_json_output()), Ok(()));
     }
@@ -8348,6 +8674,44 @@ and this project follows semantic versioning once the first release is tagged.
         .to_string()
     }
 
+    fn valid_spdx_sbom_json() -> String {
+        serde_json::json!({
+            "spdxVersion": "SPDX-2.3",
+            "dataLicense": "CC0-1.0",
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "name": "vogon-runtime v0.1.0",
+            "documentNamespace": "https://github.com/kaleab-kali/vogon-runtime/releases/v0.1.0/sbom/1",
+            "creationInfo": {
+                "creators": ["Tool: vogon-runtime scripts/write_spdx_sbom.py"],
+            },
+            "packages": [
+                {
+                    "SPDXID": "SPDXRef-Package-vogon-runtime-source",
+                    "name": "vogon-runtime-source",
+                    "downloadLocation": "git+https://github.com/kaleab-kali/vogon-runtime.git",
+                },
+                {
+                    "SPDXID": "SPDXRef-Package-vogon-core",
+                    "name": "vogon-core",
+                    "downloadLocation": "file:///repo/crates/vogon-core/Cargo.toml",
+                },
+            ],
+            "relationships": [
+                {
+                    "spdxElementId": "SPDXRef-DOCUMENT",
+                    "relationshipType": "DESCRIBES",
+                    "relatedSpdxElement": "SPDXRef-Package-vogon-core",
+                },
+                {
+                    "spdxElementId": "SPDXRef-Package-vogon-cli",
+                    "relationshipType": "DEPENDS_ON",
+                    "relatedSpdxElement": "SPDXRef-Package-vogon-core",
+                },
+            ],
+        })
+        .to_string()
+    }
+
     fn valid_trace_jsonl() -> String {
         [
             serde_json::json!({
@@ -8436,6 +8800,7 @@ jobs:
           cargo run -p vogon-xtask -- check-public-status-docs --root .
           cargo run -p vogon-xtask -- check-package-verification-docs --root .
           python3 scripts/check_live_workflows.py --root .
+          cargo test -p vogon-xtask --locked spdx_sbom_json
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
           cargo test --workspace --all-features --locked
