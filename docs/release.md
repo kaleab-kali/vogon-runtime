@@ -43,7 +43,7 @@ cargo run -p vogon-xtask -- check-ci-workflow --root .
 cargo run -p vogon-xtask -- check-security-workflows --root .
 cargo run -p vogon-xtask -- check-workflow-policies --root .
 cargo +1.85.0 test --workspace --all-features --locked
-cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100 --max-elapsed-ms 10000
 cargo build --release --workspace --all-features --locked
 cargo run --release -p vogon-cli -- doctor --json | cargo run -p vogon-xtask -- check-doctor-json
 cargo run --release -p vogon-cli -- providers --json | cargo run -p vogon-xtask -- check-providers-json

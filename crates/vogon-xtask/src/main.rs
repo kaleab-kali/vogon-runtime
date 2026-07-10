@@ -405,7 +405,7 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ),
     (
         "benchmark output validator",
-        "cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100",
+        "cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100 --max-elapsed-ms 10000",
     ),
     (
         "release build",
@@ -1025,7 +1025,7 @@ fn main() {
         }
         "check-benchmark-output" => {
             let options = parse_benchmark_output_args(args.collect());
-            check_benchmark_output_from_stdin(options.expected_iterations)
+            check_benchmark_output_from_stdin(options.expected_iterations, options.max_elapsed_ms)
         }
         "check-env-example" => {
             let root = parse_root(args.collect());
@@ -1206,6 +1206,7 @@ fn print_usage_and_exit() -> ! {
 
 struct BenchmarkOutputOptions {
     expected_iterations: i64,
+    max_elapsed_ms: Option<f64>,
 }
 
 struct CargoMetadataJsonOptions {
@@ -1306,27 +1307,53 @@ struct LiveWorkflowExpectation {
 }
 
 fn parse_benchmark_output_args(args: Vec<String>) -> BenchmarkOutputOptions {
-    match args.as_slice() {
-        [flag, value] if flag == "--expected-iterations" => {
-            let expected_iterations = value.parse::<i64>().unwrap_or_else(|_| {
-                eprintln!("--expected-iterations must be an integer");
-                std::process::exit(2);
-            });
-            if expected_iterations <= 0 {
-                eprintln!("--expected-iterations must be greater than zero");
-                std::process::exit(2);
+    let mut expected_iterations = None;
+    let mut max_elapsed_ms = None;
+    let mut index = 0;
+    while index < args.len() {
+        let flag = &args[index];
+        let Some(value) = args.get(index + 1) else {
+            print_benchmark_output_usage_and_exit();
+        };
+        match flag.as_str() {
+            "--expected-iterations" if expected_iterations.is_none() => {
+                let parsed = value.parse::<i64>().unwrap_or_else(|_| {
+                    eprintln!("--expected-iterations must be an integer");
+                    std::process::exit(2);
+                });
+                if parsed <= 0 {
+                    eprintln!("--expected-iterations must be greater than zero");
+                    std::process::exit(2);
+                }
+                expected_iterations = Some(parsed);
             }
-            BenchmarkOutputOptions {
-                expected_iterations,
+            "--max-elapsed-ms" if max_elapsed_ms.is_none() => {
+                let parsed = value.parse::<f64>().unwrap_or_else(|_| {
+                    eprintln!("--max-elapsed-ms must be a number");
+                    std::process::exit(2);
+                });
+                if !parsed.is_finite() || parsed <= 0.0 {
+                    eprintln!("--max-elapsed-ms must be a positive finite number");
+                    std::process::exit(2);
+                }
+                max_elapsed_ms = Some(parsed);
             }
+            _ => print_benchmark_output_usage_and_exit(),
         }
-        _ => print_benchmark_output_usage_and_exit(),
+        index += 2;
+    }
+
+    BenchmarkOutputOptions {
+        expected_iterations: expected_iterations.unwrap_or_else(|| {
+            print_benchmark_output_usage_and_exit();
+        }),
+        max_elapsed_ms,
     }
 }
 
 fn print_benchmark_output_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations COUNT"
+        "usage: cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations COUNT [--max-elapsed-ms MILLISECONDS]"
     );
     std::process::exit(2);
 }
@@ -1917,17 +1944,24 @@ fn print_archive_contents_usage_and_exit() -> ! {
     std::process::exit(2);
 }
 
-fn check_benchmark_output_from_stdin(expected_iterations: i64) -> Result<(), Vec<String>> {
+fn check_benchmark_output_from_stdin(
+    expected_iterations: i64,
+    max_elapsed_ms: Option<f64>,
+) -> Result<(), Vec<String>> {
     let mut output = String::new();
     io::stdin().read_to_string(&mut output).map_err(|error| {
         vec![format!(
             "failed to read benchmark output from stdin: {error}"
         )]
     })?;
-    check_benchmark_output(&output, expected_iterations)
+    check_benchmark_output(&output, expected_iterations, max_elapsed_ms)
 }
 
-fn check_benchmark_output(output: &str, expected_iterations: i64) -> Result<(), Vec<String>> {
+fn check_benchmark_output(
+    output: &str,
+    expected_iterations: i64,
+    max_elapsed_ms: Option<f64>,
+) -> Result<(), Vec<String>> {
     let metrics = parse_benchmark_metrics(output);
     let mut errors = Vec::new();
 
@@ -1948,6 +1982,12 @@ fn check_benchmark_output(output: &str, expected_iterations: i64) -> Result<(), 
     if let Some(elapsed_ms) = parse_float_metric(&metrics, "elapsed_ms", &mut errors) {
         if elapsed_ms <= 0.0 {
             errors.push("benchmark elapsed_ms must be greater than zero".to_owned());
+        } else if let Some(max_elapsed_ms) = max_elapsed_ms {
+            if elapsed_ms > max_elapsed_ms {
+                errors.push(format!(
+                    "benchmark elapsed_ms exceeds safety budget: {elapsed_ms} > {max_elapsed_ms}"
+                ));
+            }
         }
     }
 
@@ -6150,7 +6190,7 @@ fn check_workflow_policy_file(root: &Path, path: &Path) -> Vec<String> {
     }
 
     match permissions.entries.get("contents") {
-        Some((level, line_number)) if level == "read" => {}
+        Some((level, _line_number)) if level == "read" => {}
         Some((_level, line_number)) => errors.push(format!(
             "{relative_path}:{line_number}: top-level contents permission must be read"
         )),
@@ -9458,12 +9498,12 @@ and this project follows semantic versioning once the first release is tagged.
         ]
         .join("\n");
 
-        assert_eq!(check_benchmark_output(&output, 100), Ok(()));
+        assert_eq!(check_benchmark_output(&output, 100, Some(10.0)), Ok(()));
     }
 
     #[test]
     fn reports_missing_benchmark_metrics() {
-        let errors = check_benchmark_output("iterations: 100\n", 100).unwrap_err();
+        let errors = check_benchmark_output("iterations: 100\n", 100, None).unwrap_err();
 
         assert_eq!(
             errors,
@@ -9483,7 +9523,7 @@ and this project follows semantic versioning once the first release is tagged.
         ]
         .join("\n");
 
-        let errors = check_benchmark_output(&output, 100).unwrap_err();
+        let errors = check_benchmark_output(&output, 100, None).unwrap_err();
 
         assert_eq!(
             errors,
@@ -9500,7 +9540,7 @@ and this project follows semantic versioning once the first release is tagged.
         ]
         .join("\n");
 
-        let errors = check_benchmark_output(&output, 100).unwrap_err();
+        let errors = check_benchmark_output(&output, 100, None).unwrap_err();
 
         assert_eq!(
             errors,
@@ -9509,6 +9549,23 @@ and this project follows semantic versioning once the first release is tagged.
                 "benchmark elapsed_ms must be greater than zero",
                 "benchmark iterations_per_second must be finite",
             ]
+        );
+    }
+
+    #[test]
+    fn reports_benchmark_elapsed_time_over_safety_budget() {
+        let output = [
+            "iterations: 100",
+            "elapsed_ms: 10001",
+            "iterations_per_second: 9.999",
+        ]
+        .join("\n");
+
+        let errors = check_benchmark_output(&output, 100, Some(10000.0)).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["benchmark elapsed_ms exceeds safety budget: 10001 > 10000"]
         );
     }
 
@@ -11352,7 +11409,7 @@ jobs:
           cargo test --workspace --all-features --locked
           cargo check -p vogon-cli --no-default-features --locked
           cargo bench -p vogon-core --bench runtime --locked -- --iterations 100
-          cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
+          cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100 --max-elapsed-ms 10000
           cargo build --release --workspace --all-features --locked
           ./target/release/vogon doctor --json
           cargo run -p vogon-xtask -- check-doctor-json
