@@ -187,14 +187,17 @@ Pushing a `v*.*.*` tag starts the Release workflow. The workflow:
 - Writes SHA-256 checksum files for each archive.
 - Writes SHA-256 checksum files for the dependency metadata and SBOM.
 - Generates GitHub artifact attestations for each release archive.
+- Downloads the uploaded workflow artifacts and verifies checksums, archive
+  contents, dependency metadata, SBOM contents, and packaged container behavior
+  before publishing the GitHub release.
 - Creates a GitHub release for the tag and uploads both archives with their
   checksum files.
 
 The Release workflow can also be run manually from GitHub Actions to dry-run
 the Linux and Windows artifact builds from a branch. Manual runs upload the
 archives and checksum files as workflow artifacts, but they do not create a
-GitHub release. Manual runs also download the uploaded archives and verify their
-checksum files so artifact download behavior is covered before tag publishing.
+GitHub release. Manual runs also download the uploaded archives and verify the
+same artifact checks without publishing.
 
 ## Verifying Release Downloads
 

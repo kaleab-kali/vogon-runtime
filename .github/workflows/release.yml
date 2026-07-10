@@ -317,7 +317,6 @@ jobs:
 
   release-artifact-smoke:
     name: Release artifact download smoke
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs:
@@ -398,9 +397,7 @@ jobs:
     permissions:
       contents: write
     needs:
-      - linux-cli
-      - windows-cli
-      - container-image
+      - release-artifact-smoke
 
     steps:
       - name: Checkout

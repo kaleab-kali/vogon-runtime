@@ -505,7 +505,7 @@ const REQUIRED_RELEASE_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ("container artifact job", "  container-image:"),
     (
         "release artifact download smoke job",
-        "  release-artifact-smoke:",
+        "  release-artifact-smoke:\n    name: Release artifact download smoke\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image",
     ),
     ("publish release job", "  publish-release:"),
     (
@@ -604,7 +604,7 @@ const REQUIRED_RELEASE_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     ("artifact download", "uses: actions/download-artifact@v8"),
     (
         "publish release checkout",
-        "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false",
+        "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - release-artifact-smoke\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false",
     ),
     ("missing artifact failure", "if-no-files-found: error"),
     ("artifact retention", "retention-days: 30"),
@@ -7432,8 +7432,8 @@ mod tests {
         write_release_workflow(
             &root,
             &release_workflow_text().replace(
-                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false\n",
-                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - linux-cli\n      - windows-cli\n      - container-image\n\n    steps:\n",
+                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - release-artifact-smoke\n\n    steps:\n      - name: Checkout\n        uses: actions/checkout@v7\n        with:\n          persist-credentials: false\n",
+                "  publish-release:\n    name: Publish GitHub release\n    if: github.ref_type == 'tag'\n    runs-on: ubuntu-24.04\n    timeout-minutes: 10\n    permissions:\n      contents: write\n    needs:\n      - release-artifact-smoke\n\n    steps:\n",
             ),
         );
 
