@@ -884,7 +884,7 @@ const REQUIRED_DOCKERIGNORE_ENTRIES: &[&str] = &[
 const REQUIRED_DOCKERFILE_SNIPPETS: &[(&str, &str)] = &[
     (
         "current Rust build image",
-        "FROM rust:1.96.1-bookworm AS build",
+        "FROM rust:1.97.0-bookworm AS build",
     ),
     (
         "cargo incremental builds disabled",
@@ -8424,7 +8424,7 @@ mod tests {
             &dockerfile,
             fs::read_to_string(&dockerfile)
                 .unwrap()
-                .replace("rust:1.96.1-bookworm", "rust")
+                .replace("rust:1.97.0-bookworm", "rust")
                 .replace("debian:bookworm-slim", "debian:latest"),
         )
         .unwrap();
@@ -11837,7 +11837,7 @@ prompt = "Classify this support request."
             [
                 "# syntax=docker/dockerfile:1",
                 "",
-                "FROM rust:1.96.1-bookworm AS build",
+                "FROM rust:1.97.0-bookworm AS build",
                 "",
                 "WORKDIR /workspace",
                 "",
