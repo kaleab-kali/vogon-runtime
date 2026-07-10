@@ -127,17 +127,17 @@ Tagged releases include `vogon-vX.Y.Z-container-image.tar.gz` and a matching
 `.sha256` checksum file. Verify and load the archive before running it:
 
 ```sh
-sha256sum -c vogon-v0.1.1-container-image.tar.gz.sha256
-docker load --input vogon-v0.1.1-container-image.tar.gz
-cargo run -p vogon-xtask -- check-container-image vogon-runtime:v0.1.1 --expected-version v0.1.1 --expected-revision <release-commit-sha>
-docker run --rm vogon-runtime:v0.1.1 --version
-docker run --rm --read-only vogon-runtime:v0.1.1 --version
-docker run --rm --read-only vogon-runtime:v0.1.1 doctor --json | cargo run -p vogon-xtask -- check-doctor-json
+sha256sum -c vogon-v0.1.2-container-image.tar.gz.sha256
+docker load --input vogon-v0.1.2-container-image.tar.gz
+cargo run -p vogon-xtask -- check-container-image vogon-runtime:v0.1.2 --expected-version v0.1.2 --expected-revision <release-commit-sha>
+docker run --rm vogon-runtime:v0.1.2 --version
+docker run --rm --read-only vogon-runtime:v0.1.2 --version
+docker run --rm --read-only vogon-runtime:v0.1.2 doctor --json | cargo run -p vogon-xtask -- check-doctor-json
 mkdir -p target/container-smoke
 chmod 777 target/container-smoke
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.1 init --force --output /work/starter.toml
-docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.1 check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work" vogon-runtime:v0.1.2 init --force --output /work/starter.toml
+docker run --rm --read-only -v "$PWD/target/container-smoke:/work:ro" vogon-runtime:v0.1.2 check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
 ```
 
-Use the real version number in place of `v0.1.1` and the release commit SHA in
+Use the real version number in place of `v0.1.2` and the release commit SHA in
 place of `<release-commit-sha>`.

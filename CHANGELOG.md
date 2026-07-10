@@ -7,6 +7,8 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-10
+
 ### Documentation
 
 - The provider environment example check moved from Python scripts into the
