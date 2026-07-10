@@ -1,6 +1,10 @@
 #[cfg(any(feature = "gemini", feature = "openai-compatible"))]
 use std::time::Duration;
-use std::{fs, io, path::Path, process};
+use std::{
+    env, fs, io,
+    path::{Component, Path, PathBuf},
+    process,
+};
 
 use clap::ValueEnum;
 use vogon_adapters::DeterministicEchoModel;
@@ -90,6 +94,7 @@ pub fn run(
     cache_max_entries: usize,
     model_config: RunModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    reject_overlapping_artifact_paths(output, cache_file)?;
     let workflow = read_toml_workflow(workflow_file)?;
     let redactions = parse_redactions(redaction_values)?;
     let mut cache = load_run_cache(cache_file, cache_max_entries)?;
@@ -495,6 +500,50 @@ fn create_output_parent(output: &Path) -> io::Result<()> {
 
 fn create_cache_parent(cache_file: &Path) -> io::Result<()> {
     create_parent(cache_file, "run cache directory")
+}
+
+fn reject_overlapping_artifact_paths(
+    output: Option<&Path>,
+    cache_file: Option<&Path>,
+) -> io::Result<()> {
+    let (Some(output), Some(cache_file)) = (output, cache_file) else {
+        return Ok(());
+    };
+
+    if comparable_path(output)? == comparable_path(cache_file)? {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "replay output path `{}` and run cache path `{}` must be different",
+                output.display(),
+                cache_file.display()
+            ),
+        ));
+    }
+
+    Ok(())
+}
+
+fn comparable_path(path: &Path) -> io::Result<PathBuf> {
+    let mut normalized = if path.is_absolute() {
+        PathBuf::new()
+    } else {
+        env::current_dir()?
+    };
+
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+            }
+        }
+    }
+
+    Ok(normalized)
 }
 
 fn create_parent(path: &Path, description: &str) -> io::Result<()> {
