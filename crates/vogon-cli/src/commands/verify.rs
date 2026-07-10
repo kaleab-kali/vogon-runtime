@@ -24,7 +24,7 @@ use crate::commands::run::{
     DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_MAX_RETRIES,
     DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, DEFAULT_OPENROUTER_MAX_RETRIES,
-    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider,
+    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider, OpenAiCompatibleConfig,
 };
 use crate::commands::workflow_file::read_toml_workflow;
 
@@ -123,6 +123,7 @@ pub struct VerifyModelConfig<'a> {
     pub openrouter_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
+    pub openai_compatible_no_auth: bool,
     pub openai_compatible_timeout_seconds: u64,
     pub openai_compatible_max_retries: u32,
 }
@@ -144,6 +145,7 @@ struct ResolvedModelConfig {
     openrouter_max_retries: u32,
     openai_compatible_base_url: String,
     openai_compatible_model: String,
+    openai_compatible_no_auth: bool,
     openai_compatible_timeout_seconds: u64,
     openai_compatible_max_retries: u32,
 }
@@ -270,6 +272,13 @@ fn resolve_model_config(
         } else {
             model_config.openai_compatible_model.to_owned()
         },
+        openai_compatible_no_auth: if use_replay_metadata
+            && provider == ModelProvider::OpenAiCompatible
+        {
+            replay_openai_compatible_no_auth(replay, model_config.openai_compatible_no_auth)?
+        } else {
+            model_config.openai_compatible_no_auth
+        },
         openai_compatible_timeout_seconds: if use_replay_metadata
             && provider == ModelProvider::OpenAiCompatible
         {
@@ -289,6 +298,22 @@ fn resolve_model_config(
 
 fn replay_parameter<'a>(replay: &'a RunReport, key: &str) -> Option<&'a str> {
     replay.runtime.parameters.get(key).map(String::as_str)
+}
+
+fn replay_openai_compatible_no_auth(
+    replay: &RunReport,
+    default_no_auth: bool,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    match replay_parameter(replay, "auth_mode") {
+        None => Ok(default_no_auth),
+        Some("none") => Ok(true),
+        Some("bearer") => Ok(false),
+        Some(auth_mode) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("replay auth_mode `{auth_mode}` is not supported"),
+        )
+        .into()),
+    }
 }
 
 fn replay_timeout_seconds(
@@ -388,10 +413,13 @@ fn verify_with_model(
             workflow,
             replay,
             redactions,
-            &model_config.openai_compatible_base_url,
-            &model_config.openai_compatible_model,
-            model_config.openai_compatible_timeout_seconds,
-            model_config.openai_compatible_max_retries,
+            OpenAiCompatibleConfig {
+                base_url: &model_config.openai_compatible_base_url,
+                model: &model_config.openai_compatible_model,
+                no_auth: model_config.openai_compatible_no_auth,
+                timeout_seconds: model_config.openai_compatible_timeout_seconds,
+                max_retries: model_config.openai_compatible_max_retries,
+            },
         ),
     }
 }
@@ -537,20 +565,25 @@ fn verify_with_openai_compatible(
     workflow: &vogon_core::Workflow,
     replay: &RunReport,
     redactions: &RedactionSet,
-    base_url: &str,
-    model: &str,
-    timeout_seconds: u64,
-    max_retries: u32,
+    config: OpenAiCompatibleConfig<'_>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(Runtime::new(
+    let model = if config.no_auth {
+        OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
+            config.base_url,
+            config.model,
+            Duration::from_secs(config.timeout_seconds),
+            config.max_retries,
+        )?
+    } else {
         OpenAiCompatibleModel::from_env_with_base_url_model_timeout_and_retries(
-            base_url,
-            model,
-            Duration::from_secs(timeout_seconds),
-            max_retries,
-        )?,
-    )
-    .verify_with_redactions(workflow, replay, redactions)?)
+            config.base_url,
+            config.model,
+            Duration::from_secs(config.timeout_seconds),
+            config.max_retries,
+        )?
+    };
+
+    Ok(Runtime::new(model).verify_with_redactions(workflow, replay, redactions)?)
 }
 
 #[cfg(not(feature = "openai-compatible"))]
@@ -558,10 +591,7 @@ fn verify_with_openai_compatible(
     _workflow: &vogon_core::Workflow,
     _replay: &RunReport,
     _redactions: &RedactionSet,
-    _base_url: &str,
-    _model: &str,
-    _timeout_seconds: u64,
-    _max_retries: u32,
+    _config: OpenAiCompatibleConfig<'_>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

@@ -129,6 +129,10 @@ enum Commands {
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_MODEL)]
         openai_compatible_model: String,
 
+        /// Omit authentication for an explicitly selected OpenAI-compatible endpoint.
+        #[arg(long)]
+        openai_compatible_no_auth: bool,
+
         /// OpenAI-compatible request timeout in seconds.
         #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
         openai_compatible_timeout_seconds: u64,
@@ -217,6 +221,10 @@ enum Commands {
         /// OpenAI-compatible model name when verifying with an OpenAI-compatible provider.
         #[arg(long, default_value = DEFAULT_OPENAI_COMPATIBLE_MODEL)]
         openai_compatible_model: String,
+
+        /// Omit authentication for an explicitly selected OpenAI-compatible endpoint.
+        #[arg(long)]
+        openai_compatible_no_auth: bool,
 
         /// OpenAI-compatible request timeout in seconds.
         #[arg(long, default_value_t = DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, value_parser = clap::value_parser!(u64).range(1..))]
@@ -319,6 +327,7 @@ fn main() -> ExitCode {
             openrouter_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
+            openai_compatible_no_auth,
             openai_compatible_timeout_seconds,
             openai_compatible_max_retries,
             output,
@@ -348,6 +357,7 @@ fn main() -> ExitCode {
                 openrouter_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
+                openai_compatible_no_auth,
                 openai_compatible_timeout_seconds,
                 openai_compatible_max_retries,
             },
@@ -368,6 +378,7 @@ fn main() -> ExitCode {
             openrouter_max_retries,
             openai_compatible_base_url,
             openai_compatible_model,
+            openai_compatible_no_auth,
             openai_compatible_timeout_seconds,
             openai_compatible_max_retries,
             redactions,
@@ -395,6 +406,7 @@ fn main() -> ExitCode {
                 openrouter_max_retries,
                 openai_compatible_base_url: &openai_compatible_base_url,
                 openai_compatible_model: &openai_compatible_model,
+                openai_compatible_no_auth,
                 openai_compatible_timeout_seconds,
                 openai_compatible_max_retries,
             },

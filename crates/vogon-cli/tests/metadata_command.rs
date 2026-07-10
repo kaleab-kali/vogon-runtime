@@ -399,6 +399,7 @@ fn run_help_documents_replay_options() {
         "--openrouter-max-retries <OPENROUTER_MAX_RETRIES>",
         "--openai-compatible-base-url <OPENAI_COMPATIBLE_BASE_URL>",
         "--openai-compatible-model <OPENAI_COMPATIBLE_MODEL>",
+        "--openai-compatible-no-auth",
         "--openai-compatible-timeout-seconds <OPENAI_COMPATIBLE_TIMEOUT_SECONDS>",
         "--openai-compatible-max-retries <OPENAI_COMPATIBLE_MAX_RETRIES>",
         "--redact <LABEL=VALUE>",

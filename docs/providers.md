@@ -40,6 +40,7 @@ routes:
 | Gemini | Direct Gemini API smoke testing with `GEMINI_API_KEY`. | Google documents a Gemini API free tier for developers and small projects. |
 | Hugging Face | Testing the generic OpenAI-compatible adapter through Hugging Face's routed endpoint. | Hugging Face documents monthly Inference Providers credits for free users and larger credits for paid accounts. |
 | Groq | Low-latency OpenAI-compatible smoke testing with `GROQ_API_KEY`. | Groq publishes free-plan model rate limits and recommends checking account-specific limits in the console. |
+| Ollama | Local OpenAI-compatible execution without a hosted API account. | Ollama documents that its local API requires no authentication; compute and model storage run on the operator's machine. |
 
 Treat these as evaluation paths, not permanent guarantees. Provider terms,
 models, rate limits, regions, and data-use policies can change independently of
@@ -112,6 +113,20 @@ OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-co
 For Hugging Face, set `OPENAI_COMPATIBLE_API_KEY` to a token with permission to
 make Inference Providers calls. For OpenRouter, set it to an OpenRouter API key.
 Do not commit real provider replays containing private prompts or outputs.
+
+For a local service that intentionally requires no authentication, pass
+`--openai-compatible-no-auth` explicitly. Ollama documents an OpenAI-compatible
+endpoint at `http://localhost:11434/v1` and does not require authentication on
+its local API:
+
+```sh
+cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url http://localhost:11434/v1 --openai-compatible-model llama3.2 --openai-compatible-no-auth fixtures/workflows/support-triage.toml
+```
+
+The no-auth choice is recorded as non-secret `auth_mode` runtime metadata and
+in the cache identity, so authenticated and unauthenticated runs cannot share
+cache entries accidentally. Use this mode only for an endpoint you
+intentionally trust; omitting the flag preserves bearer authentication.
 
 OpenAI-compatible requests use a 30 second timeout and retry retryable
 transport/HTTP failures twice by default. Use
@@ -233,6 +248,8 @@ Official references:
 - Groq OpenAI compatibility: <https://console.groq.com/docs/openai>
 - Groq models: <https://console.groq.com/docs/models>
 - Groq rate limits: <https://console.groq.com/docs/rate-limits>
+- Ollama OpenAI compatibility: <https://docs.ollama.com/api/openai-compatibility>
+- Ollama authentication: <https://docs.ollama.com/api/authentication>
 
 ## Candidate Providers
 

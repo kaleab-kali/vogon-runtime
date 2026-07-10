@@ -149,6 +149,17 @@ To run against an OpenAI-compatible chat-completions endpoint, set
 OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible fixtures/workflows/support-triage.toml
 ```
 
+For a local endpoint that intentionally does not require authentication, pass
+`--openai-compatible-no-auth`. For example, Ollama exposes an
+OpenAI-compatible API on its local listener:
+
+```sh
+cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url http://localhost:11434/v1 --openai-compatible-model llama3.2 --openai-compatible-no-auth fixtures/workflows/support-triage.toml
+```
+
+The flag is also available on `vogon verify`. Without it, the CLI continues to
+require `OPENAI_COMPATIBLE_API_KEY` and sends bearer authentication.
+
 The default base URL is `https://router.huggingface.co/v1`, and the default
 model is `openai/gpt-oss-120b:fastest`. Override them for OpenRouter or another
 compatible service:
