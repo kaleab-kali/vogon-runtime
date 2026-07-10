@@ -40,6 +40,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving provider credential examples.
 - The committed secret pattern check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving tracked-file credential scanning.
+- A Rust-first tooling guard now fails CI if long-lived Python scripts or
+  public Python verification commands are reintroduced.
 - README, contributing, pull request, and release verification checklists now
   point at the Rust committed secret scanner instead of removed Python helper
   scripts.
