@@ -12,6 +12,9 @@ and this project follows semantic versioning.
 - `vogon run` and `vogon verify` can explicitly omit authentication for local
   OpenAI-compatible endpoints with `--openai-compatible-no-auth`, while bearer
   authentication remains the default for hosted providers.
+- CI benchmark validation now enforces a loose 10,000 ms safety budget for 100
+  deterministic workflow iterations to catch catastrophic performance
+  regressions without treating runner noise as a failure.
 
 ### Fixed
 

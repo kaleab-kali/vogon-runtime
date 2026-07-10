@@ -26,12 +26,14 @@ changing runtime behavior.
 CI validates the benchmark smoke output shape with:
 
 ```sh
-cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100
+cargo bench -p vogon-core --bench runtime --locked -- --iterations 100 | cargo run -p vogon-xtask -- check-benchmark-output --expected-iterations 100 --max-elapsed-ms 10000
 ```
 
-The validator checks the expected iteration count and requires positive finite
-`elapsed_ms` and `iterations_per_second` values. It intentionally does not set a
-minimum throughput threshold because GitHub-hosted runner performance varies.
+The validator checks the expected iteration count, requires positive finite
+`elapsed_ms` and `iterations_per_second` values, and rejects runs over a loose
+10,000 ms safety budget. This ceiling is intended to catch hangs or catastrophic
+regressions, not small throughput changes; GitHub-hosted runner performance is
+too variable for a tight microbenchmark threshold.
 
 ## Runtime Cache
 
