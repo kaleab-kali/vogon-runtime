@@ -11,9 +11,9 @@ files can still be read as schema version `0`.
   "runtime": {
     "provider": "deterministic",
     "adapter": "deterministic-echo",
-    "adapter_version": "0.1.2",
+    "adapter_version": "0.1.3",
     "model": "deterministic-echo",
-    "cache_identity": "vogon-adapters@0.1.2:deterministic-echo:v1",
+    "cache_identity": "vogon-adapters@0.1.3:deterministic-echo:v1",
     "parameters": {
       "mode": "offline"
     }
