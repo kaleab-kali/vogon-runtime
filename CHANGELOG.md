@@ -55,6 +55,8 @@ and this project follows semantic versioning.
   `vogon-xtask` tool while preserving dependency review and CodeQL guards.
 - The release SHA-256 checksum-file validator moved from Python scripts into
   the Rust `vogon-xtask` tool while preserving artifact digest checks.
+- The SPDX SBOM writer moved from Python scripts into the Rust `vogon-xtask`
+  tool while preserving Cargo metadata package and dependency relationships.
 - The GitHub Actions policy check moved from Python scripts into the Rust
   `vogon-xtask` tool while preserving workflow hardening guards.
 - The benchmark smoke output validator moved from Python scripts into the Rust
