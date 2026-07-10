@@ -540,6 +540,35 @@ fn run_command_rejects_malformed_cache_file() {
 }
 
 #[test]
+fn run_command_rejects_overlapping_output_and_cache_paths() {
+    let fixture = support_triage_workflow();
+    let artifact_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("overlapping-run-artifact.json");
+    remove_file_if_exists(&artifact_file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&artifact_file)
+        .arg("--cache-file")
+        .arg(&artifact_file)
+        .arg(fixture)
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    assert!(!artifact_file.exists());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("replay output path"));
+    assert!(stderr.contains("run cache path"));
+    assert!(stderr.contains("must be different"));
+    assert!(stderr.contains(&artifact_file.display().to_string()));
+}
+
+#[test]
 fn run_command_overwrites_existing_replay_file() {
     let fixture = support_triage_workflow();
     let output_file = repo_root()
