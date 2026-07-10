@@ -8,7 +8,7 @@
 - [ ] `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`
 - [ ] `cargo test --workspace --all-features --locked`
 - [ ] `cargo check -p vogon-cli --no-default-features --locked`
-- [ ] `python -m unittest scripts.test_write_spdx_sbom`
+- [ ] `cargo test -p vogon-xtask --locked spdx_sbom`
 - [ ] `cargo test -p vogon-xtask --locked spdx_sbom_json`
 - [ ] `cargo test -p vogon-xtask --locked container_image`
 - [ ] `cargo test -p vogon-xtask --locked cache_json`

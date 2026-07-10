@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{self, Read as _};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 use toml::Value;
 
 type TomlTable = toml::Table;
@@ -20,6 +21,7 @@ const EXPECTED_ENV_VARS: &[&str] = &[
 ];
 const REPO_OWNER: &str = "kaleab-kali";
 const REPO_NAME: &str = "vogon-runtime";
+const SPDX_SBOM_CREATOR: &str = "Tool: vogon-runtime vogon-xtask write-spdx-sbom";
 const MARKDOWN_SUFFIXES: &[&str] = &["md", "markdown"];
 const BUG_ISSUE_REQUIRED_FIELDS: &[&str] = &[
     "actual",
@@ -516,7 +518,10 @@ const REQUIRED_RELEASE_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
         "cargo metadata --locked --format-version 1",
     ),
     ("dependency metadata validator", "check-cargo-metadata-json"),
-    ("SPDX SBOM writer", "python3 scripts/write_spdx_sbom.py"),
+    (
+        "SPDX SBOM writer",
+        "cargo run -p vogon-xtask -- write-spdx-sbom",
+    ),
     ("SPDX SBOM validator", "check-spdx-sbom-json"),
     ("SHA-256 checksum validator", "check-sha256-file"),
     ("archive contents validator", "check-archive-contents"),
@@ -1131,6 +1136,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_workflow_policies(&root)
         }
+        "write-spdx-sbom" => {
+            let options = parse_write_spdx_sbom_args(args.collect());
+            write_spdx_sbom_file(&options)
+        }
         _ => {
             eprintln!("unknown xtask command `{command}`");
             print_usage_and_exit();
@@ -1167,7 +1176,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-release-workflow|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-release-workflow|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies|write-spdx-sbom> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -1208,6 +1217,14 @@ struct SpdxSbomJsonOptions {
     sbom_file: PathBuf,
     expected_name: Option<String>,
     expected_packages: Vec<String>,
+}
+
+struct WriteSpdxSbomOptions {
+    metadata: PathBuf,
+    output: PathBuf,
+    document_name: String,
+    namespace: String,
+    created: Option<String>,
 }
 
 struct WorkflowJsonOptions {
@@ -1461,6 +1478,83 @@ fn parse_spdx_sbom_json_args(args: Vec<String>) -> SpdxSbomJsonOptions {
 fn print_spdx_sbom_json_usage_and_exit() -> ! {
     eprintln!(
         "usage: cargo run -p vogon-xtask -- check-spdx-sbom-json SBOM_FILE [--expected-name NAME] [--expected-package NAME ...]"
+    );
+    std::process::exit(2);
+}
+
+fn parse_write_spdx_sbom_args(args: Vec<String>) -> WriteSpdxSbomOptions {
+    let mut metadata = None;
+    let mut output = None;
+    let mut document_name = None;
+    let mut namespace = None;
+    let mut created = None;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--metadata" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_write_spdx_sbom_usage_and_exit();
+                };
+                metadata = Some(PathBuf::from(value));
+                index += 2;
+            }
+            "--output" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_write_spdx_sbom_usage_and_exit();
+                };
+                output = Some(PathBuf::from(value));
+                index += 2;
+            }
+            "--document-name" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_write_spdx_sbom_usage_and_exit();
+                };
+                document_name = Some(value.clone());
+                index += 2;
+            }
+            "--namespace" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_write_spdx_sbom_usage_and_exit();
+                };
+                namespace = Some(value.clone());
+                index += 2;
+            }
+            "--created" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_write_spdx_sbom_usage_and_exit();
+                };
+                created = Some(value.clone());
+                index += 2;
+            }
+            _ => print_write_spdx_sbom_usage_and_exit(),
+        }
+    }
+
+    let Some(metadata) = metadata else {
+        print_write_spdx_sbom_usage_and_exit();
+    };
+    let Some(output) = output else {
+        print_write_spdx_sbom_usage_and_exit();
+    };
+    let Some(document_name) = document_name else {
+        print_write_spdx_sbom_usage_and_exit();
+    };
+    let Some(namespace) = namespace else {
+        print_write_spdx_sbom_usage_and_exit();
+    };
+
+    WriteSpdxSbomOptions {
+        metadata,
+        output,
+        document_name,
+        namespace,
+        created,
+    }
+}
+
+fn print_write_spdx_sbom_usage_and_exit() -> ! {
+    eprintln!(
+        "usage: cargo run -p vogon-xtask -- write-spdx-sbom --metadata FILE --output FILE --document-name NAME --namespace URL [--created TIMESTAMP]"
     );
     std::process::exit(2);
 }
@@ -3136,6 +3230,324 @@ fn check_spdx_sbom_json_file(
     )
 }
 
+fn write_spdx_sbom_file(options: &WriteSpdxSbomOptions) -> Result<(), Vec<String>> {
+    let metadata_text = fs::read_to_string(&options.metadata)
+        .map_err(|error| vec![format!("cannot read Cargo metadata JSON: {error}")])?;
+    let metadata: JsonValue = serde_json::from_str(metadata_text.trim_start_matches('\u{feff}'))
+        .map_err(|error| vec![format!("invalid Cargo metadata JSON: {error}")])?;
+    let created = match &options.created {
+        Some(created) => created.clone(),
+        None => created_timestamp().map_err(|error| vec![error])?,
+    };
+    let document = build_spdx_sbom_document(
+        &metadata,
+        &options.document_name,
+        &options.namespace,
+        &created,
+    )?;
+    let output = serde_json::to_string_pretty(&document)
+        .map_err(|error| vec![format!("cannot serialize SPDX SBOM JSON: {error}")])?
+        + "\n";
+    fs::write(&options.output, output)
+        .map_err(|error| vec![format!("cannot write SPDX SBOM JSON: {error}")])
+}
+
+fn build_spdx_sbom_document(
+    metadata: &JsonValue,
+    document_name: &str,
+    namespace: &str,
+    created: &str,
+) -> Result<JsonValue, Vec<String>> {
+    let packages = metadata
+        .get("packages")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| vec!["Cargo metadata packages must be an array".to_owned()])?;
+    let resolve = metadata
+        .get("resolve")
+        .and_then(JsonValue::as_object)
+        .ok_or_else(|| vec!["Cargo metadata resolve must be an object".to_owned()])?;
+
+    let mut packages_by_id = BTreeMap::new();
+    for package in packages {
+        let package_id = cargo_package_string(package, "id")?;
+        packages_by_id.insert(package_id.to_owned(), package);
+    }
+
+    let root_ids = root_package_ids(metadata, resolve)?;
+    let mut root_spdx_ids = Vec::new();
+    for package_id in root_ids {
+        let Some(package) = packages_by_id.get(package_id.as_str()) else {
+            return Err(vec![format!(
+                "Cargo metadata root package `{package_id}` is missing from packages"
+            )]);
+        };
+        root_spdx_ids.push(package_spdx_id(package)?);
+    }
+
+    let mut package_documents = vec![spdx_document_package()];
+    let mut sorted_packages = packages.iter().collect::<Vec<_>>();
+    sorted_packages.sort_by_key(|package| cargo_package_sort_key(package));
+    for package in sorted_packages {
+        package_documents.push(spdx_package_document(package)?);
+    }
+
+    let mut relationships = Vec::new();
+    for root_spdx_id in root_spdx_ids {
+        relationships.push(spdx_relationship(
+            "SPDXRef-DOCUMENT",
+            "DESCRIBES",
+            &root_spdx_id,
+        ));
+        relationships.push(spdx_relationship(
+            "SPDXRef-Package-vogon-runtime-source",
+            "GENERATES",
+            &root_spdx_id,
+        ));
+    }
+
+    let nodes = resolve
+        .get("nodes")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| vec!["Cargo metadata resolve.nodes must be an array".to_owned()])?;
+    let mut sorted_nodes = nodes.iter().collect::<Vec<_>>();
+    sorted_nodes.sort_by_key(|node| node.get("id").and_then(JsonValue::as_str).unwrap_or(""));
+    for node in sorted_nodes {
+        let node_id = cargo_package_string(node, "id")?;
+        let Some(source_package) = packages_by_id.get(node_id) else {
+            return Err(vec![format!(
+                "Cargo metadata resolve node `{node_id}` is missing from packages"
+            )]);
+        };
+        let source = package_spdx_id(source_package)?;
+        let deps = node
+            .get("deps")
+            .and_then(JsonValue::as_array)
+            .ok_or_else(|| {
+                vec![format!(
+                    "Cargo metadata node `{node_id}` deps must be an array"
+                )]
+            })?;
+        let mut dependency_ids = Vec::new();
+        for dependency in deps {
+            dependency_ids.push(cargo_package_string(dependency, "pkg")?.to_owned());
+        }
+        dependency_ids.sort();
+        for dependency_id in dependency_ids {
+            let Some(dependency_package) = packages_by_id.get(dependency_id.as_str()) else {
+                return Err(vec![format!(
+                    "Cargo metadata dependency `{dependency_id}` is missing from packages"
+                )]);
+            };
+            relationships.push(spdx_relationship(
+                &source,
+                "DEPENDS_ON",
+                &package_spdx_id(dependency_package)?,
+            ));
+        }
+    }
+
+    Ok(serde_json::json!({
+        "spdxVersion": "SPDX-2.3",
+        "dataLicense": "CC0-1.0",
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "name": document_name,
+        "documentNamespace": namespace,
+        "creationInfo": {
+            "created": created,
+            "creators": [SPDX_SBOM_CREATOR],
+        },
+        "packages": package_documents,
+        "relationships": relationships,
+    }))
+}
+
+fn spdx_document_package() -> JsonValue {
+    serde_json::json!({
+        "SPDXID": "SPDXRef-Package-vogon-runtime-source",
+        "name": "vogon-runtime-source",
+        "downloadLocation": "git+https://github.com/kaleab-kali/vogon-runtime.git",
+        "filesAnalyzed": false,
+        "licenseConcluded": "NOASSERTION",
+        "licenseDeclared": "NOASSERTION",
+        "copyrightText": "NOASSERTION",
+    })
+}
+
+fn spdx_package_document(package: &JsonValue) -> Result<JsonValue, Vec<String>> {
+    Ok(serde_json::json!({
+        "SPDXID": package_spdx_id(package)?,
+        "name": cargo_package_string(package, "name")?,
+        "versionInfo": cargo_package_string(package, "version")?,
+        "downloadLocation": cargo_package_download_location(package),
+        "filesAnalyzed": false,
+        "licenseConcluded": "NOASSERTION",
+        "licenseDeclared": package.get("license").and_then(JsonValue::as_str).filter(|license| !license.is_empty()).unwrap_or("NOASSERTION"),
+        "copyrightText": "NOASSERTION",
+    }))
+}
+
+fn root_package_ids(
+    metadata: &JsonValue,
+    resolve: &serde_json::Map<String, JsonValue>,
+) -> Result<Vec<String>, Vec<String>> {
+    if let Some(root) = resolve.get("root").and_then(JsonValue::as_str) {
+        return Ok(vec![root.to_owned()]);
+    }
+    let members = metadata
+        .get("workspace_members")
+        .and_then(JsonValue::as_array)
+        .ok_or_else(|| vec!["Cargo metadata workspace_members must be an array".to_owned()])?;
+    let mut ids = Vec::new();
+    for member in members {
+        let Some(member) = member.as_str() else {
+            return Err(vec![
+                "Cargo metadata workspace_members entries must be strings".to_owned(),
+            ]);
+        };
+        ids.push(member.to_owned());
+    }
+    ids.sort();
+    Ok(ids)
+}
+
+fn spdx_relationship(source: &str, relationship_type: &str, target: &str) -> JsonValue {
+    serde_json::json!({
+        "spdxElementId": source,
+        "relationshipType": relationship_type,
+        "relatedSpdxElement": target,
+    })
+}
+
+fn package_spdx_id(package: &JsonValue) -> Result<String, Vec<String>> {
+    let name = sanitize_spdx_ref(cargo_package_string(package, "name")?);
+    let version = sanitize_spdx_ref(cargo_package_string(package, "version")?);
+    let package_id = cargo_package_string(package, "id")?;
+    let digest = Sha256::digest(package_id.as_bytes());
+    Ok(format!(
+        "SPDXRef-Package-{name}-{version}-{}",
+        hex_prefix(&digest, 12)
+    ))
+}
+
+fn sanitize_spdx_ref(value: &str) -> String {
+    let mut sanitized = String::new();
+    let mut previous_dash = false;
+    for character in value.chars() {
+        if character.is_ascii_alphanumeric() || character == '.' {
+            sanitized.push(character);
+            previous_dash = false;
+        } else if !previous_dash && !sanitized.is_empty() {
+            sanitized.push('-');
+            previous_dash = true;
+        }
+    }
+    while sanitized.ends_with('-') {
+        sanitized.pop();
+    }
+    if sanitized.is_empty() {
+        "unknown".to_owned()
+    } else {
+        sanitized
+    }
+}
+
+fn hex_prefix(bytes: &[u8], length: usize) -> String {
+    let mut encoded = String::new();
+    for byte in bytes {
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+        if encoded.len() >= length {
+            encoded.truncate(length);
+            break;
+        }
+    }
+    encoded
+}
+
+fn cargo_package_download_location(package: &JsonValue) -> String {
+    if let Some(source) = package.get("source").and_then(JsonValue::as_str) {
+        if let Some(stripped) = source.strip_prefix("registry+") {
+            return stripped.to_owned();
+        }
+        return source.to_owned();
+    }
+    if let Some(manifest_path) = package.get("manifest_path").and_then(JsonValue::as_str) {
+        return format!("file://{manifest_path}");
+    }
+    "NOASSERTION".to_owned()
+}
+
+fn cargo_package_string<'a>(package: &'a JsonValue, field: &str) -> Result<&'a str, Vec<String>> {
+    package
+        .get(field)
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| {
+            vec![format!(
+                "Cargo metadata package field `{field}` must be a string"
+            )]
+        })
+}
+
+fn cargo_package_sort_key(package: &JsonValue) -> (String, String, String) {
+    (
+        package
+            .get("name")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("")
+            .to_owned(),
+        package
+            .get("version")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("")
+            .to_owned(),
+        package
+            .get("id")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("")
+            .to_owned(),
+    )
+}
+
+fn created_timestamp() -> Result<String, String> {
+    if let Ok(source_date_epoch) = env::var("SOURCE_DATE_EPOCH") {
+        let seconds = source_date_epoch
+            .parse::<i64>()
+            .map_err(|error| format!("invalid SOURCE_DATE_EPOCH `{source_date_epoch}`: {error}"))?;
+        return Ok(format_unix_timestamp(seconds));
+    }
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| format!("system clock is before UNIX_EPOCH: {error}"))?
+        .as_secs() as i64;
+    Ok(format_unix_timestamp(seconds))
+}
+
+fn format_unix_timestamp(seconds: i64) -> String {
+    let days = seconds.div_euclid(86_400);
+    let second_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    let hour = second_of_day / 3_600;
+    let minute = (second_of_day % 3_600) / 60;
+    let second = second_of_day % 60;
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+}
+
+fn civil_from_days(days: i64) -> (i64, i64, i64) {
+    let days = days + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let day_of_era = days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    if month <= 2 {
+        year += 1;
+    }
+    (year, month, day)
+}
+
 fn check_spdx_sbom_json(
     output: &str,
     expected_name: Option<&str>,
@@ -3192,9 +3604,9 @@ fn check_spdx_sbom_json(
                 .get("creators")
                 .and_then(JsonValue::as_array)
                 .is_some_and(|creators| {
-                    creators.iter().any(|creator| {
-                        creator.as_str() == Some("Tool: vogon-runtime scripts/write_spdx_sbom.py")
-                    })
+                    creators
+                        .iter()
+                        .any(|creator| creator.as_str() == Some(SPDX_SBOM_CREATOR))
                 });
             if !has_creator {
                 errors.push("SPDX SBOM creators must include the Vogon SBOM writer".to_owned());
@@ -6802,8 +7214,8 @@ mod tests {
         write_release_workflow(
             &root,
             &release_workflow_text().replace(
-                "python3 scripts/write_spdx_sbom.py",
-                "python3 scripts/write_other_sbom.py",
+                "cargo run -p vogon-xtask -- write-spdx-sbom",
+                "cargo run -p vogon-xtask -- write-other-sbom",
             ),
         );
 
@@ -9797,6 +10209,83 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn writes_spdx_sbom_document_from_cargo_metadata() {
+        let metadata = spdx_cargo_metadata();
+
+        let document = build_spdx_sbom_document(
+            &metadata,
+            "vogon-runtime test",
+            "https://github.com/kaleab-kali/vogon-runtime/releases/test",
+            "2026-06-21T00:00:00Z",
+        )
+        .unwrap();
+
+        assert_eq!(document["spdxVersion"], "SPDX-2.3");
+        assert_eq!(document["dataLicense"], "CC0-1.0");
+        assert_eq!(document["creationInfo"]["creators"][0], SPDX_SBOM_CREATOR);
+
+        let packages = document["packages"].as_array().unwrap();
+        let package_ids = packages
+            .iter()
+            .map(|package| package["SPDXID"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        let core_id = package_spdx_id(&metadata["packages"][0]).unwrap();
+        let serde_id = package_spdx_id(&metadata["packages"][1]).unwrap();
+        assert!(package_ids.contains(core_id.as_str()));
+        assert!(package_ids.contains(serde_id.as_str()));
+
+        let serde_package = packages
+            .iter()
+            .find(|package| package["SPDXID"] == serde_id)
+            .unwrap();
+        assert_eq!(
+            serde_package["downloadLocation"],
+            "https://github.com/rust-lang/crates.io-index"
+        );
+        assert!(
+            document["relationships"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!({
+                    "spdxElementId": core_id,
+                    "relationshipType": "DEPENDS_ON",
+                    "relatedSpdxElement": serde_id,
+                }))
+        );
+    }
+
+    #[test]
+    fn write_spdx_sbom_command_writes_pretty_json_document() {
+        let root = temp_root("write-spdx-sbom-command");
+        let metadata_file = root.join("metadata.json");
+        let output_file = root.join("sbom.spdx.json");
+        fs::write(&metadata_file, spdx_cargo_metadata().to_string()).unwrap();
+
+        let result = write_spdx_sbom_file(&WriteSpdxSbomOptions {
+            metadata: metadata_file,
+            output: output_file.clone(),
+            document_name: "vogon-runtime test".to_owned(),
+            namespace: "https://github.com/kaleab-kali/vogon-runtime/releases/test".to_owned(),
+            created: Some("2026-06-21T00:00:00Z".to_owned()),
+        });
+
+        assert_eq!(result, Ok(()));
+        let written = fs::read_to_string(&output_file).unwrap();
+        assert!(written.ends_with('\n'));
+        let written: JsonValue = serde_json::from_str(&written).unwrap();
+        assert_eq!(written["name"], "vogon-runtime test");
+        assert_eq!(written["creationInfo"]["created"], "2026-06-21T00:00:00Z");
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn formats_unix_timestamp_as_utc_spdx_timestamp() {
+        assert_eq!(format_unix_timestamp(0), "1970-01-01T00:00:00Z");
+        assert_eq!(format_unix_timestamp(1_782_000_000), "2026-06-21T00:00:00Z");
+    }
+
+    #[test]
     fn reports_invalid_spdx_sbom_json() {
         let errors = check_spdx_sbom_json("{", None, &[]).unwrap_err();
 
@@ -10455,7 +10944,7 @@ jobs:
             "name": "vogon-runtime v0.1.0",
             "documentNamespace": "https://github.com/kaleab-kali/vogon-runtime/releases/v0.1.0/sbom/1",
             "creationInfo": {
-                "creators": ["Tool: vogon-runtime scripts/write_spdx_sbom.py"],
+                "creators": [SPDX_SBOM_CREATOR],
             },
             "packages": [
                 {
@@ -10483,6 +10972,47 @@ jobs:
             ],
         })
         .to_string()
+    }
+
+    fn spdx_cargo_metadata() -> JsonValue {
+        serde_json::json!({
+            "packages": [
+                {
+                    "id": "path+file:///repo/crates/vogon-core#0.1.0",
+                    "name": "vogon-core",
+                    "version": "0.1.0",
+                    "license": "MIT",
+                    "manifest_path": "/repo/crates/vogon-core/Cargo.toml",
+                    "source": null,
+                },
+                {
+                    "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.0",
+                    "name": "serde",
+                    "version": "1.0.0",
+                    "license": "MIT OR Apache-2.0",
+                    "manifest_path": "/cargo/registry/serde/Cargo.toml",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index",
+                },
+            ],
+            "workspace_members": ["path+file:///repo/crates/vogon-core#0.1.0"],
+            "resolve": {
+                "root": null,
+                "nodes": [
+                    {
+                        "id": "path+file:///repo/crates/vogon-core#0.1.0",
+                        "deps": [
+                            {
+                                "pkg": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.0"
+                            }
+                        ],
+                    },
+                    {
+                        "id": "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.0",
+                        "deps": [],
+                    },
+                ],
+            },
+        })
     }
 
     fn default_expected_container_labels() -> Vec<(&'static str, String)> {

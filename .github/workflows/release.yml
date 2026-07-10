@@ -88,7 +88,7 @@ jobs:
 
       - name: Write SPDX SBOM
         run: |
-          python3 scripts/write_spdx_sbom.py \
+          cargo run -p vogon-xtask -- write-spdx-sbom \
             --metadata "vogon-${{ github.ref_name }}-cargo-metadata.json" \
             --output "vogon-${{ github.ref_name }}-cargo-spdx.json" \
             --document-name "vogon-runtime ${{ github.ref_name }}" \
