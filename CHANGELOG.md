@@ -7,6 +7,12 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Replay and run-cache writes now reserve collision-free temporary files and
+  sync their contents before replacement, preventing stale or concurrent temp
+  files from corrupting persisted artifacts.
+
 ## [0.1.3] - 2026-07-10
 
 ### Changed

@@ -1,7 +1,9 @@
 #[cfg(any(feature = "gemini", feature = "openai-compatible"))]
 use std::time::Duration;
 use std::{
-    env, fs, io,
+    env,
+    fs::{self, OpenOptions},
+    io::{self, Write},
     path::{Component, Path, PathBuf},
     process,
 };
@@ -566,30 +568,95 @@ fn create_parent(path: &Path, description: &str) -> io::Result<()> {
 }
 
 fn write_replay_file(output: &Path, replay_json: &str) -> io::Result<()> {
-    let temp_output = temp_output_path(output)?;
-    fs::write(&temp_output, replay_json)?;
+    let (temp_output, mut temp_file) = create_temp_output(output)?;
+    let write_result = temp_file
+        .write_all(replay_json.as_bytes())
+        .and_then(|()| temp_file.sync_all());
+    drop(temp_file);
 
-    match fs::rename(&temp_output, output) {
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temp_output);
+        return Err(error);
+    }
+
+    let rename_result = match fs::rename(&temp_output, output) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-            fs::remove_file(output)?;
-            fs::rename(&temp_output, output)
+            fs::remove_file(output).and_then(|()| fs::rename(&temp_output, output))
         }
-        Err(error) => {
-            let _ = fs::remove_file(&temp_output);
-            Err(error)
-        }
+        Err(error) => Err(error),
+    };
+
+    if rename_result.is_err() {
+        let _ = fs::remove_file(&temp_output);
     }
+
+    rename_result
 }
 
-fn temp_output_path(output: &Path) -> io::Result<std::path::PathBuf> {
+fn create_temp_output(output: &Path) -> io::Result<(PathBuf, fs::File)> {
+    for attempt in 0..100 {
+        let temp_output = temp_output_path(output, attempt)?;
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_output)
+        {
+            Ok(file) => return Ok((temp_output, file)),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        format!(
+            "failed to reserve a temporary file for `{}` after 100 attempts",
+            output.display()
+        ),
+    ))
+}
+
+fn temp_output_path(output: &Path, attempt: u32) -> io::Result<PathBuf> {
     let file_name = output.file_name().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
             format!("output path `{}` has no file name", output.display()),
         )
     })?;
-    let temp_file_name = format!(".{}.{}.tmp", file_name.to_string_lossy(), process::id());
+    let temp_file_name = format!(
+        ".{}.{}.{}.tmp",
+        file_name.to_string_lossy(),
+        process::id(),
+        attempt
+    );
 
     Ok(output.with_file_name(temp_file_name))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+
+    #[test]
+    fn artifact_write_preserves_stale_temp_file_and_uses_another_candidate() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should follow Unix epoch")
+            .as_nanos();
+        let root = env::temp_dir().join(format!("vogon-run-artifact-{}-{unique}", process::id()));
+        fs::create_dir(&root).expect("test directory should be created");
+        let output = root.join("replay.json");
+        let stale_temp = temp_output_path(&output, 0).expect("temporary path should be valid");
+        fs::write(&stale_temp, "stale run").expect("stale temporary file should be written");
+
+        write_replay_file(&output, "new replay\n").expect("artifact write should succeed");
+
+        assert_eq!(fs::read_to_string(&output).unwrap(), "new replay\n");
+        assert_eq!(fs::read_to_string(&stale_temp).unwrap(), "stale run");
+        assert!(!temp_output_path(&output, 1).unwrap().exists());
+        fs::remove_dir_all(root).expect("test directory should be removed");
+    }
 }
