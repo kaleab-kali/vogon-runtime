@@ -7,6 +7,12 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- `vogon run` and `vogon verify` can explicitly omit authentication for local
+  OpenAI-compatible endpoints with `--openai-compatible-no-auth`, while bearer
+  authentication remains the default for hosted providers.
+
 ### Fixed
 
 - Replay and run-cache writes now reserve collision-free temporary files and

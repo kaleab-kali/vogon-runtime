@@ -23,7 +23,7 @@ const MAX_OPENAI_COMPATIBLE_ERROR_BODY_BYTES: usize =
 #[derive(Clone)]
 /// Adapter for OpenAI-compatible chat-completions APIs.
 pub struct OpenAiCompatibleModel {
-    api_key: String,
+    api_key: Option<String>,
     base_url: String,
     model: String,
     timeout: Duration,
@@ -83,14 +83,36 @@ impl OpenAiCompatibleModel {
         max_retries: u32,
     ) -> Result<Self> {
         let api_key = api_key.into();
-        let base_url = base_url.into();
-        let model = model.into();
-
         if api_key.trim().is_empty() {
             return Err(VogonError::Adapter(
                 "OpenAI-compatible API key must not be empty".to_owned(),
             ));
         }
+
+        Self::with_optional_api_key(Some(api_key), base_url, model, timeout, max_retries)
+    }
+
+    /// Creates an unauthenticated adapter for a specific base URL and model.
+    ///
+    /// This is intended for explicitly selected local endpoints such as Ollama.
+    pub fn without_authentication_with_base_url_model_timeout_and_retries(
+        base_url: impl Into<String>,
+        model: impl Into<String>,
+        timeout: Duration,
+        max_retries: u32,
+    ) -> Result<Self> {
+        Self::with_optional_api_key(None, base_url, model, timeout, max_retries)
+    }
+
+    fn with_optional_api_key(
+        api_key: Option<String>,
+        base_url: impl Into<String>,
+        model: impl Into<String>,
+        timeout: Duration,
+        max_retries: u32,
+    ) -> Result<Self> {
+        let base_url = base_url.into();
+        let model = model.into();
 
         if base_url.trim().is_empty() {
             return Err(VogonError::Adapter(
@@ -162,7 +184,7 @@ impl fmt::Debug for OpenAiCompatibleModel {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("OpenAiCompatibleModel")
-            .field("api_key", &"<redacted>")
+            .field("api_key", &self.api_key.as_ref().map(|_| "<redacted>"))
             .field("base_url", &self.base_url)
             .field("model", &self.model)
             .field("timeout", &self.timeout)
@@ -186,26 +208,32 @@ impl ModelAdapter for OpenAiCompatibleModel {
         let mut retry_attempt = 0;
 
         let mut response = loop {
-            match self
+            let request = self
                 .agent
                 .post(&self.chat_completions_url())
-                .header("Authorization", &format!("Bearer {}", self.api_key))
-                .header("Content-Type", "application/json")
-                .send(request_json.as_str())
-            {
+                .header("Content-Type", "application/json");
+            let request = if let Some(api_key) = self.api_key.as_deref() {
+                request.header("Authorization", &format!("Bearer {api_key}"))
+            } else {
+                request
+            };
+
+            match request.send(request_json.as_str()) {
                 Ok(response) if response.status().is_success() => break response,
                 Ok(response) if retries_remaining > 0 && is_retryable_status(response.status()) => {
                     sleep_before_retry(retry_attempt);
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
-                Ok(response) => return Err(http_status_error(response, &self.api_key)),
+                Ok(response) => {
+                    return Err(http_status_error(response, self.api_key.as_deref()));
+                }
                 Err(error) if retries_remaining > 0 && is_retryable_error(&error) => {
                     sleep_before_retry(retry_attempt);
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
-                Err(error) => return Err(http_error(error, &self.api_key)),
+                Err(error) => return Err(http_error(error, self.api_key.as_deref())),
             }
         };
         let response_body = response
@@ -224,10 +252,11 @@ impl ModelAdapter for OpenAiCompatibleModel {
 
     fn cache_identity(&self) -> String {
         format!(
-            "vogon-adapters@{}:openai-compatible:v1:base={}:model={}:timeout_nanos={}:max_retries={}",
+            "vogon-adapters@{}:openai-compatible:v2:base={}:model={}:auth={}:timeout_nanos={}:max_retries={}",
             env!("CARGO_PKG_VERSION"),
             self.base_url.trim_end_matches('/'),
             self.model,
+            self.auth_mode(),
             self.timeout.as_nanos(),
             self.max_retries
         )
@@ -242,8 +271,19 @@ impl ModelAdapter for OpenAiCompatibleModel {
         )
         .with_model(self.model.clone())
         .with_parameter("base_url", self.base_url.trim_end_matches('/'))
+        .with_parameter("auth_mode", self.auth_mode())
         .with_parameter("timeout_nanos", self.timeout.as_nanos().to_string())
         .with_parameter("max_retries", self.max_retries.to_string())
+    }
+}
+
+impl OpenAiCompatibleModel {
+    fn auth_mode(&self) -> &'static str {
+        if self.api_key.is_some() {
+            "bearer"
+        } else {
+            "none"
+        }
     }
 }
 
@@ -294,7 +334,10 @@ fn extract_text(response: &ChatCompletionsResponse) -> Option<String> {
         .map(str::to_owned)
 }
 
-fn http_status_error(mut response: ureq::http::Response<ureq::Body>, api_key: &str) -> VogonError {
+fn http_status_error(
+    mut response: ureq::http::Response<ureq::Body>,
+    api_key: Option<&str>,
+) -> VogonError {
     let status = response.status();
     let body = redact_api_key(
         truncate_error_body(read_error_body(response.body_mut())),
@@ -305,7 +348,7 @@ fn http_status_error(mut response: ureq::http::Response<ureq::Body>, api_key: &s
     ))
 }
 
-fn http_error(error: ureq::Error, api_key: &str) -> VogonError {
+fn http_error(error: ureq::Error, api_key: Option<&str>) -> VogonError {
     let message = redact_api_key(
         format!("OpenAI-compatible API request failed: {error}"),
         api_key,
@@ -313,11 +356,11 @@ fn http_error(error: ureq::Error, api_key: &str) -> VogonError {
     VogonError::Adapter(message)
 }
 
-fn redact_api_key(message: String, api_key: &str) -> String {
-    if api_key.is_empty() {
-        return message;
+fn redact_api_key(message: String, api_key: Option<&str>) -> String {
+    match api_key {
+        Some(api_key) => message.replace(api_key, "<redacted>"),
+        None => message,
     }
-    message.replace(api_key, "<redacted>")
 }
 
 fn truncate_error_body(body: String) -> String {
@@ -417,7 +460,50 @@ mod tests {
             metadata.parameters.get("max_retries").map(String::as_str),
             Some("1")
         );
+        assert_eq!(
+            metadata.parameters.get("auth_mode").map(String::as_str),
+            Some("bearer")
+        );
         assert!(!metadata.cache_identity.contains("secret-key"));
+    }
+
+    #[test]
+    fn unauthenticated_model_omits_authorization_header_and_records_auth_mode() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_http_request(&mut stream);
+            let body = r#"{"choices":[{"message":{"content":"local response"}}]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+            request
+        });
+        let model =
+            OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
+                format!("http://{address}"),
+                "local/model",
+                Duration::from_secs(5),
+                0,
+            )
+            .unwrap();
+        let step = Step::new(StepId::new("classify").unwrap(), "Classify");
+
+        let output = model.complete(&step, "input").unwrap();
+        let request = String::from_utf8(server.join().unwrap()).unwrap();
+        let metadata = model.runtime_metadata();
+
+        assert_eq!(output, "local response");
+        assert!(!request.to_ascii_lowercase().contains("\r\nauthorization:"));
+        assert!(model.cache_identity().contains(":auth=none:"));
+        assert_eq!(
+            metadata.parameters.get("auth_mode").map(String::as_str),
+            Some("none")
+        );
     }
 
     #[test]
@@ -646,7 +732,7 @@ mod tests {
         assert!(!error.contains("tail"));
     }
 
-    fn read_http_request(stream: &mut TcpStream) {
+    fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
         let mut buffer = Vec::new();
         let mut chunk = [0; 1024];
 
@@ -665,6 +751,8 @@ mod tests {
                 break;
             }
         }
+
+        buffer
     }
 
     fn find_header_end(buffer: &[u8]) -> Option<usize> {

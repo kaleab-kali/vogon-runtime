@@ -171,8 +171,18 @@ pub struct RunModelConfig<'a> {
     pub openrouter_max_retries: u32,
     pub openai_compatible_base_url: &'a str,
     pub openai_compatible_model: &'a str,
+    pub openai_compatible_no_auth: bool,
     pub openai_compatible_timeout_seconds: u64,
     pub openai_compatible_max_retries: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct OpenAiCompatibleConfig<'a> {
+    pub base_url: &'a str,
+    pub model: &'a str,
+    pub no_auth: bool,
+    pub timeout_seconds: u64,
+    pub max_retries: u32,
 }
 
 fn run_with_model(
@@ -220,10 +230,13 @@ fn run_with_model(
         ModelProvider::OpenAiCompatible => run_with_openai_compatible(
             workflow,
             redactions,
-            model_config.openai_compatible_base_url,
-            model_config.openai_compatible_model,
-            model_config.openai_compatible_timeout_seconds,
-            model_config.openai_compatible_max_retries,
+            OpenAiCompatibleConfig {
+                base_url: model_config.openai_compatible_base_url,
+                model: model_config.openai_compatible_model,
+                no_auth: model_config.openai_compatible_no_auth,
+                timeout_seconds: model_config.openai_compatible_timeout_seconds,
+                max_retries: model_config.openai_compatible_max_retries,
+            },
             cache,
         ),
     }
@@ -397,33 +410,33 @@ fn run_with_openrouter(
 fn run_with_openai_compatible(
     workflow: &vogon_core::Workflow,
     redactions: &RedactionSet,
-    base_url: &str,
-    model: &str,
-    timeout_seconds: u64,
-    max_retries: u32,
+    config: OpenAiCompatibleConfig<'_>,
     cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
-    run_with_adapter(
+    let model = if config.no_auth {
+        OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
+            config.base_url,
+            config.model,
+            Duration::from_secs(config.timeout_seconds),
+            config.max_retries,
+        )?
+    } else {
         OpenAiCompatibleModel::from_env_with_base_url_model_timeout_and_retries(
-            base_url,
-            model,
-            Duration::from_secs(timeout_seconds),
-            max_retries,
-        )?,
-        workflow,
-        redactions,
-        cache,
-    )
+            config.base_url,
+            config.model,
+            Duration::from_secs(config.timeout_seconds),
+            config.max_retries,
+        )?
+    };
+
+    run_with_adapter(model, workflow, redactions, cache)
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn run_with_openai_compatible(
     _workflow: &vogon_core::Workflow,
     _redactions: &RedactionSet,
-    _base_url: &str,
-    _model: &str,
-    _timeout_seconds: u64,
-    _max_retries: u32,
+    _config: OpenAiCompatibleConfig<'_>,
     _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(

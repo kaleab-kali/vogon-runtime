@@ -1,7 +1,10 @@
 use std::{
     fs,
+    io::{Read, Write},
+    net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::Command,
+    thread,
 };
 
 fn support_triage_workflow() -> PathBuf {
@@ -207,6 +210,86 @@ fn run_command_reports_missing_openai_compatible_api_key() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("OPENAI_COMPATIBLE_API_KEY must be set"));
+}
+
+#[test]
+fn run_and_verify_support_unauthenticated_openai_compatible_endpoint() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        let mut requests = Vec::new();
+        for _ in 0..4 {
+            let (mut stream, _) = listener.accept().unwrap();
+            requests.push(read_http_request(&mut stream));
+            let body = r#"{"choices":[{"message":{"content":"local response"}}]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        }
+        requests
+    });
+    let fixture = support_triage_workflow();
+    let replay_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("unauthenticated-openai-compatible.replay.json");
+    remove_file_if_exists(&replay_file);
+    let base_url = format!("http://{address}");
+
+    let run = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-base-url")
+        .arg(&base_url)
+        .arg("--openai-compatible-model")
+        .arg("local/model")
+        .arg("--openai-compatible-no-auth")
+        .arg("--openai-compatible-max-retries")
+        .arg("0")
+        .arg("--output")
+        .arg(&replay_file)
+        .arg(&fixture)
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+    assert!(
+        run.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+
+    let verify = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(&fixture)
+        .arg(&replay_file)
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("verify command should execute");
+    assert!(
+        verify.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&verify.stderr)
+    );
+
+    let requests = server.join().unwrap();
+    let replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_file).unwrap()).unwrap();
+    assert_eq!(replay["runtime"]["parameters"]["auth_mode"], "none");
+    assert!(
+        replay["runtime"]["cache_identity"]
+            .as_str()
+            .unwrap()
+            .contains(":auth=none:")
+    );
+    assert!(requests.iter().all(|request| {
+        !String::from_utf8_lossy(request)
+            .to_ascii_lowercase()
+            .contains("\r\nauthorization:")
+    }));
 }
 
 #[test]
@@ -628,6 +711,37 @@ fn run_command_reports_output_parent_errors() {
         stderr.contains(&blocked_parent.display().to_string()),
         "stderr: {stderr}"
     );
+}
+
+fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
+    let mut buffer = Vec::new();
+    let mut chunk = [0; 1024];
+
+    loop {
+        let bytes_read = stream.read(&mut chunk).unwrap();
+        if bytes_read == 0 {
+            break;
+        }
+        buffer.extend_from_slice(&chunk[..bytes_read]);
+
+        let Some(header_end) = buffer.windows(4).position(|window| window == b"\r\n\r\n") else {
+            continue;
+        };
+        let content_length = String::from_utf8_lossy(&buffer[..header_end])
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
+            .unwrap_or(0);
+        if buffer.len() >= header_end + 4 + content_length {
+            break;
+        }
+    }
+
+    buffer
 }
 
 #[test]

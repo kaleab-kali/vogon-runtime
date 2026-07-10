@@ -105,6 +105,17 @@ Run a workflow with an OpenAI-compatible chat-completions endpoint:
 OPENAI_COMPATIBLE_API_KEY=... cargo run -p vogon-cli -- run --provider openai-compatible fixtures/workflows/support-triage.toml
 ```
 
+Run against a local Ollama OpenAI-compatible endpoint without creating a fake
+credential:
+
+```sh
+cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url http://localhost:11434/v1 --openai-compatible-model llama3.2 --openai-compatible-no-auth fixtures/workflows/support-triage.toml
+```
+
+Use no-auth mode only for an endpoint you intentionally trust. Authenticated
+OpenAI-compatible services still require `OPENAI_COMPATIBLE_API_KEY` by
+default.
+
 Run a workflow with Groq's OpenAI-compatible endpoint:
 
 ```sh
