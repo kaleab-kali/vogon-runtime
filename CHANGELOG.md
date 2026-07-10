@@ -7,6 +7,20 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-10
+
+### Changed
+
+- The release workflow now requires the packaged artifact smoke tests to pass
+  before publishing a GitHub release.
+- The container build image now uses Rust 1.97.0 on Debian Bookworm, with the
+  Rust container policy check enforcing the same pinned toolchain.
+
+### Fixed
+
+- `vogon run` now rejects equivalent `--output` and `--cache-file` paths before
+  workflow execution, preventing one artifact from overwriting the other.
+
 ## [0.1.2] - 2026-07-10
 
 ### Documentation
