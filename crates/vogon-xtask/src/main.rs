@@ -23,6 +23,21 @@ const REPO_OWNER: &str = "kaleab-kali";
 const REPO_NAME: &str = "vogon-runtime";
 const SPDX_SBOM_CREATOR: &str = "Tool: vogon-runtime vogon-xtask write-spdx-sbom";
 const MARKDOWN_SUFFIXES: &[&str] = &["md", "markdown"];
+const RUST_FIRST_PUBLIC_TEXT_FILES: &[&str] = &[
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs/release.md",
+    ".github/pull_request_template.md",
+    ".github/workflows/ci.yml",
+    ".github/workflows/release.yml",
+];
+const RUST_FIRST_GENERATED_DIRS: &[&str] = &[".agents", ".codex", ".git", "__pycache__", "target"];
+const RUST_FIRST_PYTHON_COMMAND_PATTERNS: &[&str] = &[
+    "python scripts/",
+    "python3 scripts/",
+    "python -m unittest scripts",
+    "python3 -m unittest scripts",
+];
 const BUG_ISSUE_REQUIRED_FIELDS: &[&str] = &[
     "actual",
     "checks",
@@ -302,6 +317,10 @@ const REQUIRED_CI_WORKFLOW_SNIPPETS: &[(&str, &str)] = &[
     (
         "committed secret validator",
         "cargo run -p vogon-xtask -- check-secrets --root .",
+    ),
+    (
+        "Rust-first tooling validator",
+        "cargo run -p vogon-xtask -- check-rust-first-tooling --root .",
     ),
     (
         "release workflow validator",
@@ -1112,6 +1131,10 @@ fn main() {
             let root = parse_root(args.collect());
             check_release_workflow(&root)
         }
+        "check-rust-first-tooling" => {
+            let root = parse_root(args.collect());
+            check_rust_first_tooling(&root)
+        }
         "check-schema-files" => {
             let root = parse_root(args.collect());
             check_schema_files(&root)
@@ -1176,7 +1199,7 @@ fn ensure_no_args(args: Vec<String>) {
 
 fn print_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-release-workflow|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies|write-spdx-sbom> [--root PATH]"
+        "usage: cargo run -p vogon-xtask -- <check-archive-contents|check-benchmark-output|check-cache-json|check-cargo-manifests|check-cargo-metadata-json|check-ci-workflow|check-changelog|check-container-image|check-container-policy|check-dependabot-config|check-docs-links|check-issue-templates|check-contributing-checklist|check-deployment-checklist|check-deployment-docs|check-doctor-json|check-env-example|check-live-replay|check-live-workflows|check-package-verification-docs|check-pr-template|check-providers-json|check-public-status-docs|check-release-checklist|check-release-workflow|check-rust-first-tooling|check-schema-files|check-security-workflows|check-secrets|check-sha256-file|check-spdx-sbom-json|check-trace-jsonl|check-verify-json|check-workflow-json|check-workflow-policies|write-spdx-sbom> [--root PATH]"
     );
     std::process::exit(2);
 }
@@ -5935,6 +5958,78 @@ fn check_release_workflow(root: &Path) -> Result<(), Vec<String>> {
     }
 }
 
+fn check_rust_first_tooling(root: &Path) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+    collect_python_files(root, root, &mut errors);
+
+    for relative_path in RUST_FIRST_PUBLIC_TEXT_FILES {
+        let path = root.join(relative_path);
+        if !path.is_file() {
+            errors.push(format!("{relative_path}: missing public check surface"));
+            continue;
+        }
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(error) => {
+                errors.push(format!("{relative_path}: cannot read file: {error}"));
+                continue;
+            }
+        };
+        for (line_index, line) in text.lines().enumerate() {
+            for pattern in RUST_FIRST_PYTHON_COMMAND_PATTERNS {
+                if line.contains(pattern) {
+                    errors.push(format!(
+                        "{relative_path}:{}: Python script command `{pattern}` should use Rust xtask tooling",
+                        line_index + 1
+                    ));
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn collect_python_files(root: &Path, dir: &Path, errors: &mut Vec<String>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        errors.push(format!(
+            "{}: cannot read directory",
+            relative_display(root, dir)
+        ));
+        return;
+    };
+
+    for entry in entries {
+        let Ok(entry) = entry else {
+            errors.push(format!(
+                "{}: cannot read directory entry",
+                relative_display(root, dir)
+            ));
+            continue;
+        };
+        let path = entry.path();
+        if path.is_dir() {
+            if path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| RUST_FIRST_GENERATED_DIRS.contains(&name))
+            {
+                continue;
+            }
+            collect_python_files(root, &path, errors);
+        } else if path.extension().and_then(|extension| extension.to_str()) == Some("py") {
+            errors.push(format!(
+                "{}: Python scripts are no longer part of long-lived repository tooling",
+                relative_display(root, &path)
+            ));
+        }
+    }
+}
+
 fn check_workflow_policies(root: &Path) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     for workflow_file in workflow_policy_files(root) {
@@ -7108,6 +7203,56 @@ mod tests {
                 "README.md: missing local check command block",
                 "CONTRIBUTING.md: missing development command block",
             ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn accepts_rust_first_tooling_contract() {
+        let root = temp_root("rust-first-tooling-accepts");
+        write_rust_first_public_files(
+            &root,
+            "cargo run -p vogon-xtask -- check-ci-workflow --root .\n",
+        );
+
+        assert_eq!(check_rust_first_tooling(&root), Ok(()));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_python_tooling_files() {
+        let root = temp_root("rust-first-tooling-python-file");
+        write_rust_first_public_files(&root, "");
+        let scripts = root.join("scripts");
+        fs::create_dir_all(&scripts).unwrap();
+        fs::write(scripts.join("check_old.py"), "print('old')\n").unwrap();
+
+        let errors = check_rust_first_tooling(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            [
+                "scripts/check_old.py: Python scripts are no longer part of long-lived repository tooling"
+            ]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reports_public_python_verification_commands() {
+        let root = temp_root("rust-first-tooling-python-command");
+        write_rust_first_public_files(&root, "");
+        fs::write(
+            root.join("README.md"),
+            "Run local checks:\n\n```sh\npython scripts/check_docs_links.py --root .\n```\n",
+        )
+        .unwrap();
+
+        let errors = check_rust_first_tooling(&root).unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["README.md:4: Python script command `python scripts/` should use Rust xtask tooling"]
         );
         fs::remove_dir_all(root).unwrap();
     }
@@ -11133,6 +11278,16 @@ jobs:
         fs::write(workflows.join("ci.yml"), text).unwrap();
     }
 
+    fn write_rust_first_public_files(root: &Path, body: &str) {
+        for relative_path in RUST_FIRST_PUBLIC_TEXT_FILES {
+            let path = root.join(relative_path);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(path, body).unwrap();
+        }
+    }
+
     fn write_release_workflow(root: &Path, text: &str) {
         let workflows = root.join(".github").join("workflows");
         fs::create_dir_all(&workflows).unwrap();
@@ -11174,6 +11329,7 @@ jobs:
           cargo run -p vogon-xtask -- check-security-workflows --root .
           cargo run -p vogon-xtask -- check-container-policy --root .
           cargo run -p vogon-xtask -- check-secrets --root .
+          cargo run -p vogon-xtask -- check-rust-first-tooling --root .
           cargo run -p vogon-xtask -- check-release-workflow --root .
           cargo run -p vogon-xtask -- check-changelog --root .
           cargo run -p vogon-xtask -- check-contributing-checklist --root .

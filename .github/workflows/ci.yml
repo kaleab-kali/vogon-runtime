@@ -105,6 +105,9 @@ jobs:
       - name: Check committed secret patterns
         run: cargo run -p vogon-xtask -- check-secrets --root .
 
+      - name: Check Rust-first tooling
+        run: cargo run -p vogon-xtask -- check-rust-first-tooling --root .
+
       - name: Check CI workflow
         run: cargo run -p vogon-xtask -- check-ci-workflow --root .
 

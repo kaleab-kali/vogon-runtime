@@ -35,6 +35,7 @@ cargo run -p vogon-xtask -- check-release-checklist --root .
 cargo run -p vogon-xtask -- check-release-workflow --root .
 cargo run -p vogon-xtask -- check-schema-files --root .
 cargo run -p vogon-xtask -- check-secrets --root .
+cargo run -p vogon-xtask -- check-rust-first-tooling --root .
 cargo run -p vogon-xtask -- check-ci-workflow --root .
 cargo run -p vogon-xtask -- check-security-workflows --root .
 cargo run -p vogon-xtask -- check-workflow-policies --root .
