@@ -27,7 +27,7 @@ Vogon Runtime aims to make those workflows easier to operate by providing:
 
 ## Project Status
 
-Vogon Runtime's latest public release is `v0.1.1`; `v0.1.0` was the first
+Vogon Runtime's latest public release is `v0.1.2`; `v0.1.0` was the first
 public release. The project is still in the `0.x` series, so command and
 library APIs may change as the runtime stabilizes. The current codebase is a
 small Rust workspace with:
