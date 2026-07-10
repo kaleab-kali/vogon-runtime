@@ -1982,12 +1982,12 @@ fn check_benchmark_output(
     if let Some(elapsed_ms) = parse_float_metric(&metrics, "elapsed_ms", &mut errors) {
         if elapsed_ms <= 0.0 {
             errors.push("benchmark elapsed_ms must be greater than zero".to_owned());
-        } else if let Some(max_elapsed_ms) = max_elapsed_ms
-            && elapsed_ms > max_elapsed_ms
-        {
-            errors.push(format!(
-                "benchmark elapsed_ms exceeds safety budget: {elapsed_ms} > {max_elapsed_ms}"
-            ));
+        } else if let Some(max_elapsed_ms) = max_elapsed_ms {
+            if elapsed_ms > max_elapsed_ms {
+                errors.push(format!(
+                    "benchmark elapsed_ms exceeds safety budget: {elapsed_ms} > {max_elapsed_ms}"
+                ));
+            }
         }
     }
 
@@ -6190,7 +6190,7 @@ fn check_workflow_policy_file(root: &Path, path: &Path) -> Vec<String> {
     }
 
     match permissions.entries.get("contents") {
-        Some((level, line_number)) if level == "read" => {}
+        Some((level, _line_number)) if level == "read" => {}
         Some((_level, line_number)) => errors.push(format!(
             "{relative_path}:{line_number}: top-level contents permission must be read"
         )),
