@@ -127,6 +127,9 @@ The no-auth choice is recorded as non-secret `auth_mode` runtime metadata and
 in the cache identity, so authenticated and unauthenticated runs cannot share
 cache entries accidentally. Use this mode only for an endpoint you
 intentionally trust; omitting the flag preserves bearer authentication.
+Hosted OpenAI-compatible endpoints must use HTTPS. Plain HTTP is limited to
+loopback hosts (`localhost`, the `127.0.0.0/8` block, and `::1`) for local model
+servers and test fixtures.
 
 OpenAI-compatible requests use a 30 second timeout and retry retryable
 transport/HTTP failures twice by default. Use
@@ -280,6 +283,8 @@ New provider adapters should:
   model, and behavior-affecting configuration.
 - Return provider failures as `VogonError::Adapter` with actionable context.
 - Bound network calls with explicit timeouts.
+- Require encrypted transport for hosted provider endpoints; allow plain HTTP
+  only when a local loopback workflow explicitly needs it.
 - Keep retries bounded and configurable.
 - Cap provider error output so large HTTP responses stay readable.
 - Include unit tests that do not require network access or credentials.
