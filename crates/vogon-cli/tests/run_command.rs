@@ -293,6 +293,25 @@ fn run_and_verify_support_unauthenticated_openai_compatible_endpoint() {
 }
 
 #[test]
+fn run_command_rejects_remote_plaintext_openai_compatible_endpoint() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-base-url")
+        .arg("http://example.test/v1")
+        .arg("--openai-compatible-no-auth")
+        .arg(support_triage_workflow())
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("remote base URLs must use HTTPS"));
+}
+
+#[test]
 fn run_command_reports_missing_groq_api_key() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("run")

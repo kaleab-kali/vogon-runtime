@@ -16,6 +16,12 @@ and this project follows semantic versioning.
   deterministic workflow iterations to catch catastrophic performance
   regressions without treating runner noise as a failure.
 
+### Changed
+
+- OpenAI-compatible hosted endpoints must now use HTTPS. Plain HTTP remains
+  available for loopback hosts so local Ollama and development servers keep
+  working without weakening remote credential and prompt transport.
+
 ### Fixed
 
 - Replay and run-cache writes now reserve collision-free temporary files and

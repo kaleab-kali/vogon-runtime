@@ -114,7 +114,8 @@ cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-b
 
 Use no-auth mode only for an endpoint you intentionally trust. Authenticated
 OpenAI-compatible services still require `OPENAI_COMPATIBLE_API_KEY` by
-default.
+default. Hosted endpoints must use HTTPS; plain HTTP is accepted only for
+loopback hosts such as `localhost`, `127.0.0.1`, and `::1`.
 
 Run a workflow with Groq's OpenAI-compatible endpoint:
 

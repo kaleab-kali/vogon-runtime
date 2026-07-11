@@ -158,7 +158,10 @@ cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-b
 ```
 
 The flag is also available on `vogon verify`. Without it, the CLI continues to
-require `OPENAI_COMPATIBLE_API_KEY` and sends bearer authentication.
+require `OPENAI_COMPATIBLE_API_KEY` and sends bearer authentication. Hosted
+endpoints must use HTTPS. Plain HTTP is accepted only for loopback hosts so
+local development cannot silently enable plaintext remote credential or prompt
+transport.
 
 The default base URL is `https://router.huggingface.co/v1`, and the default
 model is `openai/gpt-oss-120b:fastest`. Override them for OpenRouter or another

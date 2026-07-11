@@ -1,4 +1,4 @@
-use std::{env, fmt, io::Read, time::Duration};
+use std::{env, fmt, io::Read, net::IpAddr, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, RuntimeMetadata, Step, VogonError};
@@ -119,6 +119,7 @@ impl OpenAiCompatibleModel {
                 "OpenAI-compatible base URL must not be empty".to_owned(),
             ));
         }
+        validate_base_url(&base_url)?;
 
         if model.trim().is_empty() {
             return Err(VogonError::Adapter(
@@ -178,6 +179,64 @@ impl OpenAiCompatibleModel {
     fn chat_completions_url(&self) -> String {
         format!("{}/chat/completions", self.base_url.trim_end_matches('/'))
     }
+}
+
+fn validate_base_url(base_url: &str) -> Result<()> {
+    if base_url != base_url.trim() {
+        return Err(VogonError::Adapter(
+            "OpenAI-compatible base URL must not contain surrounding whitespace".to_owned(),
+        ));
+    }
+
+    let uri = base_url.parse::<ureq::http::Uri>().map_err(|_| {
+        VogonError::Adapter("OpenAI-compatible base URL must be a valid absolute URL".to_owned())
+    })?;
+    let scheme = uri.scheme_str().ok_or_else(|| {
+        VogonError::Adapter("OpenAI-compatible base URL must include a scheme".to_owned())
+    })?;
+    let host = uri.host().ok_or_else(|| {
+        VogonError::Adapter("OpenAI-compatible base URL must include a host".to_owned())
+    })?;
+
+    if let Some(authority) = uri.authority() {
+        if authority.as_str().contains('@') {
+            return Err(VogonError::Adapter(
+                "OpenAI-compatible base URL must not include user information".to_owned(),
+            ));
+        }
+    }
+    if uri.query().is_some() {
+        return Err(VogonError::Adapter(
+            "OpenAI-compatible base URL must not include a query string".to_owned(),
+        ));
+    }
+
+    match scheme {
+        "https" => Ok(()),
+        "http" if is_loopback_host(host) => Ok(()),
+        "http" => Err(VogonError::Adapter(
+            "OpenAI-compatible remote base URLs must use HTTPS; HTTP is allowed only for loopback hosts"
+                .to_owned(),
+        )),
+        _ => Err(VogonError::Adapter(
+            "OpenAI-compatible base URL scheme must be HTTPS, or HTTP for a loopback host"
+                .to_owned(),
+        )),
+    }
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+
+    let host = host
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(host);
+    host.parse::<IpAddr>()
+        .map(|address| address.is_loopback())
+        .unwrap_or(false)
 }
 
 impl fmt::Debug for OpenAiCompatibleModel {
@@ -511,6 +570,59 @@ mod tests {
         let result = OpenAiCompatibleModel::new(" ");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn model_rejects_remote_plaintext_base_url() {
+        let result = OpenAiCompatibleModel::with_base_url_and_model(
+            "secret-key",
+            "http://example.test/v1",
+            "example/model",
+        );
+
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("remote base URLs must use HTTPS"));
+    }
+
+    #[test]
+    fn model_accepts_loopback_http_base_urls() {
+        for base_url in [
+            "http://localhost:11434/v1",
+            "http://127.0.0.1:11434/v1",
+            "http://127.255.255.254:11434/v1",
+            "http://[::1]:11434/v1",
+        ] {
+            let result = OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
+                base_url,
+                "local/model",
+                Duration::from_secs(5),
+                0,
+            );
+
+            assert!(
+                result.is_ok(),
+                "loopback URL should be accepted: {base_url}"
+            );
+        }
+    }
+
+    #[test]
+    fn model_rejects_ambiguous_or_unsupported_base_urls() {
+        for base_url in [
+            " https://example.test/v1",
+            "example.test/v1",
+            "ftp://localhost/v1",
+            "https://example.test/v1?route=alternate",
+            "https://user:password@example.test/v1",
+        ] {
+            let result = OpenAiCompatibleModel::with_base_url_and_model(
+                "secret-key",
+                base_url,
+                "example/model",
+            );
+
+            assert!(result.is_err(), "base URL should be rejected: {base_url}");
+        }
     }
 
     #[test]
