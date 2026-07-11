@@ -18,10 +18,11 @@ workspace = true
 
 [features]
 default = ["gemini", "openai-compatible"]
-gemini = ["dep:serde", "dep:serde_json", "dep:ureq"]
-openai-compatible = ["dep:serde", "dep:serde_json", "dep:ureq"]
+gemini = ["dep:httpdate", "dep:serde", "dep:serde_json", "dep:ureq"]
+openai-compatible = ["dep:httpdate", "dep:serde", "dep:serde_json", "dep:ureq"]
 
 [dependencies]
+httpdate = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 ureq = { workspace = true, optional = true }

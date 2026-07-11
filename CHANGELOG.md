@@ -21,6 +21,8 @@ and this project follows semantic versioning.
 - OpenAI-compatible hosted endpoints must now use HTTPS. Plain HTTP remains
   available for loopback hosts so local Ollama and development servers keep
   working without weakening remote credential and prompt transport.
+- Provider retries now honor standard `Retry-After` delta-seconds and HTTP-date
+  response headers, with server-directed waits capped at 30 seconds.
 
 ### Fixed
 
