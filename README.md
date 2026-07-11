@@ -158,11 +158,14 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-time
 ```
 
 Transient Gemini transport failures and retryable HTTP responses are retried
-twice by default. Use `--gemini-max-retries 0` to disable retries or another
-value up to `20` to tune retry behavior.
+twice by default. Valid `Retry-After` response headers are honored up to 30
+seconds; otherwise retries use exponential backoff with jitter. Use
+`--gemini-max-retries 0` to disable retries or another value up to `20` to tune
+retry behavior.
 
 OpenAI-compatible requests also use a 30 second timeout and two retry attempts
-by default. Use `--openai-compatible-timeout-seconds` and
+by default, with the same bounded `Retry-After` handling. Use
+`--openai-compatible-timeout-seconds` and
 `--openai-compatible-max-retries` to tune those bounds.
 
 Groq requests use the same default timeout and retry count. Use

@@ -78,8 +78,9 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-time
 Transient transport failures and retryable HTTP responses are retried twice by
 default. Retryable HTTP responses are status codes `408`, `409`, `425`, `429`,
 and `5xx`. Retry counts must be between `0` and `20`; use
-`--gemini-max-retries 0` to disable retries. Retries use exponential backoff
-with lightweight jitter:
+`--gemini-max-retries 0` to disable retries. Valid `Retry-After` delta-seconds
+and HTTP-date values are honored up to 30 seconds. Missing or invalid values
+fall back to exponential backoff with lightweight jitter:
 
 ```sh
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml
@@ -135,7 +136,8 @@ OpenAI-compatible requests use a 30 second timeout and retry retryable
 transport/HTTP failures twice by default. Use
 `--openai-compatible-timeout-seconds` and
 `--openai-compatible-max-retries` to adjust those bounds. Retry counts must be
-between `0` and `20`, and retry delays use exponential backoff with lightweight
+between `0` and `20`. Valid `Retry-After` response headers are honored up to 30
+seconds; missing or invalid values use exponential backoff with lightweight
 jitter.
 
 ### OpenRouter

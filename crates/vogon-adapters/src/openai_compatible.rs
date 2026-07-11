@@ -280,7 +280,11 @@ impl ModelAdapter for OpenAiCompatibleModel {
             match request.send(request_json.as_str()) {
                 Ok(response) if response.status().is_success() => break response,
                 Ok(response) if retries_remaining > 0 && is_retryable_status(response.status()) => {
-                    sleep_before_retry(retry_attempt);
+                    let retry_after = response
+                        .headers()
+                        .get(ureq::http::header::RETRY_AFTER)
+                        .and_then(|value| value.to_str().ok());
+                    sleep_before_retry(retry_attempt, retry_after);
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
@@ -288,7 +292,7 @@ impl ModelAdapter for OpenAiCompatibleModel {
                     return Err(http_status_error(response, self.api_key.as_deref()));
                 }
                 Err(error) if retries_remaining > 0 && is_retryable_error(&error) => {
-                    sleep_before_retry(retry_attempt);
+                    sleep_before_retry(retry_attempt, None);
                     retry_attempt += 1;
                     retries_remaining -= 1;
                 }
