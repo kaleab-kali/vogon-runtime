@@ -436,9 +436,16 @@ fn run_with_openai_compatible(
 fn run_with_openai_compatible(
     _workflow: &vogon_core::Workflow,
     _redactions: &RedactionSet,
-    _config: OpenAiCompatibleConfig<'_>,
+    config: OpenAiCompatibleConfig<'_>,
     _cache: Option<&mut RunCache>,
 ) -> Result<RunReport, Box<dyn std::error::Error>> {
+    let _ = (
+        config.base_url,
+        config.model,
+        config.no_auth,
+        config.timeout_seconds,
+        config.max_retries,
+    );
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "OpenAI-compatible provider support is not enabled in this build",
