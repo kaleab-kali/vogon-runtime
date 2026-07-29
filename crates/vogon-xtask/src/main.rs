@@ -93,6 +93,7 @@ const LIVE_WORKFLOW_GUIDANCE: &[(&str, &str)] = &[
     ("Live Gemini Smoke", "GEMINI_API_KEY"),
     ("Live Groq Smoke", "GROQ_API_KEY"),
     ("Live Hugging Face Smoke", "HF_TOKEN"),
+    ("Live NVIDIA Smoke", "NVIDIA_API_KEY"),
     ("Live OpenAI-Compatible Smoke", "OPENAI_COMPATIBLE_API_KEY"),
     ("Live OpenRouter Smoke", "OPENROUTER_API_KEY"),
 ];
@@ -218,6 +219,13 @@ const LIVE_REPLAY_EXPECTATIONS: &[LiveReplayProviderExpectation] = &[
         redaction_label: "hf_token",
     },
     LiveReplayProviderExpectation {
+        provider: "nvidia",
+        adapter: "nvidia-openai-compatible-chat-completions",
+        base_url: Some("https://integrate.api.nvidia.com/v1"),
+        secret_env: "NVIDIA_API_KEY",
+        redaction_label: "nvidia_api_key",
+    },
+    LiveReplayProviderExpectation {
         provider: "openai-compatible",
         adapter: "openai-compatible-chat-completions",
         base_url: None,
@@ -260,6 +268,16 @@ const EXPECTED_LIVE_WORKFLOWS: &[LiveWorkflowExpectation] = &[
         replay_path: "target/live-hugging-face-smoke.replay.json",
         default_model: "openai/gpt-oss-120b:fastest",
         model_env: "HUGGING_FACE_MODEL",
+        default_base_url: None,
+        base_url_env: None,
+    },
+    LiveWorkflowExpectation {
+        provider: "nvidia",
+        file_name: "live-nvidia-smoke.yml",
+        flag_prefix: "nvidia",
+        replay_path: "target/live-nvidia-smoke.replay.json",
+        default_model: "meta/llama-3.1-8b-instruct",
+        model_env: "NVIDIA_MODEL",
         default_base_url: None,
         base_url_env: None,
     },
@@ -1856,7 +1874,7 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
 
     if live_replay_expectation(&provider).is_none() {
         eprintln!(
-            "--provider must be one of gemini, groq, hugging-face, openai-compatible, openrouter"
+            "--provider must be one of gemini, groq, hugging-face, nvidia, openai-compatible, openrouter"
         );
         std::process::exit(2);
     }
@@ -3175,6 +3193,7 @@ fn live_workflow_model_description(expectation: &LiveWorkflowExpectation) -> &'s
         "openai-compatible" => "OpenAI-compatible model name.",
         "hugging-face" => "Hugging Face model name.",
         "groq" => "Groq model name.",
+        "nvidia" => "NVIDIA API Catalog model name.",
         "openrouter" => "OpenRouter model name.",
         _ => "model name.",
     }
@@ -9975,6 +9994,40 @@ and this project follows semantic versioning once the first release is tagged.
     }
 
     #[test]
+    fn accepts_expected_nvidia_live_replay() {
+        let replay = serde_json::json!({
+            "schema_version": 1,
+            "workflow_name": "support-triage",
+            "runtime": {
+                "provider": "nvidia",
+                "adapter": "nvidia-openai-compatible-chat-completions",
+                "model": "meta/llama-3.1-8b-instruct",
+                "parameters": {
+                    "base_url": "https://integrate.api.nvidia.com/v1",
+                    "timeout_nanos": "60000000000",
+                    "max_retries": "2"
+                }
+            },
+            "steps": [
+                {"step_id": "classify", "output": "billing"},
+                {
+                    "step_id": "draft_response",
+                    "output": "Your billing request has been routed for review."
+                }
+            ]
+        });
+
+        assert_eq!(
+            check_live_replay(
+                &replay.to_string(),
+                &live_replay_options("nvidia", "meta/llama-3.1-8b-instruct"),
+                Some("secret-value"),
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
     fn accepts_configured_openai_compatible_live_replay_base_url() {
         let replay = serde_json::json!({
             "schema_version": 1,
@@ -12201,7 +12254,7 @@ updates:\n\
     }
 
     fn live_guidance_text() -> &'static str {
-        "\n- `Live Gemini Smoke` uses `GEMINI_API_KEY`.\n- `Live Groq Smoke` uses `GROQ_API_KEY`.\n- `Live Hugging Face Smoke` uses `HF_TOKEN`.\n- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n- `Live OpenRouter Smoke` uses `OPENROUTER_API_KEY`.\n"
+        "\n- `Live Gemini Smoke` uses `GEMINI_API_KEY`.\n- `Live Groq Smoke` uses `GROQ_API_KEY`.\n- `Live Hugging Face Smoke` uses `HF_TOKEN`.\n- `Live NVIDIA Smoke` uses `NVIDIA_API_KEY`.\n- `Live OpenAI-Compatible Smoke` uses `OPENAI_COMPATIBLE_API_KEY`.\n- `Live OpenRouter Smoke` uses `OPENROUTER_API_KEY`.\n"
     }
 
     #[derive(Default)]

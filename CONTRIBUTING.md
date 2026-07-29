@@ -149,6 +149,10 @@ maintainers when `OPENAI_COMPATIBLE_API_KEY` is configured. Use it after changes
 that affect generic OpenAI-compatible provider configuration, custom base URL
 handling, or model override behavior.
 
+The optional `Live NVIDIA Smoke` workflow can be run manually by maintainers
+when `NVIDIA_API_KEY` is configured. Use it after changes that affect NVIDIA
+provider configuration or OpenAI-compatible provider behavior.
+
 The optional `Live OpenRouter Smoke` workflow can be run manually by
 maintainers when `OPENROUTER_API_KEY` is configured. Use it after changes that
 affect OpenRouter provider configuration or OpenAI-compatible provider

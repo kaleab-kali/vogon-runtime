@@ -407,6 +407,8 @@ Already available:
 - Opt-in Groq execution through Groq's OpenAI-compatible endpoint.
 - Opt-in Hugging Face execution through Hugging Face Inference Providers'
   OpenAI-compatible endpoint.
+- Opt-in NVIDIA execution through NVIDIA API Catalog's hosted
+  OpenAI-compatible endpoint.
 - Opt-in OpenRouter execution through OpenRouter's OpenAI-compatible endpoint.
 - Manual live Gemini smoke testing for maintainers with `GEMINI_API_KEY`
   configured in GitHub Actions.
@@ -415,6 +417,8 @@ Already available:
 - Manual live Groq smoke testing for maintainers with `GROQ_API_KEY`
   configured in GitHub Actions.
 - Manual live Hugging Face smoke testing for maintainers with `HF_TOKEN`
+  configured in GitHub Actions.
+- Manual live NVIDIA smoke testing for maintainers with `NVIDIA_API_KEY`
   configured in GitHub Actions.
 - Manual live OpenRouter smoke testing for maintainers with
   `OPENROUTER_API_KEY` configured in GitHub Actions.
