@@ -158,6 +158,13 @@ maintainers when `OPENROUTER_API_KEY` is configured. Use it after changes that
 affect OpenRouter provider configuration or OpenAI-compatible provider
 behavior.
 
+Live smoke workflows validate replay provenance, expected workflow and ordered
+step IDs, prompt/input/output hash shape, and recorded output integrity. Custom
+live workflows must pass repeatable `--expected-step` values to
+`check-live-replay`; decision workflows must also provide all four
+`--expected-decision-*` options so the validator fails closed on missing or
+unexpected decision evidence.
+
 Maintainers merge accepted pull requests with regular merge commits. Squash
 merges are not used for this repository, and merged topic branches may remain
 available for auditability.

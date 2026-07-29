@@ -1262,10 +1262,21 @@ struct LiveReplayOptions {
     replay: PathBuf,
     provider: String,
     model: String,
+    expected_workflow: String,
+    expected_steps: Vec<String>,
+    expected_decision: Option<LiveDecisionExpectation>,
     base_url: Option<String>,
     timeout_seconds: i64,
     max_retries: i64,
     secret_env: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LiveDecisionExpectation {
+    step: String,
+    pointer: String,
+    value: String,
+    outcome: String,
 }
 
 struct SpdxSbomJsonOptions {
@@ -1788,6 +1799,12 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
     let mut replay = None;
     let mut provider = None;
     let mut model = None;
+    let mut expected_workflow = None;
+    let mut expected_steps = Vec::new();
+    let mut expected_decision_step = None;
+    let mut expected_decision_pointer = None;
+    let mut expected_decision_value = None;
+    let mut expected_decision_outcome = None;
     let mut base_url = None;
     let mut timeout_seconds = 60;
     let mut max_retries = 2;
@@ -1814,6 +1831,48 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
                     print_live_replay_usage_and_exit();
                 };
                 model = Some(value.clone());
+                index += 2;
+            }
+            "--expected-workflow" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_workflow = Some(value.clone());
+                index += 2;
+            }
+            "--expected-step" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_steps.push(value.clone());
+                index += 2;
+            }
+            "--expected-decision-step" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_decision_step = Some(value.clone());
+                index += 2;
+            }
+            "--expected-decision-pointer" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_decision_pointer = Some(value.clone());
+                index += 2;
+            }
+            "--expected-decision-value" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_decision_value = Some(value.clone());
+                index += 2;
+            }
+            "--expected-decision-outcome" => {
+                let Some(value) = args.get(index + 1) else {
+                    print_live_replay_usage_and_exit();
+                };
+                expected_decision_outcome = Some(value.clone());
                 index += 2;
             }
             "--base-url" => {
@@ -1871,6 +1930,53 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
     let Some(model) = model else {
         print_live_replay_usage_and_exit();
     };
+    let Some(expected_workflow) = expected_workflow else {
+        print_live_replay_usage_and_exit();
+    };
+    if !is_identifier(&expected_workflow) || expected_steps.is_empty() {
+        print_live_replay_usage_and_exit();
+    }
+    if expected_steps.iter().any(|step| !is_identifier(step))
+        || expected_steps.iter().collect::<BTreeSet<_>>().len() != expected_steps.len()
+    {
+        print_live_replay_usage_and_exit();
+    }
+    let decision_fields = [
+        expected_decision_step.as_ref(),
+        expected_decision_pointer.as_ref(),
+        expected_decision_value.as_ref(),
+        expected_decision_outcome.as_ref(),
+    ];
+    let expected_decision = if decision_fields.iter().all(|field| field.is_none()) {
+        None
+    } else if decision_fields.iter().all(|field| field.is_some()) {
+        let outcome = expected_decision_outcome.expect("checked as present");
+        let decision_step = expected_decision_step
+            .as_deref()
+            .expect("checked as present");
+        let decision_value = expected_decision_value
+            .as_deref()
+            .expect("checked as present");
+        if !matches!(outcome.as_str(), "allow" | "deny")
+            || !is_identifier(decision_step)
+            || expected_steps.last().map(String::as_str) != Some(decision_step)
+            || decision_value.is_empty()
+            || decision_value != decision_value.trim()
+            || !expected_decision_pointer
+                .as_deref()
+                .is_some_and(|pointer| pointer.starts_with('/'))
+        {
+            print_live_replay_usage_and_exit();
+        }
+        Some(LiveDecisionExpectation {
+            step: expected_decision_step.expect("checked as present"),
+            pointer: expected_decision_pointer.expect("checked as present"),
+            value: expected_decision_value.expect("checked as present"),
+            outcome,
+        })
+    } else {
+        print_live_replay_usage_and_exit();
+    };
 
     if live_replay_expectation(&provider).is_none() {
         eprintln!(
@@ -1883,6 +1989,9 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
         replay,
         provider,
         model,
+        expected_workflow,
+        expected_steps,
+        expected_decision,
         base_url,
         timeout_seconds,
         max_retries,
@@ -1892,7 +2001,7 @@ fn parse_live_replay_args(args: Vec<String>) -> LiveReplayOptions {
 
 fn print_live_replay_usage_and_exit() -> ! {
     eprintln!(
-        "usage: cargo run -p vogon-xtask -- check-live-replay --replay FILE --provider NAME --model MODEL [--base-url URL] [--timeout-seconds SECONDS] [--max-retries COUNT] [--secret-env NAME]"
+        "usage: cargo run -p vogon-xtask -- check-live-replay --replay FILE --provider NAME --model MODEL --expected-workflow NAME --expected-step ID [--expected-step ID ...] [--expected-decision-step ID --expected-decision-pointer POINTER --expected-decision-value VALUE --expected-decision-outcome allow|deny] [--base-url URL] [--timeout-seconds SECONDS] [--max-retries COUNT] [--secret-env NAME]"
     );
     std::process::exit(2);
 }
@@ -2771,8 +2880,17 @@ fn check_live_replay(
     let expected_max_retries = options.max_retries.to_string();
 
     let mut errors = Vec::new();
-    expect_live_equal(&mut errors, data, "workflow_name", "support-triage", None);
+    expect_live_equal(
+        &mut errors,
+        data,
+        "workflow_name",
+        options.expected_workflow.as_str(),
+        None,
+    );
     expect_live_equal(&mut errors, data, "schema_version", 1, None);
+    if !is_sha256_json(data.get("run_hash")) {
+        errors.push("run_hash must be lowercase sha256".to_owned());
+    }
 
     let runtime = match data.get("runtime").and_then(JsonValue::as_object) {
         Some(runtime) => Some(runtime),
@@ -2790,6 +2908,11 @@ fn check_live_replay(
             expectation.provider,
             Some("runtime"),
         );
+        for field in ["adapter_version", "cache_identity"] {
+            if !is_non_empty_json_string(runtime.get(field)) {
+                errors.push(format!("runtime.{field} must be a non-empty string"));
+            }
+        }
         expect_live_equal(
             &mut errors,
             runtime,
@@ -2846,9 +2969,10 @@ fn check_live_replay(
     };
 
     if let Some(steps) = steps {
-        if steps.len() != 2 {
+        if steps.len() != options.expected_steps.len() {
             errors.push(format!(
-                "steps length mismatch: expected 2, got {}",
+                "steps length mismatch: expected {}, got {}",
+                options.expected_steps.len(),
                 steps.len()
             ));
         }
@@ -2859,8 +2983,29 @@ fn check_live_replay(
                 errors.push(format!("steps[{index}] must be an object"));
                 continue;
             };
+            if let Some(expected_step) = options.expected_steps.get(index) {
+                expect_live_equal(
+                    &mut errors,
+                    step,
+                    "step_id",
+                    expected_step.as_str(),
+                    Some(&format!("steps[{index}]")),
+                );
+            }
+            for field in ["prompt_hash", "input_hash", "output_hash"] {
+                if !is_sha256_json(step.get(field)) {
+                    errors.push(format!("steps[{index}].{field} must be lowercase sha256"));
+                }
+            }
             match step.get("output").and_then(JsonValue::as_str) {
                 Some(output) if !output.is_empty() => {
+                    if step.get("output_hash").and_then(JsonValue::as_str)
+                        != Some(hex_sha256(output.as_bytes()).as_str())
+                    {
+                        errors.push(format!(
+                            "steps[{index}].output_hash does not match the recorded output"
+                        ));
+                    }
                     if output.contains(&redaction_marker) {
                         errors.push(format!(
                             "steps[{index}].output contains redaction marker {redaction_marker}"
@@ -2871,6 +3016,8 @@ fn check_live_replay(
             }
         }
     }
+
+    check_live_decision(data, options.expected_decision.as_ref(), &mut errors);
 
     if let Some(secret_value) = secret_value.filter(|value| !value.is_empty()) {
         if root_value.to_string().contains(secret_value) {
@@ -2885,6 +3032,44 @@ fn check_live_replay(
         Ok(())
     } else {
         Err(errors)
+    }
+}
+
+fn check_live_decision(
+    replay: &serde_json::Map<String, JsonValue>,
+    expected: Option<&LiveDecisionExpectation>,
+    errors: &mut Vec<String>,
+) {
+    let actual = replay.get("decision");
+    let Some(expected) = expected else {
+        if actual.is_some() {
+            errors.push(
+                "replay contains a decision but no decision expectation was configured".to_owned(),
+            );
+        }
+        return;
+    };
+    let Some(actual) = actual.and_then(JsonValue::as_object) else {
+        errors.push("decision must be an object".to_owned());
+        return;
+    };
+    for field in sorted_unknown_fields(
+        actual.keys(),
+        &["step_id", "pointer", "policy_hash", "value", "outcome"],
+    ) {
+        errors.push(format!("decision has unknown field `{field}`"));
+    }
+
+    for (field, value) in [
+        ("step_id", expected.step.as_str()),
+        ("pointer", expected.pointer.as_str()),
+        ("value", expected.value.as_str()),
+        ("outcome", expected.outcome.as_str()),
+    ] {
+        expect_live_equal(errors, actual, field, value, Some("decision"));
+    }
+    if !is_sha256_json(actual.get("policy_hash")) {
+        errors.push("decision.policy_hash must be lowercase sha256".to_owned());
     }
 }
 
@@ -3094,6 +3279,18 @@ fn check_live_workflow_file(
         (
             "validator model",
             live_workflow_validator_model_snippet(expectation),
+        ),
+        (
+            "validator workflow",
+            "            --expected-workflow support-triage".to_owned(),
+        ),
+        (
+            "validator first step",
+            "            --expected-step classify".to_owned(),
+        ),
+        (
+            "validator second step",
+            "            --expected-step draft_response".to_owned(),
         ),
         (
             "validator secret env",
@@ -10196,28 +10393,47 @@ prompt = "Decide"
     }
 
     #[test]
-    fn accepts_expected_nvidia_live_replay() {
-        let replay = serde_json::json!({
-            "schema_version": 1,
-            "workflow_name": "support-triage",
-            "runtime": {
-                "provider": "nvidia",
-                "adapter": "nvidia-openai-compatible-chat-completions",
-                "model": "meta/llama-3.1-8b-instruct",
-                "parameters": {
-                    "base_url": "https://integrate.api.nvidia.com/v1",
-                    "timeout_nanos": "60000000000",
-                    "max_retries": "2"
-                }
-            },
-            "steps": [
-                {"step_id": "classify", "output": "billing"},
-                {
-                    "step_id": "draft_response",
-                    "output": "Your billing request has been routed for review."
-                }
-            ]
+    fn accepts_configured_workflow_steps_and_decision() {
+        let mut replay = valid_live_replay();
+        replay["workflow_name"] = JsonValue::String("release-gate".to_owned());
+        replay["steps"] = JsonValue::Array(vec![
+            live_replay_step("risk_analysis", "rollback is disabled"),
+            live_replay_step("release_decision", r#"{"decision":"NO_GO"}"#),
+        ]);
+        replay["decision"] = serde_json::json!({
+            "step_id": "release_decision",
+            "pointer": "/decision",
+            "policy_hash": "3".repeat(64),
+            "value": "NO_GO",
+            "outcome": "deny"
         });
+        let options = LiveReplayOptions {
+            expected_workflow: "release-gate".to_owned(),
+            expected_steps: vec!["risk_analysis".to_owned(), "release_decision".to_owned()],
+            expected_decision: Some(LiveDecisionExpectation {
+                step: "release_decision".to_owned(),
+                pointer: "/decision".to_owned(),
+                value: "NO_GO".to_owned(),
+                outcome: "deny".to_owned(),
+            }),
+            ..live_replay_options("openrouter", "openrouter/free")
+        };
+
+        assert_eq!(
+            check_live_replay(&replay.to_string(), &options, None),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn accepts_expected_nvidia_live_replay() {
+        let mut replay = valid_live_replay();
+        replay["runtime"]["provider"] = JsonValue::String("nvidia".to_owned());
+        replay["runtime"]["adapter"] =
+            JsonValue::String("nvidia-openai-compatible-chat-completions".to_owned());
+        replay["runtime"]["model"] = JsonValue::String("meta/llama-3.1-8b-instruct".to_owned());
+        replay["runtime"]["parameters"]["base_url"] =
+            JsonValue::String("https://integrate.api.nvidia.com/v1".to_owned());
 
         assert_eq!(
             check_live_replay(
@@ -10231,24 +10447,13 @@ prompt = "Decide"
 
     #[test]
     fn accepts_configured_openai_compatible_live_replay_base_url() {
-        let replay = serde_json::json!({
-            "schema_version": 1,
-            "workflow_name": "support-triage",
-            "runtime": {
-                "provider": "openai-compatible",
-                "adapter": "openai-compatible-chat-completions",
-                "model": "model-name",
-                "parameters": {
-                    "base_url": "https://example.com/v1",
-                    "timeout_nanos": "60000000000",
-                    "max_retries": "2"
-                }
-            },
-            "steps": [
-                {"step_id": "classify", "output": "billing"},
-                {"step_id": "draft_response", "output": "Hello"}
-            ]
-        });
+        let mut replay = valid_live_replay();
+        replay["runtime"]["provider"] = JsonValue::String("openai-compatible".to_owned());
+        replay["runtime"]["adapter"] =
+            JsonValue::String("openai-compatible-chat-completions".to_owned());
+        replay["runtime"]["model"] = JsonValue::String("model-name".to_owned());
+        replay["runtime"]["parameters"]["base_url"] =
+            JsonValue::String("https://example.com/v1".to_owned());
         let options = LiveReplayOptions {
             base_url: Some("https://example.com/v1/".to_owned()),
             ..live_replay_options("openai-compatible", "model-name")
@@ -10315,10 +10520,7 @@ prompt = "Decide"
     #[test]
     fn reports_live_replay_secret_leak() {
         let mut replay = valid_live_replay();
-        replay["steps"] = serde_json::json!([
-            {"output": "secret-value"},
-            {"output": "ok"}
-        ]);
+        replay["steps"][0] = live_replay_step("classify", "secret-value");
 
         let errors = check_live_replay(
             &replay.to_string(),
@@ -10330,6 +10532,24 @@ prompt = "Decide"
         assert_eq!(
             errors,
             ["replay contains secret value from OPENROUTER_API_KEY"]
+        );
+    }
+
+    #[test]
+    fn reports_tampered_live_replay_output_hash() {
+        let mut replay = valid_live_replay();
+        replay["steps"][0]["output_hash"] = JsonValue::String("0".repeat(64));
+
+        let errors = check_live_replay(
+            &replay.to_string(),
+            &live_replay_options("openrouter", "openrouter/free"),
+            None,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            errors,
+            ["steps[0].output_hash does not match the recorded output"]
         );
     }
 
@@ -11224,6 +11444,9 @@ prompt = "Decide"
             replay: PathBuf::from("live.replay.json"),
             provider: provider.to_owned(),
             model: model.to_owned(),
+            expected_workflow: "support-triage".to_owned(),
+            expected_steps: vec!["classify".to_owned(), "draft_response".to_owned()],
+            expected_decision: None,
             base_url: None,
             timeout_seconds: 60,
             max_retries: 2,
@@ -11238,17 +11461,30 @@ prompt = "Decide"
             "runtime": {
                 "provider": "openrouter",
                 "adapter": "openrouter-openai-compatible-chat-completions",
+                "adapter_version": "0.1.4",
                 "model": "openrouter/free",
+                "cache_identity": "openrouter:test",
                 "parameters": {
                     "base_url": "https://openrouter.ai/api/v1",
                     "timeout_nanos": "60000000000",
                     "max_retries": "2"
                 }
             },
+            "run_hash": "0".repeat(64),
             "steps": [
-                {"step_id": "classify", "output": "billing"},
-                {"step_id": "draft_response", "output": "Hello"}
+                live_replay_step("classify", "billing"),
+                live_replay_step("draft_response", "Hello")
             ]
+        })
+    }
+
+    fn live_replay_step(step_id: &str, output: &str) -> JsonValue {
+        serde_json::json!({
+            "step_id": step_id,
+            "prompt_hash": "1".repeat(64),
+            "input_hash": "2".repeat(64),
+            "output_hash": hex_sha256(output.as_bytes()),
+            "output": output
         })
     }
 
@@ -11341,7 +11577,7 @@ prompt = "Decide"
             String::new()
         } else {
             format!(
-                "\n          cargo run -p vogon-xtask -- check-live-replay \\\n            --replay {} \\\n            --provider {} \\{}\n{}\n            --secret-env {}",
+                "\n          cargo run -p vogon-xtask -- check-live-replay \\\n            --replay {} \\\n            --provider {} \\{}\n{}\n            --expected-workflow support-triage \\\n            --expected-step classify \\\n            --expected-step draft_response \\\n            --secret-env {}",
                 expectation.replay_path,
                 expectation.provider,
                 base_url_validator_flag,

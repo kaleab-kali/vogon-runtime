@@ -22,6 +22,9 @@ and this project follows semantic versioning.
 - Workflows can declare strict final-step JSON decision policies. Replays bind
   evaluated allow or deny evidence to the policy, and `vogon run
   --enforce-decision` exits unsuccessfully after writing a denied replay.
+- Live replay validation now accepts explicit workflow, ordered step, and
+  decision expectations, and verifies recorded hash shape and output integrity
+  instead of assuming the two-step support-triage fixture.
 
 ## [0.1.4] - 2026-07-29
 
