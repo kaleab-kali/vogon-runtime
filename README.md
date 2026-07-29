@@ -161,7 +161,8 @@ Transient Gemini transport failures and retryable HTTP responses are retried
 twice by default. Valid `Retry-After` response headers are honored up to 30
 seconds; otherwise retries use exponential backoff with jitter. Use
 `--gemini-max-retries 0` to disable retries or another value up to `20` to tune
-retry behavior.
+retry behavior. Permanent configuration, TLS, redirect, and response-decoding
+errors are returned immediately instead of consuming retry attempts.
 
 OpenAI-compatible requests also use a 30 second timeout and two retry attempts
 by default, with the same bounded `Retry-After` handling. Use

@@ -23,6 +23,8 @@ and this project follows semantic versioning.
   working without weakening remote credential and prompt transport.
 - Provider retries now honor standard `Retry-After` delta-seconds and HTTP-date
   response headers, with server-directed waits capped at 30 seconds.
+- Provider adapters now retry only transient transport failures and return
+  permanent configuration, TLS, redirect, and decoding failures immediately.
 
 ### Fixed
 

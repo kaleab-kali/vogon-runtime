@@ -8,6 +8,18 @@ const RETRY_MAX_DELAY: Duration = Duration::from_secs(2);
 const RETRY_JITTER_RANGE: u64 = 50;
 const RETRY_AFTER_MAX_DELAY: Duration = Duration::from_secs(30);
 
+pub(crate) fn is_retryable_error(error: &ureq::Error) -> bool {
+    matches!(
+        error,
+        ureq::Error::Protocol(_)
+            | ureq::Error::Io(_)
+            | ureq::Error::Timeout(_)
+            | ureq::Error::HostNotFound
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::ConnectProxyFailed(_)
+    )
+}
+
 pub(crate) fn sleep_before_retry(attempt_index: u32, retry_after: Option<&str>) {
     thread::sleep(retry_delay(attempt_index, retry_after, SystemTime::now()));
 }
@@ -51,8 +63,40 @@ mod tests {
     use std::time::{Duration, SystemTime};
 
     use super::{
-        RETRY_AFTER_MAX_DELAY, RETRY_BASE_DELAY, RETRY_MAX_DELAY, retry_after_delay, retry_delay,
+        RETRY_AFTER_MAX_DELAY, RETRY_BASE_DELAY, RETRY_MAX_DELAY, is_retryable_error,
+        retry_after_delay, retry_delay,
     };
+
+    #[test]
+    fn transient_transport_errors_are_retryable() {
+        let errors = [
+            ureq::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                "connection reset",
+            )),
+            ureq::Error::Timeout(ureq::Timeout::Global),
+            ureq::Error::HostNotFound,
+            ureq::Error::ConnectionFailed,
+            ureq::Error::ConnectProxyFailed("proxy unavailable".to_owned()),
+        ];
+
+        assert!(errors.iter().all(is_retryable_error));
+    }
+
+    #[test]
+    fn permanent_transport_errors_are_not_retryable() {
+        let errors = [
+            ureq::Error::BadUri("missing host".to_owned()),
+            ureq::Error::InvalidProxyUrl,
+            ureq::Error::RedirectFailed,
+            ureq::Error::TooManyRedirects,
+            ureq::Error::BodyExceedsLimit(1024),
+            ureq::Error::Tls("certificate rejected"),
+            ureq::Error::TlsRequired,
+        ];
+
+        assert!(errors.iter().all(|error| !is_retryable_error(error)));
+    }
 
     #[test]
     fn retry_delay_uses_exponential_backoff() {

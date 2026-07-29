@@ -3,7 +3,7 @@ use std::{env, fmt, io::Read, net::IpAddr, time::Duration};
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, RuntimeMetadata, Step, VogonError};
 
-use crate::retry::sleep_before_retry;
+use crate::retry::{is_retryable_error, sleep_before_retry};
 
 /// Default OpenAI-compatible chat-completions base URL.
 pub const DEFAULT_OPENAI_COMPATIBLE_BASE_URL: &str = "https://router.huggingface.co/v1";
@@ -348,10 +348,6 @@ impl OpenAiCompatibleModel {
             "none"
         }
     }
-}
-
-fn is_retryable_error(error: &ureq::Error) -> bool {
-    !matches!(error, ureq::Error::BodyExceedsLimit(_))
 }
 
 fn is_retryable_status(status: ureq::http::StatusCode) -> bool {

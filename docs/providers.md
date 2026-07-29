@@ -80,7 +80,9 @@ default. Retryable HTTP responses are status codes `408`, `409`, `425`, `429`,
 and `5xx`. Retry counts must be between `0` and `20`; use
 `--gemini-max-retries 0` to disable retries. Valid `Retry-After` delta-seconds
 and HTTP-date values are honored up to 30 seconds. Missing or invalid values
-fall back to exponential backoff with lightweight jitter:
+fall back to exponential backoff with lightweight jitter. Retries are limited
+to transient transport failures; configuration, TLS, redirect, body-limit, and
+decoding failures return immediately:
 
 ```sh
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-retries 0 fixtures/workflows/support-triage.toml

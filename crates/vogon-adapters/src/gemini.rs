@@ -3,7 +3,7 @@ use std::{env, fmt, io::Read, time::Duration};
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, RuntimeMetadata, Step, VogonError};
 
-use crate::retry::sleep_before_retry;
+use crate::retry::{is_retryable_error, sleep_before_retry};
 
 /// Default Gemini model used by [`GeminiModel`].
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
@@ -232,10 +232,6 @@ impl ModelAdapter for GeminiModel {
         .with_parameter("timeout_nanos", self.timeout.as_nanos().to_string())
         .with_parameter("max_retries", self.max_retries.to_string())
     }
-}
-
-fn is_retryable_error(error: &ureq::Error) -> bool {
-    !matches!(error, ureq::Error::BodyExceedsLimit(_))
 }
 
 fn is_retryable_status(status: ureq::http::StatusCode) -> bool {
