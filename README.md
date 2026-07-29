@@ -260,6 +260,17 @@ cargo run -p vogon-cli -- verify fixtures/workflows/support-triage.toml fixtures
 default. Pass `--provider` and provider-specific flags when intentionally
 checking a replay against a different adapter.
 
+Reuse the private cache created with the original provider run to verify exact
+outputs without another API call:
+
+```sh
+cargo run -p vogon-cli -- verify --cache-file target/vogon.cache.json fixtures/workflows/support-triage.toml target/support-triage.replay.json
+```
+
+The cache identity includes the provider, endpoint, model, and runtime
+configuration. A missing or nonmatching entry causes normal provider
+execution; it does not silently accept the saved replay as actual output.
+
 Emit a machine-readable verification report with `workflow_name`, `is_match`,
 and `mismatches` fields:
 

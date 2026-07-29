@@ -18,7 +18,7 @@ use commands::run::{
     MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES, MAX_NVIDIA_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
     MAX_OPENROUTER_RETRIES, ModelProvider, RunConfig, RunModelConfig,
 };
-use commands::verify::VerifyModelConfig;
+use commands::verify::{VerifyConfig, VerifyModelConfig};
 use commands::workflow_inputs::WorkflowInputArgs;
 
 #[derive(Debug, Parser)]
@@ -282,6 +282,14 @@ enum Commands {
         #[arg(long)]
         json: bool,
 
+        /// Reuse provider outputs from a cache created by `run`.
+        #[arg(long, value_name = "FILE")]
+        cache_file: Option<PathBuf>,
+
+        /// Maximum number of outputs retained in `--cache-file`.
+        #[arg(long, default_value_t = DEFAULT_RUN_CACHE_MAX_ENTRIES)]
+        cache_max_entries: usize,
+
         workflow_file: PathBuf,
         replay_file: PathBuf,
     },
@@ -448,15 +456,21 @@ fn main() -> ExitCode {
             redactions,
             redaction_environment_values,
             json,
+            cache_file,
+            cache_max_entries,
             workflow_file,
             replay_file,
         } => commands::verify::run(
             &workflow_file,
             &replay_file,
-            &workflow_inputs,
-            &redactions,
-            &redaction_environment_values,
-            json,
+            VerifyConfig {
+                workflow_inputs: &workflow_inputs,
+                redaction_values: &redactions,
+                redaction_environment_values: &redaction_environment_values,
+                json,
+                cache_file: cache_file.as_deref(),
+                cache_max_entries,
+            },
             VerifyModelConfig {
                 provider,
                 gemini_model: &gemini_model,

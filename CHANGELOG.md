@@ -13,6 +13,9 @@ and this project follows semantic versioning.
   check` reports required names, while `vogon run` and `vogon verify` resolve
   bounded literal, UTF-8 file, current Git working tree, or pull request base
   diff inputs with fail-closed validation.
+- `vogon verify` can reuse and persist bounded provider outputs through
+  `--cache-file` and `--cache-max-entries`, allowing exact replay checks
+  without another provider request when the original run cache is retained.
 
 ## [0.1.4] - 2026-07-29
 

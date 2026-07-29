@@ -16,7 +16,9 @@ use vogon_adapters::NvidiaModel;
 use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenRouterModel;
-use vogon_core::{RedactionSet, ReplayMismatch, RunReport, Runtime, VerificationReport};
+use vogon_core::{
+    ModelAdapter, RedactionSet, ReplayMismatch, RunCache, RunReport, Runtime, VerificationReport,
+};
 
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
@@ -27,7 +29,8 @@ use crate::commands::run::{
     DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, DEFAULT_NVIDIA_MAX_RETRIES,
     DEFAULT_NVIDIA_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, DEFAULT_OPENROUTER_MAX_RETRIES,
-    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider, OpenAiCompatibleConfig,
+    DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider, OpenAiCompatibleConfig, load_run_cache,
+    reject_replay_cache_paths, write_run_cache_file,
 };
 use crate::commands::workflow_file::read_toml_workflow;
 use crate::commands::workflow_inputs::{WorkflowInputArgs, render_workflow};
@@ -37,14 +40,12 @@ const REDACTED_MISMATCH_OUTPUT: &str = "[UNREPORTED: replay is redacted]";
 pub fn run(
     workflow_file: &Path,
     replay_file: &Path,
-    workflow_input_args: &WorkflowInputArgs,
-    redaction_values: &[String],
-    redaction_environment_values: &[String],
-    json: bool,
+    config: VerifyConfig<'_>,
     model_config: VerifyModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    reject_replay_cache_paths(replay_file, config.cache_file)?;
     let workflow = read_toml_workflow(workflow_file)?;
-    let workflow = render_workflow(&workflow, workflow_input_args)?;
+    let workflow = render_workflow(&workflow, config.workflow_inputs)?;
     let replay_text = file_io::read_to_string(replay_file, "replay file")?;
     let replay: RunReport = serde_json::from_str(&replay_text).map_err(|error| {
         io::Error::new(
@@ -55,7 +56,8 @@ pub fn run(
             ),
         )
     })?;
-    let redactions = parse_redactions(redaction_values, redaction_environment_values)?;
+    let redactions =
+        parse_redactions(config.redaction_values, config.redaction_environment_values)?;
     let replay_redaction_labels = replay_redaction_labels(&replay)?;
     let missing_redaction_labels =
         missing_replay_redaction_labels(&replay_redaction_labels, &redactions);
@@ -71,7 +73,17 @@ pub fn run(
     }
 
     let resolved_model_config = resolve_model_config(&replay, model_config)?;
-    let verification = verify_with_model(&workflow, &replay, &redactions, resolved_model_config)?;
+    let mut cache = load_run_cache(config.cache_file, config.cache_max_entries)?;
+    let verification = verify_with_model(
+        &workflow,
+        &replay,
+        &redactions,
+        resolved_model_config,
+        cache.as_mut(),
+    )?;
+    if let (Some(cache_file), Some(cache)) = (config.cache_file, cache.as_ref()) {
+        write_run_cache_file(cache_file, cache)?;
+    }
 
     let mismatch_count = verification.mismatches.len();
     let printable_verification = redact_step_output_mismatches(verification, &redactions);
@@ -81,7 +93,7 @@ pub fn run(
         mask_redacted_step_outputs(printable_verification)
     };
 
-    if json {
+    if config.json {
         println!(
             "{}",
             serde_json::to_string_pretty(&json_verification_report(&printable_verification))?
@@ -111,6 +123,16 @@ pub fn run(
         "replay verification failed with {mismatch_count} mismatch(es)"
     ))
     .into())
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VerifyConfig<'a> {
+    pub workflow_inputs: &'a WorkflowInputArgs,
+    pub redaction_values: &'a [String],
+    pub redaction_environment_values: &'a [String],
+    pub json: bool,
+    pub cache_file: Option<&'a Path>,
+    pub cache_max_entries: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -405,10 +427,12 @@ fn verify_with_model(
     replay: &RunReport,
     redactions: &RedactionSet,
     model_config: ResolvedModelConfig,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     match model_config.provider {
-        ModelProvider::Deterministic => Ok(Runtime::new(DeterministicEchoModel)
-            .verify_with_redactions(workflow, replay, redactions)?),
+        ModelProvider::Deterministic => {
+            verify_with_adapter(DeterministicEchoModel, workflow, replay, redactions, cache)
+        }
         ModelProvider::Gemini => verify_with_gemini(
             workflow,
             replay,
@@ -416,6 +440,7 @@ fn verify_with_model(
             &model_config.gemini_model,
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
+            cache,
         ),
         ModelProvider::Groq => verify_with_groq(
             workflow,
@@ -424,6 +449,7 @@ fn verify_with_model(
             &model_config.groq_model,
             model_config.groq_timeout_seconds,
             model_config.groq_max_retries,
+            cache,
         ),
         ModelProvider::HuggingFace => verify_with_hugging_face(
             workflow,
@@ -432,6 +458,7 @@ fn verify_with_model(
             &model_config.hugging_face_model,
             model_config.hugging_face_timeout_seconds,
             model_config.hugging_face_max_retries,
+            cache,
         ),
         ModelProvider::Nvidia => verify_with_nvidia(
             workflow,
@@ -440,6 +467,7 @@ fn verify_with_model(
             &model_config.nvidia_model,
             model_config.nvidia_timeout_seconds,
             model_config.nvidia_max_retries,
+            cache,
         ),
         ModelProvider::OpenRouter => verify_with_openrouter(
             workflow,
@@ -448,6 +476,7 @@ fn verify_with_model(
             &model_config.openrouter_model,
             model_config.openrouter_timeout_seconds,
             model_config.openrouter_max_retries,
+            cache,
         ),
         ModelProvider::OpenAiCompatible => verify_with_openai_compatible(
             workflow,
@@ -460,7 +489,27 @@ fn verify_with_model(
                 timeout_seconds: model_config.openai_compatible_timeout_seconds,
                 max_retries: model_config.openai_compatible_max_retries,
             },
+            cache,
         ),
+    }
+}
+
+fn verify_with_adapter<A>(
+    adapter: A,
+    workflow: &vogon_core::Workflow,
+    replay: &RunReport,
+    redactions: &RedactionSet,
+    cache: Option<&mut RunCache>,
+) -> Result<VerificationReport, Box<dyn std::error::Error>>
+where
+    A: ModelAdapter,
+{
+    let runtime = Runtime::new(adapter);
+    match cache {
+        Some(cache) => {
+            Ok(runtime.verify_with_cache_and_redactions(workflow, replay, cache, redactions)?)
+        }
+        None => Ok(runtime.verify_with_redactions(workflow, replay, redactions)?),
     }
 }
 
@@ -472,13 +521,19 @@ fn verify_with_gemini(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(Runtime::new(GeminiModel::from_env_with_timeout_and_retries(
-        model,
-        Duration::from_secs(timeout_seconds),
-        max_retries,
-    )?)
-    .verify_with_redactions(workflow, replay, redactions)?)
+    verify_with_adapter(
+        GeminiModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        replay,
+        redactions,
+        cache,
+    )
 }
 
 #[cfg(not(feature = "gemini"))]
@@ -489,6 +544,7 @@ fn verify_with_gemini(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -505,13 +561,19 @@ fn verify_with_groq(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(Runtime::new(GroqModel::from_env_with_timeout_and_retries(
-        model,
-        Duration::from_secs(timeout_seconds),
-        max_retries,
-    )?)
-    .verify_with_redactions(workflow, replay, redactions)?)
+    verify_with_adapter(
+        GroqModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        replay,
+        redactions,
+        cache,
+    )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
@@ -522,6 +584,7 @@ fn verify_with_groq(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -538,14 +601,18 @@ fn verify_with_hugging_face(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(
-        Runtime::new(HuggingFaceModel::from_env_with_timeout_and_retries(
+    verify_with_adapter(
+        HuggingFaceModel::from_env_with_timeout_and_retries(
             model,
             Duration::from_secs(timeout_seconds),
             max_retries,
-        )?)
-        .verify_with_redactions(workflow, replay, redactions)?,
+        )?,
+        workflow,
+        replay,
+        redactions,
+        cache,
     )
 }
 
@@ -557,6 +624,7 @@ fn verify_with_hugging_face(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -573,13 +641,19 @@ fn verify_with_nvidia(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(Runtime::new(NvidiaModel::from_env_with_timeout_and_retries(
-        model,
-        Duration::from_secs(timeout_seconds),
-        max_retries,
-    )?)
-    .verify_with_redactions(workflow, replay, redactions)?)
+    verify_with_adapter(
+        NvidiaModel::from_env_with_timeout_and_retries(
+            model,
+            Duration::from_secs(timeout_seconds),
+            max_retries,
+        )?,
+        workflow,
+        replay,
+        redactions,
+        cache,
+    )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
@@ -590,6 +664,7 @@ fn verify_with_nvidia(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -606,14 +681,18 @@ fn verify_with_openrouter(
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
-    Ok(
-        Runtime::new(OpenRouterModel::from_env_with_timeout_and_retries(
+    verify_with_adapter(
+        OpenRouterModel::from_env_with_timeout_and_retries(
             model,
             Duration::from_secs(timeout_seconds),
             max_retries,
-        )?)
-        .verify_with_redactions(workflow, replay, redactions)?,
+        )?,
+        workflow,
+        replay,
+        redactions,
+        cache,
     )
 }
 
@@ -625,6 +704,7 @@ fn verify_with_openrouter(
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -639,6 +719,7 @@ fn verify_with_openai_compatible(
     replay: &RunReport,
     redactions: &RedactionSet,
     config: OpenAiCompatibleConfig<'_>,
+    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     let model = if config.no_auth {
         OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
@@ -656,7 +737,7 @@ fn verify_with_openai_compatible(
         )?
     };
 
-    Ok(Runtime::new(model).verify_with_redactions(workflow, replay, redactions)?)
+    verify_with_adapter(model, workflow, replay, redactions, cache)
 }
 
 #[cfg(not(feature = "openai-compatible"))]
@@ -665,6 +746,7 @@ fn verify_with_openai_compatible(
     _replay: &RunReport,
     _redactions: &RedactionSet,
     _config: OpenAiCompatibleConfig<'_>,
+    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

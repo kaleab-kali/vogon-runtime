@@ -306,6 +306,20 @@ For legacy unversioned replays, it falls back to the deterministic provider.
 Use `--provider` and provider-specific model, timeout, base URL, and retry flags
 to override the replay metadata when intentionally checking another adapter.
 
+Use the same private cache file for the original run and exact verification to
+avoid a second provider request:
+
+```sh
+cargo run -p vogon-cli -- run --provider nvidia --cache-file target/review.cache.json --output target/review.replay.json workflow.toml
+cargo run -p vogon-cli -- verify --cache-file target/review.cache.json workflow.toml target/review.replay.json
+```
+
+`--cache-max-entries` applies the same bounded retention policy as `run`.
+Entries are scoped by adapter identity and step input hash. Cache misses execute
+the configured provider normally, so cached verification is reproducible only
+when the cache from the original run is retained. The replay and cache paths
+must differ.
+
 When a workflow declares inputs, verification requires the same `--input`,
 `--input-file`, `--git-diff`, or `--git-diff-base` context used to create the
 replay. Changed context produces changed step input hashes and a structured

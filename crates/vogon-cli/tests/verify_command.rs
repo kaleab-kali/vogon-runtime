@@ -59,6 +59,23 @@ fn verify_command_renders_the_same_workflow_inputs_as_run() {
 }
 
 #[test]
+fn verify_command_rejects_replay_file_as_cache_file() {
+    let replay = replay_path("support-triage");
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--cache-file")
+        .arg(&replay)
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("replay file path"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("run cache path"));
+}
+
+#[test]
 fn verify_command_can_emit_json_match_report() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
