@@ -3,7 +3,10 @@ use std::{env, fmt, io::Read, net::IpAddr, time::Duration};
 use serde::{Deserialize, Serialize};
 use vogon_core::{ModelAdapter, Result, RuntimeMetadata, Step, VogonError};
 
-use crate::retry::{is_retryable_error, sleep_before_retry};
+use crate::{
+    MAX_PROVIDER_RESPONSE_BODY_BYTES,
+    retry::{is_retryable_error, sleep_before_retry},
+};
 
 /// Default OpenAI-compatible chat-completions base URL.
 pub const DEFAULT_OPENAI_COMPATIBLE_BASE_URL: &str = "https://router.huggingface.co/v1";
@@ -301,6 +304,8 @@ impl ModelAdapter for OpenAiCompatibleModel {
         };
         let response_body = response
             .body_mut()
+            .with_config()
+            .limit(MAX_PROVIDER_RESPONSE_BODY_BYTES)
             .read_to_string()
             .map_err(adapter_error)?;
         let response = serde_json::from_str::<ChatCompletionsResponse>(&response_body)
@@ -471,6 +476,7 @@ mod tests {
         MAX_OPENAI_COMPATIBLE_ERROR_BODY_CHARS, MAX_OPENAI_COMPATIBLE_RETRIES,
         OpenAiCompatibleModel, extract_text, truncate_error_body,
     };
+    use crate::MAX_PROVIDER_RESPONSE_BODY_BYTES;
     use vogon_core::{ModelAdapter, Step, StepId};
 
     #[test]
@@ -663,6 +669,46 @@ mod tests {
         .unwrap();
 
         assert_eq!(extract_text(&response).as_deref(), Some("hello world"));
+    }
+
+    #[test]
+    fn oversized_success_bodies_are_rejected() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+
+            let body = format!(
+                r#"{{"choices":[{{"message":{{"content":"{}"}}}}]}}"#,
+                "x".repeat(MAX_PROVIDER_RESPONSE_BODY_BYTES as usize)
+            );
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        });
+
+        let model = OpenAiCompatibleModel::with_base_url_model_timeout_and_retries(
+            "secret-key",
+            format!("http://{address}"),
+            "example/model",
+            Duration::from_secs(5),
+            0,
+        )
+        .unwrap();
+        let step = Step::new(StepId::new("classify").unwrap(), "Classify");
+
+        let error = model.complete(&step, "input").unwrap_err();
+
+        server.join().unwrap();
+        let error = error.to_string();
+        assert!(error.contains("larger than request limit"), "{error}");
+        assert!(
+            error.contains(&MAX_PROVIDER_RESPONSE_BODY_BYTES.to_string()),
+            "{error}"
+        );
     }
 
     #[test]

@@ -29,6 +29,9 @@ and this project follows semantic versioning.
   response headers, with server-directed waits capped at 30 seconds.
 - Provider adapters now retry only transient transport failures and return
   permanent configuration, TLS, redirect, and decoding failures immediately.
+- Successful provider response bodies and persisted replay or run-cache
+  artifacts are now bounded at 1 MiB, preventing excessive response buffering
+  and self-generated files that Vogon cannot reopen.
 
 ### Fixed
 
