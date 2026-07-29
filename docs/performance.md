@@ -50,7 +50,10 @@ Use `--cache-max-entries` to choose the retained entry count; the default is
 `1024`, and `0` disables storage.
 
 Treat cache files as sensitive. They may contain raw model outputs, including
-values redacted from replay files, and should stay out of version control.
+values redacted from replay files, and should stay out of version control. On
+Unix, Vogon creates persisted replay and run-cache artifacts with owner-only
+read/write permissions (`0600`). On Windows, files inherit the destination
+directory's access control list.
 
 ## Runtime Output Bounds
 
