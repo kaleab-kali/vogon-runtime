@@ -381,6 +381,34 @@ report includes `workflow_name`, `mode`, `is_match`, and `mismatches` fields:
 cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
+## `vogon report`
+
+Render a replay as a self-contained HTML page:
+
+```sh
+vogon report --output target/release-gate.html target/release-gate.replay.json
+```
+
+The command parses the bounded replay, validates redaction markers, recomputes
+every step output hash and the aggregate run hash, escapes all replay content,
+and writes one HTML file with inline styles and a restrictive content security
+policy. It does not make network requests or load external assets.
+
+Use repeatable `--redact LABEL=VALUE` or `--redact-env LABEL=ENV_VAR` options
+when known sensitive values still exist in recorded outputs:
+
+```sh
+vogon report \
+  --redact-env internal_host=INTERNAL_HOST \
+  --output target/release-gate.html \
+  target/release-gate.replay.json
+```
+
+The integrity check detects accidental or uncoordinated changes to replay
+content. Because replay hashes are unkeyed SHA-256 values, anyone who can edit
+the replay can recompute them. The HTML report is not a signature, provider
+attestation, verification run, or proof that model output is correct.
+
 ## `vogon trace`
 
 Prints a human-readable replay trace, including replay schema and runtime

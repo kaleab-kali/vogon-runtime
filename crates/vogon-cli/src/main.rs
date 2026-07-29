@@ -69,6 +69,23 @@ enum Commands {
         json: bool,
     },
 
+    /// Render a self-contained HTML evidence report from a replay.
+    Report {
+        /// Redact a literal value from report outputs. May be repeated.
+        #[arg(long = "redact", value_name = "LABEL=VALUE")]
+        redactions: Vec<String>,
+
+        /// Redact a value read from an environment variable. May be repeated.
+        #[arg(long = "redact-env", value_name = "LABEL=ENV_VAR")]
+        redaction_environment_values: Vec<String>,
+
+        /// Write the self-contained HTML report to this file.
+        #[arg(short, long, value_name = "FILE")]
+        output: PathBuf,
+
+        replay_file: PathBuf,
+    },
+
     /// Run a workflow file.
     Run {
         #[command(flatten)]
@@ -375,6 +392,17 @@ fn main() -> ExitCode {
         Commands::Doctor { json } => commands::doctor::run(json),
         Commands::Init { output, force } => commands::init::run(&output, force),
         Commands::Providers { json } => commands::providers::run(json),
+        Commands::Report {
+            redactions,
+            redaction_environment_values,
+            output,
+            replay_file,
+        } => commands::report::run(
+            &replay_file,
+            &output,
+            &redactions,
+            &redaction_environment_values,
+        ),
         Commands::Run {
             workflow_inputs,
             provider,

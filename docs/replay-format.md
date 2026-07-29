@@ -92,6 +92,19 @@ Editor and review tooling can use the published
 replay files. Legacy unversioned replays remain supported by the CLI but are not
 the schema target.
 
+## Evidence Reports
+
+`vogon report --output report.html replay.json` creates an offline,
+self-contained review page. Before writing the page, Vogon recomputes each
+`output_hash` from the recorded output and recomputes `run_hash` from ordered
+step identifiers, input/output hashes, and recorded decision/execution policy
+hashes. Inconsistent replays are rejected.
+
+This is an internal-consistency check, not authenticity. Replay hashes are not
+keyed or signed, so a party able to rewrite the replay can also recompute every
+hash. Use artifact access controls, retention policy, and an external signing
+or provenance system when tamper-evident custody is required.
+
 ## Redaction
 
 Replay output can be redacted before it is written. Redaction rules are literal

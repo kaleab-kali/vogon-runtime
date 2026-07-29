@@ -22,6 +22,7 @@ fn help_flag_lists_public_commands() {
         "doctor",
         "init",
         "providers",
+        "report",
         "run",
         "verify",
         "trace",

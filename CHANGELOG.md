@@ -31,6 +31,8 @@ and this project follows semantic versioning.
 - A public company release-gate example demonstrates native Git diff capture,
   deterministic cache/replay verification, a policy-restricted NVIDIA
   decision, and pull request evidence upload.
+- `vogon report` renders a self-contained offline HTML evidence page only after
+  recomputing step output hashes and the aggregate replay run hash.
 
 ## [0.1.4] - 2026-07-29
 

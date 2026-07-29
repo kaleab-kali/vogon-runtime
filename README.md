@@ -35,7 +35,7 @@ small Rust workspace with:
 - `vogon-core` for workflow, runtime, replay, hashing, and error types.
 - `vogon-adapters` for deterministic local execution and provider-backed
   adapters such as Gemini.
-- `vogon-cli` for running demos, workflows, verification, and traces.
+- `vogon-cli` for running workflows, verification, traces, and evidence reports.
 - `fixtures` for example workflows and replay logs.
 - `docs` for architecture, workflow format, determinism, and replay format
   notes.
@@ -106,6 +106,16 @@ field, a non-string value, or an unlisted value fails closed. This makes the
 exit status suitable for CI, but the decision remains a model judgment and
 must not replace deterministic tests, static analysis, or required human
 review.
+
+Render a replay as a self-contained HTML evidence page for reviewers:
+
+```sh
+cargo run -p vogon-cli -- report --output target/release-gate.html target/release-gate.replay.json
+```
+
+Report generation is offline and recomputes every recorded output hash and the
+aggregate run hash before writing HTML. The result is a readable evidence
+artifact, not a digital signature or proof that a model decision is correct.
 
 Restrict where a workflow may run and how much output any step may feed into
 the replay or next step:
@@ -510,6 +520,7 @@ Already available:
 - Exact and output-insensitive structural replay verification.
 - Strict workflow decision policies with replay evidence and CI exit enforcement.
 - Workflow provider/model allowlists and bounded step-output propagation.
+- Offline, self-contained HTML evidence reports with replay integrity checks.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
 - Provider-neutral runtime observer events for step lifecycle, replay mismatch,

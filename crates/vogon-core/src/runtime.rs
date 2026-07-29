@@ -1,7 +1,7 @@
 use crate::{
     CURRENT_REPLAY_SCHEMA_VERSION, RedactionSet, ReplayMismatch, Result, RunCache, RunReport,
     RuntimeEvent, RuntimeMetadata, Step, StepResult, VerificationMode, VerificationReport,
-    Workflow, stable_hash,
+    Workflow, replay::compute_run_hash, stable_hash,
 };
 
 /// Adapter trait implemented by model providers.
@@ -222,18 +222,6 @@ where
             });
         }
 
-        let run_hash_material = steps
-            .iter()
-            .map(|step| {
-                format!(
-                    "{}:{}:{}",
-                    step.step_id.as_str(),
-                    step.input_hash,
-                    step.output_hash
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("|");
         let decision = workflow.decision().map(|policy| {
             let output = steps
                 .last()
@@ -243,19 +231,8 @@ where
             policy.evaluate(output)
         });
         let decision = decision.transpose()?;
-        let run_hash_material = match &decision {
-            Some(decision) => format!(
-                "{run_hash_material}|decision_policy:{}",
-                decision.policy_hash
-            ),
-            None => run_hash_material,
-        };
-        let run_hash_material = match &execution_policy_hash {
-            Some(policy_hash) => {
-                format!("{run_hash_material}|execution_policy:{policy_hash}")
-            }
-            None => run_hash_material,
-        };
+        let run_hash =
+            compute_run_hash(&steps, decision.as_ref(), execution_policy_hash.as_deref());
 
         Ok(RunReport {
             schema_version: CURRENT_REPLAY_SCHEMA_VERSION,
@@ -263,7 +240,7 @@ where
             runtime: runtime_metadata,
             decision,
             execution_policy_hash,
-            run_hash: stable_hash(run_hash_material),
+            run_hash,
             steps,
         })
     }
