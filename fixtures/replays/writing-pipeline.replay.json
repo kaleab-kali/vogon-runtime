@@ -4,9 +4,9 @@
   "runtime": {
     "provider": "deterministic",
     "adapter": "deterministic-echo",
-    "adapter_version": "0.1.3",
+    "adapter_version": "0.1.4",
     "model": "deterministic-echo",
-    "cache_identity": "vogon-adapters@0.1.3:deterministic-echo:v1",
+    "cache_identity": "vogon-adapters@0.1.4:deterministic-echo:v1",
     "parameters": {
       "mode": "offline"
     }
