@@ -27,8 +27,8 @@ toml = "1.1"
 # Keep ureq's optional JSON/default features disabled; adapters use serde_json
 # directly so unused optional HTTP dependencies do not enter Cargo.lock.
 ureq = { version = "3.3", default-features = false, features = ["rustls"] }
-vogon-adapters = { version = "0.1.4", path = "crates/vogon-adapters", default-features = false }
-vogon-core = { version = "0.1.4", path = "crates/vogon-core" }
+vogon-adapters = { version = "0.2.0", path = "crates/vogon-adapters", default-features = false }
+vogon-core = { version = "0.2.0", path = "crates/vogon-core" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

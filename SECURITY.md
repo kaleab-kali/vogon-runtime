@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-`v0.1.4` is the latest public release of Vogon Runtime; `v0.1.0` was the first
+`v0.2.0` is the latest public release of Vogon Runtime; `v0.1.0` was the first
 public release. Security fixes are handled on the `main` branch and shipped in
 follow-up patch or minor releases when they affect published artifacts.
 

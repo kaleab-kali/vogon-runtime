@@ -7,6 +7,8 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-30
+
 ### Added
 
 - Workflows can declare strict `{{input.NAME}}` prompt placeholders. `vogon
