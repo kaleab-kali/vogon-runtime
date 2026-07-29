@@ -61,6 +61,9 @@ jobs:
           trace_jsonl="$(./target/release/vogon trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
+          report_file="$RUNNER_TEMP/vogon-report-smoke.html"
+          ./target/release/vogon report --output "$report_file" fixtures/replays/support-triage.replay.json
+          test -s "$report_file"
           cache_file="$RUNNER_TEMP/vogon-cache-smoke.cache.json"
           ./target/release/vogon run --cache-file "$cache_file" --cache-max-entries 1 fixtures/workflows/support-triage.toml > "$RUNNER_TEMP/vogon-cache-smoke.replay.json"
           cargo run -p vogon-xtask -- check-cache-json "$cache_file" --expected-max-entries 1 --expected-entry-count 1
@@ -109,6 +112,8 @@ jobs:
           ./archive-smoke/vogon check --json archive-smoke/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           ./archive-smoke/vogon run --cache-file archive-smoke/cache-smoke.cache.json --cache-max-entries 1 fixtures/workflows/support-triage.toml > archive-smoke/cache-smoke.replay.json
           cargo run -p vogon-xtask -- check-cache-json archive-smoke/cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
+          ./archive-smoke/vogon report --output archive-smoke/support-triage.html fixtures/replays/support-triage.replay.json
+          test -s archive-smoke/support-triage.html
 
       - name: Attest CLI archive
         uses: actions/attest@v4
@@ -173,6 +178,9 @@ jobs:
           $traceJsonl = (& .\target\release\vogon.exe trace --jsonl fixtures\replays\support-triage.replay.json) -join "`n"
           $traceJsonl
           $traceJsonl | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
+          $reportFile = Join-Path $env:RUNNER_TEMP 'vogon-report-smoke.html'
+          .\target\release\vogon.exe report --output $reportFile fixtures\replays\support-triage.replay.json
+          if ((Get-Item -LiteralPath $reportFile).Length -eq 0) { throw "Empty evidence report" }
           $cacheFile = Join-Path $env:RUNNER_TEMP 'vogon-cache-smoke.cache.json'
           .\target\release\vogon.exe run --cache-file $cacheFile --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           cargo run -p vogon-xtask -- check-cache-json $cacheFile --expected-max-entries 1 --expected-entry-count 1
@@ -207,6 +215,8 @@ jobs:
           .\archive-smoke\vogon.exe check --json archive-smoke\starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           .\archive-smoke\vogon.exe run --cache-file archive-smoke\cache-smoke.cache.json --cache-max-entries 1 fixtures\workflows\support-triage.toml | Out-Null
           cargo run -p vogon-xtask -- check-cache-json archive-smoke\cache-smoke.cache.json --expected-max-entries 1 --expected-entry-count 1
+          .\archive-smoke\vogon.exe report --output archive-smoke\support-triage.html fixtures\replays\support-triage.replay.json
+          if ((Get-Item -LiteralPath archive-smoke\support-triage.html).Length -eq 0) { throw "Empty evidence report" }
 
       - name: Attest CLI archive
         uses: actions/attest@v4
@@ -273,6 +283,8 @@ jobs:
           trace_jsonl="$(docker run --rm --read-only -v "${{ github.workspace }}:/work:ro" "$image" trace --jsonl fixtures/replays/support-triage.replay.json)"
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/output" -v "${{ github.workspace }}:/repo:ro" "$image" report --output /output/support-triage.html /repo/fixtures/replays/support-triage.replay.json
+          test -s "${{ runner.temp }}/vogon-container-smoke/support-triage.html"
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-container-smoke/cache-smoke.replay.json"
           docker run --rm --read-only --entrypoint cat -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" /work/cache-smoke.cache.json | cargo run -p vogon-xtask -- check-cache-json /dev/stdin --expected-max-entries 1 --expected-entry-count 1
 
@@ -299,6 +311,8 @@ jobs:
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run -p vogon-xtask -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-packaged-container-smoke/cache-smoke.replay.json"
           docker run --rm --read-only --entrypoint cat -v "${{ runner.temp }}/vogon-packaged-container-smoke:/work:ro" "$image" /work/cache-smoke.cache.json | cargo run -p vogon-xtask -- check-cache-json /dev/stdin --expected-max-entries 1 --expected-entry-count 1
+          docker run --rm --read-only -v "${{ runner.temp }}/vogon-packaged-container-smoke:/output" -v "${{ github.workspace }}:/repo:ro" "$image" report --output /output/support-triage.html /repo/fixtures/replays/support-triage.replay.json
+          test -s "${{ runner.temp }}/vogon-packaged-container-smoke/support-triage.html"
 
       - name: Attest container image archive
         uses: actions/attest@v4
@@ -360,6 +374,8 @@ jobs:
             mkdir -p linux-archive-smoke
             tar -xzf "vogon-${{ github.ref_name }}-linux-x86_64.tar.gz" -C linux-archive-smoke
             cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-archive-contents linux-archive-smoke --binary vogon
+            ./linux-archive-smoke/vogon report --output linux-archive-smoke/support-triage.html "$GITHUB_WORKSPACE/fixtures/replays/support-triage.replay.json"
+            test -s linux-archive-smoke/support-triage.html
           )
           (
             cd release-artifacts/vogon-windows-x86_64
@@ -387,6 +403,8 @@ jobs:
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" check --json /work/starter.toml | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-workflow-json --expected-workflow-name starter-workflow --expected-step-count 2
             docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-downloaded-container-smoke/cache-smoke.replay.json"
             docker run --rm --read-only --entrypoint cat -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/work:ro" "$image" /work/cache-smoke.cache.json | cargo run --manifest-path "$GITHUB_WORKSPACE/crates/vogon-xtask/Cargo.toml" -- check-cache-json /dev/stdin --expected-max-entries 1 --expected-entry-count 1
+            docker run --rm --read-only -v "${{ runner.temp }}/vogon-downloaded-container-smoke:/output" -v "$GITHUB_WORKSPACE:/repo:ro" "$image" report --output /output/support-triage.html /repo/fixtures/replays/support-triage.replay.json
+            test -s "${{ runner.temp }}/vogon-downloaded-container-smoke/support-triage.html"
           )
 
   publish-release:
