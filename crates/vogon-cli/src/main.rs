@@ -18,7 +18,7 @@ use commands::run::{
     MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES, MAX_NVIDIA_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
     MAX_OPENROUTER_RETRIES, ModelProvider, RunConfig, RunModelConfig,
 };
-use commands::verify::{VerifyConfig, VerifyModelConfig};
+use commands::verify::{VerifyConfig, VerifyMode, VerifyModelConfig};
 use commands::workflow_inputs::WorkflowInputArgs;
 
 #[derive(Debug, Parser)]
@@ -290,6 +290,10 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_RUN_CACHE_MAX_ENTRIES)]
         cache_max_entries: usize,
 
+        /// Replay comparison policy.
+        #[arg(long, value_enum, default_value_t = VerifyMode::Exact)]
+        mode: VerifyMode,
+
         workflow_file: PathBuf,
         replay_file: PathBuf,
     },
@@ -458,6 +462,7 @@ fn main() -> ExitCode {
             json,
             cache_file,
             cache_max_entries,
+            mode,
             workflow_file,
             replay_file,
         } => commands::verify::run(
@@ -470,6 +475,7 @@ fn main() -> ExitCode {
                 json,
                 cache_file: cache_file.as_deref(),
                 cache_max_entries,
+                mode,
             },
             VerifyModelConfig {
                 provider,

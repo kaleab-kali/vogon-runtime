@@ -54,6 +54,10 @@ pub enum VogonError {
     #[error("workflow input `{0}` was supplied but is not used")]
     UnusedWorkflowInput(String),
 
+    /// Structural verification requires prompt hashes recorded by a newer run.
+    #[error("step `{0}` has no prompt hash; create a new replay before structural verification")]
+    MissingStepPromptHash(String),
+
     /// Redaction labels must contain at least one non-whitespace character.
     #[error("redaction label cannot be empty")]
     EmptyRedactionLabel,

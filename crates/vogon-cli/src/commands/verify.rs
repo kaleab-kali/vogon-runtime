@@ -2,6 +2,7 @@
 use std::time::Duration;
 use std::{collections::BTreeSet, io, path::Path};
 
+use clap::ValueEnum;
 use serde_json::json;
 use vogon_adapters::DeterministicEchoModel;
 #[cfg(feature = "gemini")]
@@ -17,7 +18,8 @@ use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenRouterModel;
 use vogon_core::{
-    ModelAdapter, RedactionSet, ReplayMismatch, RunCache, RunReport, Runtime, VerificationReport,
+    ModelAdapter, RedactionSet, ReplayMismatch, RunCache, RunReport, Runtime, VerificationMode,
+    VerificationReport,
 };
 
 use crate::commands::file_io;
@@ -56,6 +58,7 @@ pub fn run(
             ),
         )
     })?;
+    replay.validate_for_verification(config.mode.into())?;
     let redactions =
         parse_redactions(config.redaction_values, config.redaction_environment_values)?;
     let replay_redaction_labels = replay_redaction_labels(&replay)?;
@@ -80,6 +83,7 @@ pub fn run(
         &redactions,
         resolved_model_config,
         cache.as_mut(),
+        config.mode.into(),
     )?;
     if let (Some(cache_file), Some(cache)) = (config.cache_file, cache.as_ref()) {
         write_run_cache_file(cache_file, cache)?;
@@ -96,7 +100,10 @@ pub fn run(
     if config.json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&json_verification_report(&printable_verification))?
+            serde_json::to_string_pretty(&json_verification_report(
+                &printable_verification,
+                config.mode,
+            ))?
         );
 
         if printable_verification.is_match() {
@@ -110,8 +117,12 @@ pub fn run(
     }
 
     if printable_verification.is_match() {
+        let label = match config.mode {
+            VerifyMode::Exact => "Replay verified",
+            VerifyMode::Structure => "Replay structure verified",
+        };
         println!(
-            "Replay verified: {} ({} steps)",
+            "{label}: {} ({} steps)",
             replay.workflow_name,
             replay.steps.len()
         );
@@ -133,6 +144,22 @@ pub struct VerifyConfig<'a> {
     pub json: bool,
     pub cache_file: Option<&'a Path>,
     pub cache_max_entries: usize,
+    pub mode: VerifyMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum VerifyMode {
+    Exact,
+    Structure,
+}
+
+impl From<VerifyMode> for VerificationMode {
+    fn from(mode: VerifyMode) -> Self {
+        match mode {
+            VerifyMode::Exact => Self::Exact,
+            VerifyMode::Structure => Self::Structure,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -428,60 +455,49 @@ fn verify_with_model(
     redactions: &RedactionSet,
     model_config: ResolvedModelConfig,
     cache: Option<&mut RunCache>,
+    mode: VerificationMode,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    let execution = VerifyExecution {
+        workflow,
+        replay,
+        redactions,
+        cache,
+        mode,
+    };
     match model_config.provider {
-        ModelProvider::Deterministic => {
-            verify_with_adapter(DeterministicEchoModel, workflow, replay, redactions, cache)
-        }
+        ModelProvider::Deterministic => verify_with_adapter(DeterministicEchoModel, execution),
         ModelProvider::Gemini => verify_with_gemini(
-            workflow,
-            replay,
-            redactions,
+            execution,
             &model_config.gemini_model,
             model_config.gemini_timeout_seconds,
             model_config.gemini_max_retries,
-            cache,
         ),
         ModelProvider::Groq => verify_with_groq(
-            workflow,
-            replay,
-            redactions,
+            execution,
             &model_config.groq_model,
             model_config.groq_timeout_seconds,
             model_config.groq_max_retries,
-            cache,
         ),
         ModelProvider::HuggingFace => verify_with_hugging_face(
-            workflow,
-            replay,
-            redactions,
+            execution,
             &model_config.hugging_face_model,
             model_config.hugging_face_timeout_seconds,
             model_config.hugging_face_max_retries,
-            cache,
         ),
         ModelProvider::Nvidia => verify_with_nvidia(
-            workflow,
-            replay,
-            redactions,
+            execution,
             &model_config.nvidia_model,
             model_config.nvidia_timeout_seconds,
             model_config.nvidia_max_retries,
-            cache,
         ),
         ModelProvider::OpenRouter => verify_with_openrouter(
-            workflow,
-            replay,
-            redactions,
+            execution,
             &model_config.openrouter_model,
             model_config.openrouter_timeout_seconds,
             model_config.openrouter_max_retries,
-            cache,
         ),
         ModelProvider::OpenAiCompatible => verify_with_openai_compatible(
-            workflow,
-            replay,
-            redactions,
+            execution,
             OpenAiCompatibleConfig {
                 base_url: &model_config.openai_compatible_base_url,
                 model: &model_config.openai_compatible_model,
@@ -489,39 +505,49 @@ fn verify_with_model(
                 timeout_seconds: model_config.openai_compatible_timeout_seconds,
                 max_retries: model_config.openai_compatible_max_retries,
             },
-            cache,
         ),
     }
 }
 
+struct VerifyExecution<'a> {
+    workflow: &'a vogon_core::Workflow,
+    replay: &'a RunReport,
+    redactions: &'a RedactionSet,
+    cache: Option<&'a mut RunCache>,
+    mode: VerificationMode,
+}
+
 fn verify_with_adapter<A>(
     adapter: A,
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
-    cache: Option<&mut RunCache>,
+    execution: VerifyExecution<'_>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>>
 where
     A: ModelAdapter,
 {
     let runtime = Runtime::new(adapter);
-    match cache {
-        Some(cache) => {
-            Ok(runtime.verify_with_cache_and_redactions(workflow, replay, cache, redactions)?)
-        }
-        None => Ok(runtime.verify_with_redactions(workflow, replay, redactions)?),
+    match execution.cache {
+        Some(cache) => Ok(runtime.verify_with_cache_redactions_and_mode(
+            execution.workflow,
+            execution.replay,
+            cache,
+            execution.redactions,
+            execution.mode,
+        )?),
+        None => Ok(runtime.verify_with_redactions_and_mode(
+            execution.workflow,
+            execution.replay,
+            execution.redactions,
+            execution.mode,
+        )?),
     }
 }
 
 #[cfg(feature = "gemini")]
 fn verify_with_gemini(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     verify_with_adapter(
         GeminiModel::from_env_with_timeout_and_retries(
@@ -529,22 +555,16 @@ fn verify_with_gemini(
             Duration::from_secs(timeout_seconds),
             max_retries,
         )?,
-        workflow,
-        replay,
-        redactions,
-        cache,
+        execution,
     )
 }
 
 #[cfg(not(feature = "gemini"))]
 fn verify_with_gemini(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -555,13 +575,10 @@ fn verify_with_gemini(
 
 #[cfg(feature = "openai-compatible")]
 fn verify_with_groq(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     verify_with_adapter(
         GroqModel::from_env_with_timeout_and_retries(
@@ -569,22 +586,16 @@ fn verify_with_groq(
             Duration::from_secs(timeout_seconds),
             max_retries,
         )?,
-        workflow,
-        replay,
-        redactions,
-        cache,
+        execution,
     )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn verify_with_groq(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -595,13 +606,10 @@ fn verify_with_groq(
 
 #[cfg(feature = "openai-compatible")]
 fn verify_with_hugging_face(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     verify_with_adapter(
         HuggingFaceModel::from_env_with_timeout_and_retries(
@@ -609,22 +617,16 @@ fn verify_with_hugging_face(
             Duration::from_secs(timeout_seconds),
             max_retries,
         )?,
-        workflow,
-        replay,
-        redactions,
-        cache,
+        execution,
     )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn verify_with_hugging_face(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -635,13 +637,10 @@ fn verify_with_hugging_face(
 
 #[cfg(feature = "openai-compatible")]
 fn verify_with_nvidia(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     verify_with_adapter(
         NvidiaModel::from_env_with_timeout_and_retries(
@@ -649,22 +648,16 @@ fn verify_with_nvidia(
             Duration::from_secs(timeout_seconds),
             max_retries,
         )?,
-        workflow,
-        replay,
-        redactions,
-        cache,
+        execution,
     )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn verify_with_nvidia(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -675,13 +668,10 @@ fn verify_with_nvidia(
 
 #[cfg(feature = "openai-compatible")]
 fn verify_with_openrouter(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     model: &str,
     timeout_seconds: u64,
     max_retries: u32,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     verify_with_adapter(
         OpenRouterModel::from_env_with_timeout_and_retries(
@@ -689,22 +679,16 @@ fn verify_with_openrouter(
             Duration::from_secs(timeout_seconds),
             max_retries,
         )?,
-        workflow,
-        replay,
-        redactions,
-        cache,
+        execution,
     )
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn verify_with_openrouter(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _model: &str,
     _timeout_seconds: u64,
     _max_retries: u32,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -715,11 +699,8 @@ fn verify_with_openrouter(
 
 #[cfg(feature = "openai-compatible")]
 fn verify_with_openai_compatible(
-    workflow: &vogon_core::Workflow,
-    replay: &RunReport,
-    redactions: &RedactionSet,
+    execution: VerifyExecution<'_>,
     config: OpenAiCompatibleConfig<'_>,
-    cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     let model = if config.no_auth {
         OpenAiCompatibleModel::without_authentication_with_base_url_model_timeout_and_retries(
@@ -737,16 +718,13 @@ fn verify_with_openai_compatible(
         )?
     };
 
-    verify_with_adapter(model, workflow, replay, redactions, cache)
+    verify_with_adapter(model, execution)
 }
 
 #[cfg(not(feature = "openai-compatible"))]
 fn verify_with_openai_compatible(
-    _workflow: &vogon_core::Workflow,
-    _replay: &RunReport,
-    _redactions: &RedactionSet,
+    _execution: VerifyExecution<'_>,
     _config: OpenAiCompatibleConfig<'_>,
-    _cache: Option<&mut RunCache>,
 ) -> Result<VerificationReport, Box<dyn std::error::Error>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -755,9 +733,14 @@ fn verify_with_openai_compatible(
     .into())
 }
 
-fn json_verification_report(report: &VerificationReport) -> serde_json::Value {
+fn json_verification_report(report: &VerificationReport, mode: VerifyMode) -> serde_json::Value {
+    let mode = match mode {
+        VerifyMode::Exact => "exact",
+        VerifyMode::Structure => "structure",
+    };
     json!({
         "workflow_name": report.workflow_name,
+        "mode": mode,
         "is_match": report.is_match(),
         "mismatches": report.mismatches,
     })

@@ -1,6 +1,7 @@
 use crate::{
     CURRENT_REPLAY_SCHEMA_VERSION, RedactionSet, ReplayMismatch, Result, RunCache, RunReport,
-    RuntimeEvent, RuntimeMetadata, Step, StepResult, VerificationReport, Workflow, stable_hash,
+    RuntimeEvent, RuntimeMetadata, Step, StepResult, VerificationMode, VerificationReport,
+    Workflow, stable_hash,
 };
 
 /// Adapter trait implemented by model providers.
@@ -190,6 +191,7 @@ where
 
             steps.push(StepResult {
                 step_id: step.id().clone(),
+                prompt_hash: Some(stable_hash(step.prompt())),
                 input_hash,
                 output_hash: stable_hash(&redacted_output),
                 output: redacted_output,
@@ -234,6 +236,18 @@ where
         )
     }
 
+    /// Verifies a workflow using the selected comparison mode.
+    pub fn verify_with_mode(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        mode: VerificationMode,
+    ) -> Result<VerificationReport> {
+        expected.validate_for_verification(mode)?;
+        let actual = self.run(workflow)?;
+        self.compare_reports(expected, actual, mode, |_| {})
+    }
+
     /// Verifies a workflow and emits runtime events to an observer.
     pub fn verify_with_observer<F>(
         &self,
@@ -260,6 +274,19 @@ where
         redactions: &RedactionSet,
     ) -> Result<VerificationReport> {
         self.verify_uncached_with_redactions_and_observer(workflow, expected, redactions, |_| {})
+    }
+
+    /// Verifies with redactions using the selected comparison mode.
+    pub fn verify_with_redactions_and_mode(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        redactions: &RedactionSet,
+        mode: VerificationMode,
+    ) -> Result<VerificationReport> {
+        expected.validate_for_verification(mode)?;
+        let actual = self.run_with_redactions(workflow, redactions)?;
+        self.compare_reports(expected, actual, mode, |_| {})
     }
 
     /// Verifies a workflow using a cache scoped by adapter identity and step input hash.
@@ -295,6 +322,20 @@ where
         )
     }
 
+    /// Verifies with cache and redactions using the selected comparison mode.
+    pub fn verify_with_cache_redactions_and_mode(
+        &self,
+        workflow: &Workflow,
+        expected: &RunReport,
+        cache: &mut RunCache,
+        redactions: &RedactionSet,
+        mode: VerificationMode,
+    ) -> Result<VerificationReport> {
+        expected.validate_for_verification(mode)?;
+        let actual = self.run_with_cache_and_redactions(workflow, cache, redactions)?;
+        self.compare_reports(expected, actual, mode, |_| {})
+    }
+
     /// Verifies a workflow with redactions and event observation.
     pub fn verify_with_redactions_and_observer<F>(
         &self,
@@ -327,7 +368,7 @@ where
             redactions,
             &mut observer,
         )?;
-        self.compare_reports(expected, actual, observer)
+        self.compare_reports(expected, actual, VerificationMode::Exact, observer)
     }
 
     fn verify_uncached_with_redactions_and_observer<F>(
@@ -342,13 +383,14 @@ where
     {
         let actual =
             self.run_uncached_with_redactions_and_observer(workflow, redactions, &mut observer)?;
-        self.compare_reports(expected, actual, observer)
+        self.compare_reports(expected, actual, VerificationMode::Exact, observer)
     }
 
     fn compare_reports<F>(
         &self,
         expected: &RunReport,
         actual: RunReport,
+        mode: VerificationMode,
         mut observer: F,
     ) -> Result<VerificationReport>
     where
@@ -367,7 +409,7 @@ where
             );
         }
 
-        if expected.run_hash != actual.run_hash {
+        if mode == VerificationMode::Exact && expected.run_hash != actual.run_hash {
             push_mismatch(
                 &mut mismatches,
                 ReplayMismatch::RunHash {
@@ -417,7 +459,22 @@ where
                 );
             }
 
-            if expected_step.input_hash != actual_step.input_hash {
+            if mode == VerificationMode::Structure
+                && expected_step.prompt_hash != actual_step.prompt_hash
+            {
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::StepPromptHash {
+                        step_id: actual_step.step_id.clone(),
+                        expected: expected_step.prompt_hash.clone().unwrap_or_default(),
+                        actual: actual_step.prompt_hash.clone().unwrap_or_default(),
+                    },
+                    &mut observer,
+                );
+            }
+
+            if mode == VerificationMode::Exact && expected_step.input_hash != actual_step.input_hash
+            {
                 push_mismatch(
                     &mut mismatches,
                     ReplayMismatch::StepInputHash {
@@ -429,7 +486,9 @@ where
                 );
             }
 
-            if expected_step.output_hash != actual_step.output_hash {
+            if mode == VerificationMode::Exact
+                && expected_step.output_hash != actual_step.output_hash
+            {
                 push_mismatch(
                     &mut mismatches,
                     ReplayMismatch::StepOutputHash {
@@ -441,7 +500,7 @@ where
                 );
             }
 
-            if expected_step.output != actual_step.output {
+            if mode == VerificationMode::Exact && expected_step.output != actual_step.output {
                 push_mismatch(
                     &mut mismatches,
                     ReplayMismatch::StepOutput {
@@ -493,7 +552,7 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 mod tests {
     use crate::{
         RedactionRule, RedactionSet, ReplayMismatch, Result, RunCache, RuntimeEvent, Step, StepId,
-        Workflow, stable_hash,
+        VerificationMode, VogonError, Workflow, stable_hash,
     };
 
     use std::{cell::Cell, rc::Rc};
@@ -533,6 +592,19 @@ mod tests {
         fn complete(&self, step: &Step, input: &str) -> Result<String> {
             self.calls.set(self.calls.get() + 1);
             Ok(format!("{}:{input}", step.id().as_str()))
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct VariableModel {
+        calls: Rc<Cell<usize>>,
+    }
+
+    impl ModelAdapter for VariableModel {
+        fn complete(&self, step: &Step, _input: &str) -> Result<String> {
+            let next = self.calls.get() + 1;
+            self.calls.set(next);
+            Ok(format!("{} output {next}", step.id().as_str()))
         }
     }
 
@@ -630,6 +702,76 @@ mod tests {
         let verification = runtime.verify(&workflow, &replay).unwrap();
 
         assert!(verification.is_match());
+    }
+
+    #[test]
+    fn structural_verification_accepts_changed_outputs() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![
+                Step::new(StepId::new("first").unwrap(), "hello"),
+                Step::new(StepId::new("second").unwrap(), "world"),
+            ],
+        )
+        .unwrap();
+        let calls = Rc::new(Cell::new(0));
+        let runtime = Runtime::new(VariableModel {
+            calls: Rc::clone(&calls),
+        });
+        let replay = runtime.run(&workflow).unwrap();
+
+        let verification = runtime
+            .verify_with_mode(&workflow, &replay, VerificationMode::Structure)
+            .unwrap();
+
+        assert!(verification.is_match());
+        assert_eq!(calls.get(), 4);
+    }
+
+    #[test]
+    fn structural_verification_reports_prompt_drift() {
+        let original = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let changed = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "changed")],
+        )
+        .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let replay = runtime.run(&original).unwrap();
+
+        let verification = runtime
+            .verify_with_mode(&changed, &replay, VerificationMode::Structure)
+            .unwrap();
+
+        assert!(matches!(
+            verification.mismatches.as_slice(),
+            [ReplayMismatch::StepPromptHash { step_id, .. }]
+                if step_id.as_str() == "first"
+        ));
+    }
+
+    #[test]
+    fn structural_verification_rejects_old_replay_before_execution() {
+        let workflow = Workflow::new(
+            "demo",
+            vec![Step::new(StepId::new("first").unwrap(), "hello")],
+        )
+        .unwrap();
+        let calls = Rc::new(Cell::new(0));
+        let runtime = Runtime::new(CountingModel::new(Rc::clone(&calls)));
+        let mut replay = runtime.run(&workflow).unwrap();
+        replay.steps[0].prompt_hash = None;
+
+        let error = runtime
+            .verify_with_mode(&workflow, &replay, VerificationMode::Structure)
+            .unwrap_err();
+
+        assert_eq!(error, VogonError::MissingStepPromptHash("first".to_owned()));
+        assert_eq!(calls.get(), 1);
     }
 
     #[test]

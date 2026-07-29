@@ -52,7 +52,7 @@ pub use hash::stable_hash;
 pub use redaction::{RedactionRule, RedactionSet};
 pub use replay::{
     CURRENT_REPLAY_SCHEMA_VERSION, LEGACY_REPLAY_SCHEMA_VERSION, ReplayMismatch, RunReport,
-    RuntimeMetadata, StepResult, VerificationReport,
+    RuntimeMetadata, StepResult, VerificationMode, VerificationReport,
 };
 pub use runtime::{ModelAdapter, Runtime};
 pub use step::{Step, StepId};

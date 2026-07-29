@@ -320,6 +320,22 @@ the configured provider normally, so cached verification is reproducible only
 when the cache from the original run is retained. The replay and cache paths
 must differ.
 
+`--mode exact` is the default and compares all replay hashes, metadata, and
+outputs. Use `--mode structure` for a live smoke check of a nondeterministic
+provider:
+
+```sh
+cargo run -p vogon-cli -- verify --mode structure workflow.toml target/review.replay.json
+```
+
+Structural mode executes the workflow and compares its name, provider metadata,
+step count, ordered step IDs, and each rendered prompt hash. It deliberately
+ignores run hashes, assembled input hashes, output hashes, and output text.
+Passing structural verification means the same rendered workflow completed; it
+does not mean the model produced a correct or policy-compliant answer. A replay
+without prompt hashes is rejected before provider selection, so regenerate
+older replays with a current `vogon run` first.
+
 When a workflow declares inputs, verification requires the same `--input`,
 `--input-file`, `--git-diff`, or `--git-diff-base` context used to create the
 replay. Changed context produces changed step input hashes and a structured
@@ -345,7 +361,7 @@ Successful verification exits with status `0`. Mismatches are printed as
 structured JSON and the command exits with a non-zero status.
 
 Emit the verification report as JSON for both matches and mismatches. The JSON
-report includes `workflow_name`, `is_match`, and `mismatches` fields:
+report includes `workflow_name`, `mode`, `is_match`, and `mismatches` fields:
 
 ```sh
 cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
