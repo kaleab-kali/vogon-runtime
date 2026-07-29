@@ -7,7 +7,7 @@
 //! intended for local development, tests, examples, and replay fixtures. With
 //! default features enabled, it also exposes [`GeminiModel`],
 //! [`OpenAiCompatibleModel`], [`HuggingFaceModel`], [`GroqModel`], and
-//! [`OpenRouterModel`] for real provider-backed API calls.
+//! [`OpenRouterModel`], and [`NvidiaModel`] for real provider-backed API calls.
 //!
 //! ```
 //! use vogon_adapters::DeterministicEchoModel;
@@ -36,6 +36,8 @@ mod groq;
 #[cfg(feature = "openai-compatible")]
 mod hugging_face;
 #[cfg(feature = "openai-compatible")]
+mod nvidia;
+#[cfg(feature = "openai-compatible")]
 mod openai_compatible;
 #[cfg(feature = "openai-compatible")]
 mod openrouter;
@@ -57,6 +59,11 @@ pub use groq::{
 pub use hugging_face::{
     DEFAULT_HUGGING_FACE_BASE_URL, DEFAULT_HUGGING_FACE_MAX_RETRIES, DEFAULT_HUGGING_FACE_MODEL,
     DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, HuggingFaceModel, MAX_HUGGING_FACE_RETRIES,
+};
+#[cfg(feature = "openai-compatible")]
+pub use nvidia::{
+    DEFAULT_NVIDIA_BASE_URL, DEFAULT_NVIDIA_MAX_RETRIES, DEFAULT_NVIDIA_MODEL,
+    DEFAULT_NVIDIA_TIMEOUT_SECONDS, MAX_NVIDIA_RETRIES, NvidiaModel,
 };
 #[cfg(feature = "openai-compatible")]
 pub use openai_compatible::{

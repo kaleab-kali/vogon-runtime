@@ -47,7 +47,8 @@ OpenAI-compatible chat-completions endpoint when `OPENAI_COMPATIBLE_API_KEY` is
 set. It also includes a Groq preset for Groq's OpenAI-compatible endpoint when
 `GROQ_API_KEY` is set, and a Hugging Face preset for Hugging Face Inference
 Providers when `HF_TOKEN` is set. OpenRouter is available as a first-class
-preset when `OPENROUTER_API_KEY` is set.
+preset when `OPENROUTER_API_KEY` is set. The adapter crate also provides a
+first-class NVIDIA API Catalog preset using `NVIDIA_API_KEY`.
 
 ## Requirements
 
@@ -135,12 +136,19 @@ Run a workflow with OpenRouter:
 OPENROUTER_API_KEY=... cargo run -p vogon-cli -- run --provider openrouter fixtures/workflows/support-triage.toml
 ```
 
+Run against NVIDIA's hosted OpenAI-compatible API with an NVIDIA Developer API
+key:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY="$NVIDIA_API_KEY" cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://integrate.api.nvidia.com/v1 --openai-compatible-model meta/llama-3.1-8b-instruct fixtures/workflows/support-triage.toml
+```
+
 For a real-provider smoke path with the lowest setup friction, start with
 OpenRouter's `openrouter/free` default, Gemini's documented free API tier, or
-Hugging Face's routed Inference Providers credits. Groq also publishes
-free-plan rate limits for supported models. Provider terms and limits change,
-so verify the linked provider docs before relying on any free tier for
-deployment.
+Hugging Face's routed Inference Providers credits, or NVIDIA's hosted API
+Catalog with a Developer API key. Groq also publishes free-plan rate limits for
+supported models. Provider terms and limits change, so verify the linked
+provider docs before relying on any free tier for deployment.
 
 The default OpenAI-compatible base URL is Hugging Face Inference Providers'
 OpenAI-compatible router, and the default model is

@@ -16,6 +16,7 @@ const EXPECTED_ENV_VARS: &[&str] = &[
     "GEMINI_API_KEY",
     "GROQ_API_KEY",
     "HF_TOKEN",
+    "NVIDIA_API_KEY",
     "OPENAI_COMPATIBLE_API_KEY",
     "OPENROUTER_API_KEY",
 ];
@@ -65,6 +66,7 @@ const PROVIDER_CREDENTIAL_VARS: &[&str] = &[
     "GEMINI_API_KEY",
     "GROQ_API_KEY",
     "HF_TOKEN",
+    "NVIDIA_API_KEY",
     "OPENAI_COMPATIBLE_API_KEY",
     "OPENROUTER_API_KEY",
 ];
@@ -9239,6 +9241,7 @@ and this project follows semantic versioning once the first release is tagged.
                 populated_gemini_key.as_str(),
                 "GROQ_API_KEY=",
                 "HF_TOKEN=",
+                "NVIDIA_API_KEY=",
                 "OPENROUTER_API_KEY=",
                 "EXTRA_KEY=",
             ]

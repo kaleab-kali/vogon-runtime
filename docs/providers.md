@@ -40,6 +40,7 @@ routes:
 | Gemini | Direct Gemini API smoke testing with `GEMINI_API_KEY`. | Google documents a Gemini API free tier for developers and small projects. |
 | Hugging Face | Testing the generic OpenAI-compatible adapter through Hugging Face's routed endpoint. | Hugging Face documents monthly Inference Providers credits for free users and larger credits for paid accounts. |
 | Groq | Low-latency OpenAI-compatible smoke testing with `GROQ_API_KEY`. | Groq publishes free-plan model rate limits and recommends checking account-specific limits in the console. |
+| NVIDIA | Testing NVIDIA-hosted catalog models with `NVIDIA_API_KEY`. | NVIDIA provides Developer API keys for hosted API Catalog endpoints; model availability and account limits are shown in the catalog. |
 | Ollama | Local OpenAI-compatible execution without a hosted API account. | Ollama documents that its local API requires no authentication; compute and model storage run on the operator's machine. |
 
 Treat these as evaluation paths, not permanent guarantees. Provider terms,
@@ -91,6 +92,34 @@ GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini --gemini-max-
 Do not commit API keys or real replay outputs containing private prompts or
 customer data. Use redaction rules when writing replays from real provider
 runs.
+
+### NVIDIA
+
+The NVIDIA adapter is a preset for the NVIDIA API Catalog's hosted
+OpenAI-compatible chat-completions endpoint. It reads `NVIDIA_API_KEY`, defaults
+to `https://integrate.api.nvidia.com/v1`, and uses the catalog quickstart model
+`meta/llama-3.1-8b-instruct`:
+
+```rust
+use vogon_adapters::NvidiaModel;
+
+let model = NvidiaModel::new(std::env::var("NVIDIA_API_KEY")?)?;
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+To use NVIDIA through the current CLI, select the generic OpenAI-compatible
+provider and pass the NVIDIA credential through its expected environment
+variable:
+
+```sh
+OPENAI_COMPATIBLE_API_KEY="$NVIDIA_API_KEY" cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://integrate.api.nvidia.com/v1 --openai-compatible-model meta/llama-3.1-8b-instruct fixtures/workflows/support-triage.toml
+```
+
+Select a different model by replacing `--openai-compatible-model` with an ID
+from NVIDIA's current API Catalog. NVIDIA's hosted LLM API reference documents
+the shared `/v1/chat/completions` endpoint and its available model IDs. Do not
+commit API keys or real replay outputs containing private prompts or customer
+data.
 
 ### OpenAI-Compatible
 
@@ -255,6 +284,8 @@ Official references:
 - Groq OpenAI compatibility: <https://console.groq.com/docs/openai>
 - Groq models: <https://console.groq.com/docs/models>
 - Groq rate limits: <https://console.groq.com/docs/rate-limits>
+- NVIDIA API Catalog quickstart: <https://docs.api.nvidia.com/nim/re/docs/api-quickstart>
+- NVIDIA hosted LLM API reference: <https://docs.api.nvidia.com/nim/reference/llm-apis>
 - Ollama OpenAI compatibility: <https://docs.ollama.com/api/openai-compatibility>
 - Ollama authentication: <https://docs.ollama.com/api/authentication>
 

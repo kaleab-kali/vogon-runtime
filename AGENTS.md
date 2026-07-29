@@ -16,6 +16,12 @@ These instructions apply to the entire repository.
 - Treat the existing Python scripts as transitional CI/release tooling. When
   improving checks, prefer consolidating or migrating them into Rust instead of
   growing the Python surface area.
+- Use actual provider APIs and realistic responses for claimed live-provider
+  smoke or acceptance evidence when the user has approved credential use. Do
+  not present a fake server or simulated model response as live-provider proof.
+- Keep deterministic adapters for unit tests, CI, fixtures, and offline
+  development so automated verification remains reproducible.
+- Never print, commit, serialize, or otherwise expose provider API keys.
 
 ## Git Workflow
 
