@@ -485,6 +485,8 @@ fn verify_help_documents_json_option() {
         "--repository <DIRECTORY>",
         "--cache-file <FILE>",
         "--cache-max-entries <CACHE_MAX_ENTRIES>",
+        "--mode <MODE>",
+        "possible values: exact, structure",
     ] {
         assert!(
             stdout.contains(expected),

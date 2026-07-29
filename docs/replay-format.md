@@ -22,6 +22,7 @@ files can still be read as schema version `0`.
   "steps": [
     {
       "step_id": "classify",
+      "prompt_hash": "sha256-hex",
       "input_hash": "sha256-hex",
       "output_hash": "sha256-hex",
       "output": "billing"
@@ -39,6 +40,13 @@ letters, ASCII digits, underscores, and hyphens only.
 `steps` must contain at least one step result because Vogon does not produce
 empty workflow replays. Step IDs inside a replay must be unique.
 
+New runs include `prompt_hash` for each rendered step prompt. The field is
+optional so older schema-version-1 replays remain readable, but structural
+verification requires it for every step. Exact verification remains available
+for older replays. Prompt hashes include resolved workflow inputs but exclude
+previous step output, allowing definition and context drift to be detected
+without treating nondeterministic output wording as drift.
+
 Runtime metadata records non-secret provider provenance for auditability. The
 metadata includes the provider family, adapter implementation, adapter version,
 model when present, cache identity, and provider/runtime parameters such as
@@ -49,6 +57,11 @@ must not be stored in runtime metadata.
 compares current-schema runtime metadata against the actual verification run.
 Legacy unversioned replays remain readable and verify with the deterministic
 provider unless a provider is selected explicitly.
+
+Exact verification compares the complete recorded run. Structural verification
+executes the provider but compares only workflow name, runtime metadata, step
+count, ordered step IDs, and prompt hashes. It ignores outputs and therefore
+must not be used as evidence that an answer is correct.
 
 Editor and review tooling can use the published
 [replay schema](../schemas/replay.schema.json) for current `schema_version: 1`

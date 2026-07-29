@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{StepId, workflow::validate_workflow_name};
+use crate::{Result, StepId, VogonError, workflow::validate_workflow_name};
 
 /// Replay schema version emitted by current runtime runs.
 pub const CURRENT_REPLAY_SCHEMA_VERSION: u32 = 1;
@@ -15,6 +15,13 @@ pub const LEGACY_REPLAY_SCHEMA_VERSION: u32 = 0;
 pub struct StepResult {
     /// Identifier of the workflow step that produced this result.
     pub step_id: StepId,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_sha256_hex"
+    )]
+    /// Stable hash of the rendered step prompt, when recorded.
+    pub prompt_hash: Option<String>,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     /// Stable hash of the prompt input sent to the adapter.
     pub input_hash: String,
@@ -23,6 +30,15 @@ pub struct StepResult {
     pub output_hash: String,
     /// Recorded step output, redacted when redactions were configured.
     pub output: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Comparison policy used when verifying an expected replay.
+pub enum VerificationMode {
+    /// Compare runtime metadata, inputs, outputs, and all replay hashes.
+    Exact,
+    /// Compare runtime metadata and rendered workflow structure, ignoring outputs.
+    Structure,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -114,6 +130,22 @@ pub struct RunReport {
     pub steps: Vec<StepResult>,
 }
 
+impl RunReport {
+    /// Validates that this replay contains the data required by a verification mode.
+    pub fn validate_for_verification(&self, mode: VerificationMode) -> Result<()> {
+        if mode == VerificationMode::Structure {
+            for step in &self.steps {
+                if step.prompt_hash.is_none() {
+                    return Err(VogonError::MissingStepPromptHash(
+                        step.step_id.as_str().to_owned(),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 /// Difference between an expected replay and an actual workflow run.
@@ -154,6 +186,15 @@ pub enum ReplayMismatch {
         expected: StepId,
         /// Step identifier from the actual run.
         actual: StepId,
+    },
+    /// Rendered prompt hashes differ for a step.
+    StepPromptHash {
+        /// Step identifier from the actual run.
+        step_id: StepId,
+        /// Prompt hash from the expected replay.
+        expected: String,
+        /// Prompt hash from the actual run.
+        actual: String,
     },
     /// Input hashes differ for a step.
     StepInputHash {
@@ -210,6 +251,9 @@ impl ReplayMismatch {
             | ReplayMismatch::RuntimeMetadata { .. }
             | ReplayMismatch::StepCount { .. } => None,
             ReplayMismatch::StepId { actual, .. }
+            | ReplayMismatch::StepPromptHash {
+                step_id: actual, ..
+            }
             | ReplayMismatch::StepInputHash {
                 step_id: actual, ..
             }
@@ -321,6 +365,23 @@ where
     }
 }
 
+fn deserialize_optional_sha256_hex<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    if let Some(value) = value.as_deref() {
+        if !is_sha256_hex(value) {
+            return Err(de::Error::custom(format!(
+                "hash `{value}` must be 64 lowercase hexadecimal characters"
+            )));
+        }
+    }
+    Ok(value)
+}
+
 fn deserialize_non_empty_steps<'de, D>(
     deserializer: D,
 ) -> std::result::Result<Vec<StepResult>, D::Error>
@@ -411,6 +472,29 @@ mod tests {
         assert_eq!(
             report.runtime.parameters.get("mode").map(String::as_str),
             Some("offline")
+        );
+    }
+
+    #[test]
+    fn run_report_deserialization_validates_optional_prompt_hashes() {
+        let step = valid_step_json().replacen(
+            r#""input_hash":"#,
+            r#""prompt_hash": "not-a-hash", "input_hash":"#,
+            1,
+        );
+        let result = serde_json::from_str::<RunReport>(&format!(
+            r#"{{
+                "workflow_name": "demo",
+                "run_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                "steps": [{step}]
+            }}"#
+        ));
+
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("must be 64 lowercase hexadecimal characters")
         );
     }
 

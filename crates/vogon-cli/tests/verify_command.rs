@@ -76,6 +76,113 @@ fn verify_command_rejects_replay_file_as_cache_file() {
 }
 
 #[test]
+fn structural_verification_accepts_output_variation_but_exact_rejects_it() {
+    let artifacts = repo_root().join("target").join("vogon-tests");
+    fs::create_dir_all(&artifacts).unwrap();
+    let replay = artifacts.join("structural-output-variation.replay.json");
+    let run = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&replay)
+        .arg(workflow_path("support-triage"))
+        .output()
+        .expect("run command should execute");
+    assert!(run.status.success());
+
+    let mut report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&replay).unwrap()).unwrap();
+    report["run_hash"] = serde_json::json!("a".repeat(64));
+    report["steps"][0]["output"] = serde_json::json!("different model wording");
+    report["steps"][0]["output_hash"] = serde_json::json!("b".repeat(64));
+    fs::write(&replay, serde_json::to_string_pretty(&report).unwrap()).unwrap();
+
+    let structural = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--mode")
+        .arg("structure")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+    assert!(
+        structural.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&structural.stderr)
+    );
+    assert!(String::from_utf8_lossy(&structural.stdout).contains("Replay structure verified"));
+
+    let exact = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg(workflow_path("support-triage"))
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+    assert!(!exact.status.success());
+}
+
+#[test]
+fn structural_verification_reports_rendered_prompt_drift() {
+    let artifacts = repo_root().join("target").join("vogon-tests");
+    fs::create_dir_all(&artifacts).unwrap();
+    let replay = artifacts.join("structural-prompt-drift.replay.json");
+    let changed_workflow = artifacts.join("structural-prompt-drift.toml");
+    let workflow = workflow_path("support-triage");
+    let run = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--output")
+        .arg(&replay)
+        .arg(&workflow)
+        .output()
+        .expect("run command should execute");
+    assert!(run.status.success());
+    let original = fs::read_to_string(&workflow).unwrap();
+    fs::write(
+        &changed_workflow,
+        original.replacen("Classify", "Reclassify", 1),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--mode")
+        .arg("structure")
+        .arg("--json")
+        .arg(&changed_workflow)
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(report["mode"], "structure");
+    assert!(
+        report["mismatches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|mismatch| mismatch["type"] == "step_prompt_hash")
+    );
+}
+
+#[test]
+fn structural_verification_rejects_replays_without_prompt_hashes() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--mode")
+        .arg("structure")
+        .arg(workflow_path("support-triage"))
+        .arg(replay_path("support-triage"))
+        .output()
+        .expect("verify command should execute");
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("has no prompt hash; create a new replay")
+    );
+}
+
+#[test]
 fn verify_command_can_emit_json_match_report() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -94,6 +201,7 @@ fn verify_command_can_emit_json_match_report() {
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(report["workflow_name"], "support-triage");
+    assert_eq!(report["mode"], "exact");
     assert_eq!(report["is_match"], true);
     assert_eq!(report["mismatches"].as_array().unwrap().len(), 0);
 }

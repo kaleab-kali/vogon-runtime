@@ -271,8 +271,22 @@ The cache identity includes the provider, endpoint, model, and runtime
 configuration. A missing or nonmatching entry causes normal provider
 execution; it does not silently accept the saved replay as actual output.
 
+For a live-provider smoke check where wording may vary, compare workflow
+structure instead of exact outputs:
+
+```sh
+cargo run -p vogon-cli -- verify --mode structure workflow.toml target/review.replay.json
+```
+
+Structural mode still executes every step and compares provider metadata,
+ordered step IDs, and hashes of every rendered prompt. It ignores run, input,
+and output hashes plus output text. It therefore proves that the same rendered
+workflow completes against the same provider configuration; it does not prove
+that the model's answer is correct. Replays created before prompt hashes were
+introduced must be regenerated before structural verification.
+
 Emit a machine-readable verification report with `workflow_name`, `is_match`,
-and `mismatches` fields:
+`mode`, and `mismatches` fields:
 
 ```sh
 cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
@@ -460,6 +474,7 @@ Already available:
   `OPENROUTER_API_KEY` configured in GitHub Actions.
 - Deterministic replay log generation.
 - Provider-aware replay verification with structured mismatch errors.
+- Exact and output-insensitive structural replay verification.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
 - Provider-neutral runtime observer events for step lifecycle, replay mismatch,

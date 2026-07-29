@@ -66,6 +66,9 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9_-]+$"
           },
+          "prompt_hash": {
+            "$ref": "#/$defs/sha256"
+          },
           "input_hash": {
             "$ref": "#/$defs/sha256"
           },

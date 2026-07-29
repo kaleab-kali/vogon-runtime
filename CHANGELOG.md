@@ -16,6 +16,9 @@ and this project follows semantic versioning.
 - `vogon verify` can reuse and persist bounded provider outputs through
   `--cache-file` and `--cache-max-entries`, allowing exact replay checks
   without another provider request when the original run cache is retained.
+- New runs record rendered step prompt hashes, and `vogon verify --mode
+  structure` can execute nondeterministic providers while comparing workflow
+  and provider structure without requiring exact output wording.
 
 ## [0.1.4] - 2026-07-29
 
