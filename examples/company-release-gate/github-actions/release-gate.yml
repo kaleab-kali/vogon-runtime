@@ -1,0 +1,58 @@
+name: Vogon Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vogon-release-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Vogon Runtime
+        run: cargo install --git https://github.com/kaleab-kali/vogon-runtime --tag v0.2.0 --locked vogon-cli
+
+      - name: Run release gate
+        id: gate
+        continue-on-error: true
+        run: |
+          mkdir -p .vogon
+          vogon run \
+            --provider nvidia \
+            --nvidia-model meta/llama-3.1-8b-instruct \
+            --git-diff-base origin/main \
+            --repository . \
+            --input service_owner=payments-platform \
+            --redact-env nvidia_api_key=NVIDIA_API_KEY \
+            --enforce-decision \
+            --output .vogon/release-gate.replay.json \
+            .vogon/release-gate.toml
+
+      - name: Upload decision evidence
+        if: always() && hashFiles('.vogon/release-gate.replay.json') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: vogon-release-gate
+          path: .vogon/release-gate.replay.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce gate result
+        if: steps.gate.outcome != 'success'
+        run: exit 1

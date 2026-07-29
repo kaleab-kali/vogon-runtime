@@ -1,0 +1,15 @@
+name = "company-release-context-smoke"
+
+[execution]
+allowed_providers = ["deterministic"]
+allowed_models = ["deterministic-echo"]
+max_step_output_bytes = 1024
+
+[[steps]]
+id = "capture_change"
+prompt = """
+Record deterministic context for the {{input.service_owner}} service change.
+This step validates Git input plumbing only; it does not assess risk.
+
+{{input.git_diff}}
+"""

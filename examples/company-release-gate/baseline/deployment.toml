@@ -1,0 +1,5 @@
+service = "payments-api"
+minimum_healthy_instances = 3
+health_check_enabled = true
+rollback_on_failure = true
+request_timeout_seconds = 30

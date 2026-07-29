@@ -1,0 +1,33 @@
+name = "company-release-gate"
+
+[decision]
+step = "release_decision"
+pointer = "/decision"
+allow = ["GO"]
+deny = ["NO_GO"]
+
+[execution]
+allowed_providers = ["nvidia"]
+allowed_models = ["meta/llama-3.1-8b-instruct"]
+max_step_output_bytes = 65536
+
+[[steps]]
+id = "risk_analysis"
+prompt = """
+Act as a release reviewer for the {{input.service_owner}} service.
+Review only the following Git diff for concrete reliability, security, and
+operability risks. Do not invent facts outside the diff. Identify which exact
+changed lines create each risk and which blocking remediation is required.
+
+{{input.git_diff}}
+"""
+
+[[steps]]
+id = "release_decision"
+prompt = """
+Using the previous risk analysis, return exactly one JSON object with this shape:
+{"decision":"GO or NO_GO","reasons":["grounded reason"],"required_actions":["blocking action"]}
+
+Use GO only when no blocking risk remains. Use NO_GO for every blocking risk.
+Do not wrap the JSON in Markdown and do not add text before or after it.
+"""
