@@ -199,6 +199,18 @@ The default model is `openai/gpt-oss-120b:fastest`, routed through
 `--hugging-face-timeout-seconds`, and `--hugging-face-max-retries` to adjust the
 model and network bounds.
 
+Run with NVIDIA API Catalog by setting `NVIDIA_API_KEY` and selecting the
+NVIDIA provider:
+
+```sh
+NVIDIA_API_KEY=... cargo run -p vogon-cli -- run --provider nvidia fixtures/workflows/support-triage.toml
+```
+
+The default NVIDIA base URL is `https://integrate.api.nvidia.com/v1`, and the
+default model is `meta/llama-3.1-8b-instruct`. Use `--nvidia-model`,
+`--nvidia-timeout-seconds`, and `--nvidia-max-retries` to select a current
+catalog model and adjust the network bounds.
+
 Run with OpenRouter by setting `OPENROUTER_API_KEY` and selecting the
 OpenRouter provider:
 
