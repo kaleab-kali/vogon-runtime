@@ -86,6 +86,72 @@ fn run_command_redacts_known_output_literals() {
 }
 
 #[test]
+fn run_command_redacts_values_from_environment_variables() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact-env")
+        .arg("classification=VOGON_TEST_REDACTION")
+        .arg(fixture)
+        .env("VOGON_TEST_REDACTION", classification_output())
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("[REDACTED:classification]"));
+    assert!(!stdout.contains(classification_output()));
+}
+
+#[test]
+fn run_command_reports_missing_redaction_environment_variables() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact-env")
+        .arg("classification=VOGON_MISSING_REDACTION")
+        .arg(fixture)
+        .env_remove("VOGON_MISSING_REDACTION")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("redaction environment variable `VOGON_MISSING_REDACTION` is not set"));
+    assert!(!stderr.contains(classification_output()));
+}
+
+#[test]
+fn run_command_rejects_duplicate_literal_and_environment_redaction_labels() {
+    let fixture = support_triage_workflow();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--redact")
+        .arg("classification=first")
+        .arg("--redact-env")
+        .arg("classification=VOGON_TEST_REDACTION")
+        .arg(fixture)
+        .env("VOGON_TEST_REDACTION", "second")
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("duplicate redaction label `classification`"));
+    assert!(!stderr.contains("second"));
+}
+
+#[test]
 fn run_command_prefers_longest_overlapping_redaction_literals() {
     let fixture = support_triage_workflow();
 

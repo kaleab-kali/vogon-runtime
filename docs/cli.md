@@ -251,6 +251,19 @@ cargo run -p vogon-cli -- run --redact api_key=sk-test-123 fixtures/workflows/su
 ```
 
 Redaction values use `LABEL=VALUE` syntax and may be repeated.
+
+Use `--redact-env LABEL=ENV_VAR` for credentials or other environment-only
+values. Vogon resolves the variable internally, so the value is not expanded
+into the process argument list:
+
+```sh
+cargo run -p vogon-cli -- run --redact-env api_key=PROVIDER_API_KEY fixtures/workflows/support-triage.toml
+```
+
+The environment variable must be set, contain Unicode text, and resolve to a
+non-empty value. Labels must remain unique across `--redact` and
+`--redact-env`.
+
 Labels may contain ASCII letters, ASCII digits, `_`, and `-`; leading or
 trailing whitespace is rejected. Labels must be unique within one command.
 When redaction values overlap, Vogon applies the longest values first.
@@ -276,11 +289,11 @@ cargo run -p vogon-cli -- verify --redact api_key=sk-test-123 fixtures/workflows
 ```
 
 If a replay contains redaction markers, `vogon verify` rejects it before
-execution unless each marker label has a matching `--redact` rule. If
-verification still mismatches after redaction rules are provided, expected and
-actual step output values are redacted before human-readable or JSON mismatch
-reports are printed. Redacted replay markers also cause step output mismatch
-values to be replaced with an unreported placeholder.
+execution unless each marker label has a matching `--redact` or `--redact-env`
+rule. If verification still mismatches after redaction rules are provided,
+expected and actual step output values are redacted before human-readable or
+JSON mismatch reports are printed. Redacted replay markers also cause step
+output mismatch values to be replaced with an unreported placeholder.
 
 Malformed redaction markers are also rejected before workflow execution.
 

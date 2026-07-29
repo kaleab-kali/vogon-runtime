@@ -64,6 +64,30 @@ fn verify_command_accepts_redacted_replay() {
 }
 
 #[test]
+fn verify_command_accepts_environment_redaction_for_redacted_replay() {
+    let redacted_replay =
+        write_redacted_support_triage_replay("environment-redacted-support-triage.replay.json");
+
+    let verify_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--redact-env")
+        .arg("classification=VOGON_TEST_REDACTION")
+        .arg(workflow_path("support-triage"))
+        .arg(&redacted_replay)
+        .env("VOGON_TEST_REDACTION", classification_output())
+        .output()
+        .expect("verify command should execute");
+
+    assert!(
+        verify_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&verify_output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&verify_output.stdout).contains("Replay verified"));
+    assert!(!String::from_utf8_lossy(&verify_output.stderr).contains(classification_output()));
+}
+
+#[test]
 fn verify_command_rejects_whitespace_redaction_labels() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
@@ -114,7 +138,7 @@ fn verify_command_rejects_redacted_replay_without_matching_redaction() {
     assert!(!output.status.success());
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("without matching --redact label(s): classification"));
+    assert!(stderr.contains("without matching --redact or --redact-env label(s): classification"));
     assert!(!stderr.contains("\"mismatches\""));
     assert!(!stderr.contains(classification_output()));
 }

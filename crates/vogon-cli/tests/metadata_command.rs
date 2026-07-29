@@ -437,6 +437,7 @@ fn run_help_documents_replay_options() {
         "--openai-compatible-timeout-seconds <OPENAI_COMPATIBLE_TIMEOUT_SECONDS>",
         "--openai-compatible-max-retries <OPENAI_COMPATIBLE_MAX_RETRIES>",
         "--redact <LABEL=VALUE>",
+        "--redact-env <LABEL=ENV_VAR>",
         "--output <FILE>",
         "--cache-file <FILE>",
         "--cache-max-entries <CACHE_MAX_ENTRIES>",
@@ -471,6 +472,7 @@ fn verify_help_documents_json_option() {
         "--nvidia-model <NVIDIA_MODEL>",
         "--nvidia-timeout-seconds <NVIDIA_TIMEOUT_SECONDS>",
         "--nvidia-max-retries <NVIDIA_MAX_RETRIES>",
+        "--redact-env <LABEL=ENV_VAR>",
     ] {
         assert!(
             stdout.contains(expected),

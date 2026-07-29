@@ -115,10 +115,15 @@ NVIDIA_API_KEY=... cargo run -p vogon-cli -- run --provider nvidia fixtures/work
 
 Select a different model with `--nvidia-model`, using an ID from NVIDIA's
 current API Catalog. The `--nvidia-timeout-seconds` and
-`--nvidia-max-retries` options control request behavior. NVIDIA's hosted LLM API
-reference documents the shared `/v1/chat/completions` endpoint and its
-available model IDs. Do not commit API keys or real replay outputs containing
-private prompts or customer data.
+`--nvidia-max-retries` options control request behavior. NVIDIA's
+[hosted LLM API reference](https://docs.api.nvidia.com/nim/reference/llm-apis)
+documents the shared `/v1/chat/completions` endpoint and its available model
+IDs. The authenticated `GET /v1/models` endpoint at the same base URL returns
+the models currently available to a key. Use
+`--redact-env nvidia_api_key=NVIDIA_API_KEY` when persisting a real replay so
+the credential remains out of process arguments and any echoed value is
+scrubbed before writing. Do not commit API keys or real replay outputs
+containing private prompts or customer data.
 
 ### OpenAI-Compatible
 
