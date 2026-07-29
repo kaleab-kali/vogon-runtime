@@ -71,4 +71,7 @@ jobs:
             --replay target/live-openrouter-smoke.replay.json \
             --provider openrouter \
             --model "$model" \
+            --expected-workflow support-triage \
+            --expected-step classify \
+            --expected-step draft_response \
             --secret-env OPENROUTER_API_KEY

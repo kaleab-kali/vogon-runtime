@@ -84,4 +84,7 @@ jobs:
             --provider openai-compatible \
             --base-url "$base_url" \
             --model "$model" \
+            --expected-workflow support-triage \
+            --expected-step classify \
+            --expected-step draft_response \
             --secret-env OPENAI_COMPATIBLE_API_KEY

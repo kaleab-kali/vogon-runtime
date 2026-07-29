@@ -71,4 +71,7 @@ jobs:
             --replay target/live-groq-smoke.replay.json \
             --provider groq \
             --model "$model" \
+            --expected-workflow support-triage \
+            --expected-step classify \
+            --expected-step draft_response \
             --secret-env GROQ_API_KEY

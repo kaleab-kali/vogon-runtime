@@ -71,4 +71,7 @@ jobs:
             --replay target/live-hugging-face-smoke.replay.json \
             --provider hugging-face \
             --model "$model" \
+            --expected-workflow support-triage \
+            --expected-step classify \
+            --expected-step draft_response \
             --secret-env HF_TOKEN
