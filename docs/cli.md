@@ -121,6 +121,31 @@ replays do not require network access. To run against the Gemini API, set
 GEMINI_API_KEY=... cargo run -p vogon-cli -- run --provider gemini fixtures/workflows/support-triage.toml
 ```
 
+Workflows can reference named `{{input.NAME}}` placeholders. Supply values
+with repeatable literal or UTF-8 file options:
+
+```sh
+cargo run -p vogon-cli -- run --input service=payments --input-file policy=release-policy.md workflow.toml
+```
+
+Inject tracked staged and unstaged changes from a Git working tree as the
+reserved `git_diff` input:
+
+```sh
+cargo run -p vogon-cli -- run --git-diff fixtures/workflows/git-change-review.toml
+```
+
+For pull request CI, inject committed changes relative to a base revision:
+
+```sh
+cargo run -p vogon-cli -- run --git-diff-base origin/main fixtures/workflows/git-change-review.toml
+```
+
+Use `--repository DIRECTORY` to select another working tree. Git context
+excludes untracked files, external diff drivers, text conversion filters, and
+submodule content. Empty Git diffs are rejected. Combined input values and Git
+diffs are bounded at 1 MiB.
+
 Use `--gemini-model` to override the default Gemini model:
 
 ```sh
@@ -280,6 +305,11 @@ By default, `vogon verify` uses the provider metadata recorded in the replay.
 For legacy unversioned replays, it falls back to the deterministic provider.
 Use `--provider` and provider-specific model, timeout, base URL, and retry flags
 to override the replay metadata when intentionally checking another adapter.
+
+When a workflow declares inputs, verification requires the same `--input`,
+`--input-file`, `--git-diff`, or `--git-diff-base` context used to create the
+replay. Changed context produces changed step input hashes and a structured
+verification mismatch.
 
 For redacted replays, pass the same redaction rules used when the replay was
 created:

@@ -16,9 +16,10 @@ use commands::run::{
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, DEFAULT_OPENROUTER_MAX_RETRIES,
     DEFAULT_OPENROUTER_MODEL, DEFAULT_OPENROUTER_TIMEOUT_SECONDS, MAX_GEMINI_RETRIES,
     MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES, MAX_NVIDIA_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES,
-    MAX_OPENROUTER_RETRIES, ModelProvider, RunModelConfig,
+    MAX_OPENROUTER_RETRIES, ModelProvider, RunConfig, RunModelConfig,
 };
 use commands::verify::VerifyModelConfig;
+use commands::workflow_inputs::WorkflowInputArgs;
 
 #[derive(Debug, Parser)]
 #[command(name = "vogon")]
@@ -70,6 +71,9 @@ enum Commands {
 
     /// Run a workflow file.
     Run {
+        #[command(flatten)]
+        workflow_inputs: WorkflowInputArgs,
+
         /// Model provider to use for workflow execution.
         #[arg(long, value_enum, default_value_t = ModelProvider::Deterministic)]
         provider: ModelProvider,
@@ -179,6 +183,9 @@ enum Commands {
 
     /// Verify a workflow against a replay file.
     Verify {
+        #[command(flatten)]
+        workflow_inputs: WorkflowInputArgs,
+
         /// Model provider to use for verification. Defaults to the replay provider.
         #[arg(long, value_enum)]
         provider: Option<ModelProvider>,
@@ -353,6 +360,7 @@ fn main() -> ExitCode {
         Commands::Init { output, force } => commands::init::run(&output, force),
         Commands::Providers { json } => commands::providers::run(json),
         Commands::Run {
+            workflow_inputs,
             provider,
             gemini_model,
             gemini_timeout_seconds,
@@ -382,11 +390,14 @@ fn main() -> ExitCode {
             workflow_file,
         } => commands::run::run(
             &workflow_file,
-            &redactions,
-            &redaction_environment_values,
-            output.as_deref(),
-            cache_file.as_deref(),
-            cache_max_entries,
+            RunConfig {
+                workflow_inputs: &workflow_inputs,
+                redaction_values: &redactions,
+                redaction_environment_values: &redaction_environment_values,
+                output: output.as_deref(),
+                cache_file: cache_file.as_deref(),
+                cache_max_entries,
+            },
             RunModelConfig {
                 provider,
                 gemini_model: &gemini_model,
@@ -412,6 +423,7 @@ fn main() -> ExitCode {
             },
         ),
         Commands::Verify {
+            workflow_inputs,
             provider,
             gemini_model,
             gemini_timeout_seconds,
@@ -441,6 +453,7 @@ fn main() -> ExitCode {
         } => commands::verify::run(
             &workflow_file,
             &replay_file,
+            &workflow_inputs,
             &redactions,
             &redaction_environment_values,
             json,

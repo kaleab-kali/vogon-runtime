@@ -1,0 +1,19 @@
+name = "git-change-review"
+
+[[steps]]
+id = "risk_analysis"
+prompt = """
+Review this Git diff for concrete reliability, security, and operability risks.
+Do not invent facts outside the diff.
+
+{{input.git_diff}}
+"""
+
+[[steps]]
+id = "release_decision"
+prompt = """
+Using the previous risk analysis, return a release decision with:
+- Decision: GO or NO_GO
+- Concrete reasons grounded in the diff
+- Required actions for every blocking risk
+"""

@@ -76,6 +76,23 @@ Run a TOML workflow file:
 cargo run -p vogon-cli -- run fixtures/workflows/support-triage.toml
 ```
 
+Review the current tracked Git changes without copying a diff into the workflow:
+
+```sh
+cargo run -p vogon-cli -- check fixtures/workflows/git-change-review.toml
+cargo run -p vogon-cli -- run --git-diff fixtures/workflows/git-change-review.toml
+```
+
+For pull request CI, compare the checked-out head with a trusted base revision:
+
+```sh
+cargo run -p vogon-cli -- run --git-diff-base origin/main fixtures/workflows/git-change-review.toml
+```
+
+The workflow references the injected context as `{{input.git_diff}}`. Literal
+and UTF-8 file inputs are also available through repeatable
+`--input NAME=VALUE` and `--input-file NAME=FILE` options.
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:
@@ -436,6 +453,8 @@ Already available:
 - Human-readable and JSON Lines replay trace output.
 - Provider-neutral runtime observer events for step lifecycle, replay mismatch,
   and cache hit/miss status.
+- Strict named workflow inputs from literals, UTF-8 files, current Git changes,
+  or pull request base diffs.
 
 Planned:
 
