@@ -10,6 +10,7 @@ pub fn run(
     replay_file: &Path,
     jsonl: bool,
     redaction_values: &[String],
+    redaction_environment_values: &[String],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let replay_text = file_io::read_to_string(replay_file, "replay file")?;
     let replay: RunReport = serde_json::from_str(&replay_text).map_err(|error| {
@@ -22,7 +23,7 @@ pub fn run(
         )
     })?;
     validate_redaction_markers(&replay)?;
-    let redactions = parse_redactions(redaction_values)?;
+    let redactions = parse_redactions(redaction_values, redaction_environment_values)?;
 
     if jsonl {
         print_jsonl_trace(&replay, &redactions)?;

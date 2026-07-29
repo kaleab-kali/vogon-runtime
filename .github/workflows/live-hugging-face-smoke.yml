@@ -63,7 +63,7 @@ jobs:
             --hugging-face-model "$model" \
             --hugging-face-timeout-seconds 60 \
             --hugging-face-max-retries 2 \
-            --redact hf_token="$HF_TOKEN" \
+            --redact-env hf_token=HF_TOKEN \
             --output target/live-hugging-face-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 

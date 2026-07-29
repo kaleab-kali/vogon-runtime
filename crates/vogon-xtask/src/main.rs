@@ -3069,9 +3069,9 @@ fn check_live_workflow_file(
             format!("            --{}-max-retries 2", expectation.flag_prefix),
         ),
         (
-            "redaction run flag",
+            "environment redaction run flag",
             format!(
-                "            --redact {}=\"${}\"",
+                "            --redact-env {}={}",
                 provider.redaction_label, provider.secret_env
             ),
         ),
@@ -11196,7 +11196,7 @@ jobs:
 {model_run_flag}
             --{flag_prefix}-timeout-seconds 60 \
             --{flag_prefix}-max-retries 2 \
-            --redact {redaction_label}="${secret_env}" \
+            --redact-env {redaction_label}={secret_env} \
             --output {replay_path} \
             fixtures/workflows/support-triage.toml
 {validator}

@@ -101,6 +101,28 @@ fn trace_command_can_redact_human_output() {
 }
 
 #[test]
+fn trace_command_can_redact_from_environment_variables() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("trace")
+        .arg("--redact-env")
+        .arg("classification=VOGON_TEST_REDACTION")
+        .arg(support_triage_replay())
+        .env("VOGON_TEST_REDACTION", classification_output())
+        .output()
+        .expect("trace command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("[REDACTED:classification]"));
+    assert!(!stdout.contains(classification_output()));
+}
+
+#[test]
 fn trace_command_can_redact_jsonl_output() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("trace")

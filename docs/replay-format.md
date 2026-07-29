@@ -68,10 +68,11 @@ redacted output. Verification must use the same redaction rules to compare
 against a redacted replay.
 
 Redacted outputs use `[REDACTED:<label>]` markers. When a replay contains these
-markers, `vogon verify` requires matching `--redact <label>=<literal>` rules
-before it executes the workflow. If verification fails after redaction rules are
-provided, mismatch reports apply those redaction rules to both expected and
-actual step output values before printing human-readable or JSON output. If a
+markers, `vogon verify` requires matching `--redact <label>=<literal>` or
+`--redact-env <label>=<environment-variable>` rules before it executes the
+workflow. If verification fails after redaction rules are provided, mismatch
+reports apply those redaction rules to both expected and actual step output
+values before printing human-readable or JSON output. If a
 replay contains redaction markers, step output mismatch values are replaced with
 an unreported placeholder.
 

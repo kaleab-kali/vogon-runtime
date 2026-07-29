@@ -63,7 +63,7 @@ jobs:
             --openrouter-model "$model" \
             --openrouter-timeout-seconds 60 \
             --openrouter-max-retries 2 \
-            --redact openrouter_api_key="$OPENROUTER_API_KEY" \
+            --redact-env openrouter_api_key=OPENROUTER_API_KEY \
             --output target/live-openrouter-smoke.replay.json \
             fixtures/workflows/support-triage.toml
 

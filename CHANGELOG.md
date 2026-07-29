@@ -9,6 +9,10 @@ and this project follows semantic versioning.
 
 ### Added
 
+- `vogon run`, `vogon verify`, and `vogon trace` now accept
+  `--redact-env LABEL=ENV_VAR`, allowing credentials to be scrubbed without
+  expanding secret values into process arguments. Credentialed live workflows
+  use this environment-only path.
 - First-class `NvidiaModel` adapter and `--provider nvidia` CLI path for NVIDIA
   API Catalog chat completions, using `NVIDIA_API_KEY`, the hosted NVIDIA
   endpoint, provider-specific replay metadata, and an optional credential-gated

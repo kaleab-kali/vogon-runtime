@@ -104,6 +104,7 @@ pub const MAX_OPENROUTER_RETRIES: u32 = 20;
 pub fn run(
     workflow_file: &Path,
     redaction_values: &[String],
+    redaction_environment_values: &[String],
     output: Option<&Path>,
     cache_file: Option<&Path>,
     cache_max_entries: usize,
@@ -111,7 +112,7 @@ pub fn run(
 ) -> Result<(), Box<dyn std::error::Error>> {
     reject_overlapping_artifact_paths(output, cache_file)?;
     let workflow = read_toml_workflow(workflow_file)?;
-    let redactions = parse_redactions(redaction_values)?;
+    let redactions = parse_redactions(redaction_values, redaction_environment_values)?;
     let mut cache = load_run_cache(cache_file, cache_max_entries)?;
     let report = run_with_model(&workflow, &redactions, model_config, cache.as_mut())?;
     let replay_json = format!("{}\n", serde_json::to_string_pretty(&report)?);

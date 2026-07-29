@@ -158,6 +158,10 @@ enum Commands {
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
 
+        /// Redact a value read from an environment variable. May be repeated.
+        #[arg(long = "redact-env", value_name = "LABEL=ENV_VAR")]
+        redaction_environment_values: Vec<String>,
+
         /// Write the replay JSON to a file instead of stdout.
         #[arg(short, long, value_name = "FILE")]
         output: Option<PathBuf>,
@@ -263,6 +267,10 @@ enum Commands {
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
 
+        /// Redact a value read from an environment variable. May be repeated.
+        #[arg(long = "redact-env", value_name = "LABEL=ENV_VAR")]
+        redaction_environment_values: Vec<String>,
+
         /// Emit machine-readable JSON instead of human-readable text.
         #[arg(long)]
         json: bool,
@@ -276,6 +284,10 @@ enum Commands {
         /// Redact a literal value from trace outputs. May be repeated.
         #[arg(long = "redact", value_name = "LABEL=VALUE")]
         redactions: Vec<String>,
+
+        /// Redact a value read from an environment variable. May be repeated.
+        #[arg(long = "redact-env", value_name = "LABEL=ENV_VAR")]
+        redaction_environment_values: Vec<String>,
 
         /// Emit newline-delimited JSON instead of human-readable text.
         #[arg(long)]
@@ -366,10 +378,12 @@ fn main() -> ExitCode {
             cache_file,
             cache_max_entries,
             redactions,
+            redaction_environment_values,
             workflow_file,
         } => commands::run::run(
             &workflow_file,
             &redactions,
+            &redaction_environment_values,
             output.as_deref(),
             cache_file.as_deref(),
             cache_max_entries,
@@ -420,6 +434,7 @@ fn main() -> ExitCode {
             openai_compatible_timeout_seconds,
             openai_compatible_max_retries,
             redactions,
+            redaction_environment_values,
             json,
             workflow_file,
             replay_file,
@@ -427,6 +442,7 @@ fn main() -> ExitCode {
             &workflow_file,
             &replay_file,
             &redactions,
+            &redaction_environment_values,
             json,
             VerifyModelConfig {
                 provider,
@@ -454,9 +470,15 @@ fn main() -> ExitCode {
         ),
         Commands::Trace {
             redactions,
+            redaction_environment_values,
             jsonl,
             replay_file,
-        } => commands::trace::run(&replay_file, jsonl, &redactions),
+        } => commands::trace::run(
+            &replay_file,
+            jsonl,
+            &redactions,
+            &redaction_environment_values,
+        ),
     };
 
     match result {

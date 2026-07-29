@@ -226,6 +226,13 @@ Redact known sensitive literals from replay outputs:
 cargo run -p vogon-cli -- run --redact api_key=sk-test-123 fixtures/workflows/support-triage.toml
 ```
 
+For credentials and other environment-only secrets, reference the variable
+name instead of placing the value in process arguments:
+
+```sh
+cargo run -p vogon-cli -- run --redact-env api_key=PROVIDER_API_KEY fixtures/workflows/support-triage.toml
+```
+
 Verify a saved replay:
 
 ```sh
@@ -243,10 +250,11 @@ and `mismatches` fields:
 cargo run -p vogon-cli -- verify --json fixtures/workflows/support-triage.toml fixtures/replays/support-triage.replay.json
 ```
 
-When verifying redacted replays, pass the same `--redact LABEL=VALUE` rules used
-to create the replay. Vogon rejects redacted replays with missing redaction
-labels before execution and masks actual step outputs in redacted mismatch
-reports. Redaction labels must be unique within one command.
+When verifying redacted replays, pass the same `--redact LABEL=VALUE` or
+`--redact-env LABEL=ENV_VAR` rules used to create the replay. Vogon rejects
+redacted replays with missing redaction labels before execution and masks
+actual step outputs in redacted mismatch reports. Redaction labels must be
+unique within one command.
 
 Verify a multi-step writing workflow fixture:
 

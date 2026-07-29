@@ -37,6 +37,7 @@ pub fn run(
     workflow_file: &Path,
     replay_file: &Path,
     redaction_values: &[String],
+    redaction_environment_values: &[String],
     json: bool,
     model_config: VerifyModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -51,7 +52,7 @@ pub fn run(
             ),
         )
     })?;
-    let redactions = parse_redactions(redaction_values)?;
+    let redactions = parse_redactions(redaction_values, redaction_environment_values)?;
     let replay_redaction_labels = replay_redaction_labels(&replay)?;
     let missing_redaction_labels =
         missing_replay_redaction_labels(&replay_redaction_labels, &redactions);
@@ -59,7 +60,7 @@ pub fn run(
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!(
-                "replay contains redaction marker(s) without matching --redact label(s): {}",
+                "replay contains redaction marker(s) without matching --redact or --redact-env label(s): {}",
                 missing_redaction_labels.join(", ")
             ),
         )
