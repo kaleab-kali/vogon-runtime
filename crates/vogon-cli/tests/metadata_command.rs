@@ -92,6 +92,7 @@ fn doctor_command_reports_json_without_secret_values() {
         .env("GEMINI_API_KEY", "secret-gemini-key")
         .env("GROQ_API_KEY", "secret-groq-key")
         .env("HF_TOKEN", "secret-hugging-face-token")
+        .env("NVIDIA_API_KEY", "secret-nvidia-key")
         .env("OPENROUTER_API_KEY", "secret-openrouter-key")
         .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
         .output()
@@ -107,6 +108,7 @@ fn doctor_command_reports_json_without_secret_values() {
     assert!(!stdout.contains("secret-gemini-key"));
     assert!(!stdout.contains("secret-groq-key"));
     assert!(!stdout.contains("secret-hugging-face-token"));
+    assert!(!stdout.contains("secret-nvidia-key"));
     assert!(!stdout.contains("secret-openrouter-key"));
     assert!(!stdout.contains("secret-openai-compatible-key"));
 
@@ -133,6 +135,18 @@ fn doctor_command_reports_json_without_secret_values() {
                     && provider["documentation_url"]
                         == "https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#deterministic"
                     && provider["usage_url"].is_null()
+            })
+    );
+    assert!(
+        report["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|provider| {
+                provider["name"] == "nvidia"
+                    && provider["credential_configured"] == true
+                    && provider["default_base_url"] == "https://integrate.api.nvidia.com/v1"
+                    && provider["usage_url"] == "https://build.nvidia.com/models"
             })
     );
     assert!(
@@ -190,6 +204,7 @@ fn doctor_command_prints_provider_metadata_links() {
         .env("GEMINI_API_KEY", "secret-gemini-key")
         .env("GROQ_API_KEY", "secret-groq-key")
         .env("HF_TOKEN", "secret-hugging-face-token")
+        .env("NVIDIA_API_KEY", "secret-nvidia-key")
         .env("OPENROUTER_API_KEY", "secret-openrouter-key")
         .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
         .output()
@@ -205,6 +220,7 @@ fn doctor_command_prints_provider_metadata_links() {
     assert!(!stdout.contains("secret-gemini-key"));
     assert!(!stdout.contains("secret-groq-key"));
     assert!(!stdout.contains("secret-hugging-face-token"));
+    assert!(!stdout.contains("secret-nvidia-key"));
     assert!(!stdout.contains("secret-openrouter-key"));
     assert!(!stdout.contains("secret-openai-compatible-key"));
 
@@ -215,10 +231,12 @@ fn doctor_command_prints_provider_metadata_links() {
         "documentation: https://ai.google.dev/gemini-api/docs",
         "documentation: https://console.groq.com/docs/openai",
         "documentation: https://huggingface.co/docs/inference-providers",
+        "documentation: https://docs.api.nvidia.com/nim/reference/llm-apis",
         "documentation: https://openrouter.ai/docs",
         "usage and limits: https://ai.google.dev/gemini-api/docs/pricing",
         "usage and limits: https://console.groq.com/docs/rate-limits",
         "usage and limits: https://huggingface.co/docs/inference-providers/pricing",
+        "usage and limits: https://build.nvidia.com/models",
         "usage and limits: https://openrouter.ai/pricing",
     ] {
         assert!(
@@ -259,6 +277,7 @@ fn providers_command_reports_json_without_secret_values() {
         .env("GEMINI_API_KEY", "secret-gemini-key")
         .env("GROQ_API_KEY", "secret-groq-key")
         .env("HF_TOKEN", "secret-hugging-face-token")
+        .env("NVIDIA_API_KEY", "secret-nvidia-key")
         .env("OPENROUTER_API_KEY", "secret-openrouter-key")
         .env("OPENAI_COMPATIBLE_API_KEY", "secret-openai-compatible-key")
         .output()
@@ -274,6 +293,7 @@ fn providers_command_reports_json_without_secret_values() {
     assert!(!stdout.contains("secret-gemini-key"));
     assert!(!stdout.contains("secret-groq-key"));
     assert!(!stdout.contains("secret-hugging-face-token"));
+    assert!(!stdout.contains("secret-nvidia-key"));
     assert!(!stdout.contains("secret-openrouter-key"));
     assert!(!stdout.contains("secret-openai-compatible-key"));
 
@@ -315,6 +335,15 @@ fn providers_command_reports_json_without_secret_values() {
             && provider["usage_url"] == "https://huggingface.co/docs/inference-providers/pricing"
     }));
     assert!(providers.iter().any(|provider| {
+        provider["name"] == "nvidia"
+            && provider["credential_env"] == "NVIDIA_API_KEY"
+            && provider["credential_configured"] == true
+            && provider["default_base_url"] == "https://integrate.api.nvidia.com/v1"
+            && provider["default_model"] == "meta/llama-3.1-8b-instruct"
+            && provider["documentation_url"] == "https://docs.api.nvidia.com/nim/reference/llm-apis"
+            && provider["usage_url"] == "https://build.nvidia.com/models"
+    }));
+    assert!(providers.iter().any(|provider| {
         provider["name"] == "openrouter"
             && provider["credential_env"] == "OPENROUTER_API_KEY"
             && provider["credential_configured"] == true
@@ -352,11 +381,13 @@ fn providers_command_prints_documentation_links() {
         "documentation: https://ai.google.dev/gemini-api/docs",
         "documentation: https://console.groq.com/docs/openai",
         "documentation: https://huggingface.co/docs/inference-providers",
+        "documentation: https://docs.api.nvidia.com/nim/reference/llm-apis",
         "documentation: https://openrouter.ai/docs",
         "documentation: https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/providers.md#openai-compatible",
         "usage and limits: https://ai.google.dev/gemini-api/docs/pricing",
         "usage and limits: https://console.groq.com/docs/rate-limits",
         "usage and limits: https://huggingface.co/docs/inference-providers/pricing",
+        "usage and limits: https://build.nvidia.com/models",
         "usage and limits: https://openrouter.ai/pricing",
     ] {
         assert!(
@@ -394,6 +425,9 @@ fn run_help_documents_replay_options() {
         "--hugging-face-model <HUGGING_FACE_MODEL>",
         "--hugging-face-timeout-seconds <HUGGING_FACE_TIMEOUT_SECONDS>",
         "--hugging-face-max-retries <HUGGING_FACE_MAX_RETRIES>",
+        "--nvidia-model <NVIDIA_MODEL>",
+        "--nvidia-timeout-seconds <NVIDIA_TIMEOUT_SECONDS>",
+        "--nvidia-max-retries <NVIDIA_MAX_RETRIES>",
         "--openrouter-model <OPENROUTER_MODEL>",
         "--openrouter-timeout-seconds <OPENROUTER_TIMEOUT_SECONDS>",
         "--openrouter-max-retries <OPENROUTER_MAX_RETRIES>",
@@ -434,6 +468,9 @@ fn verify_help_documents_json_option() {
         "--json",
         "<WORKFLOW_FILE>",
         "<REPLAY_FILE>",
+        "--nvidia-model <NVIDIA_MODEL>",
+        "--nvidia-timeout-seconds <NVIDIA_TIMEOUT_SECONDS>",
+        "--nvidia-max-retries <NVIDIA_MAX_RETRIES>",
     ] {
         assert!(
             stdout.contains(expected),

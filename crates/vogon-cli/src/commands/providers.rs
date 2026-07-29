@@ -2,8 +2,9 @@ use serde::Serialize;
 
 use crate::commands::run::{
     DEFAULT_GROQ_BASE_URL, DEFAULT_GROQ_MODEL, DEFAULT_HUGGING_FACE_BASE_URL,
-    DEFAULT_HUGGING_FACE_MODEL, DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
-    DEFAULT_OPENAI_COMPATIBLE_MODEL, DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL,
+    DEFAULT_HUGGING_FACE_MODEL, DEFAULT_NVIDIA_BASE_URL, DEFAULT_NVIDIA_MODEL,
+    DEFAULT_OPENAI_COMPATIBLE_BASE_URL, DEFAULT_OPENAI_COMPATIBLE_MODEL,
+    DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL,
 };
 
 pub fn run(json: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -54,6 +55,7 @@ pub(crate) fn provider_statuses() -> Vec<ProviderStatus> {
         gemini_status(),
         groq_status(),
         hugging_face_status(),
+        nvidia_status(),
         openrouter_status(),
         openai_compatible_status(),
     ]
@@ -146,6 +148,36 @@ fn hugging_face_status() -> ProviderStatus {
         default_model: Some(DEFAULT_HUGGING_FACE_MODEL),
         documentation_url: "https://huggingface.co/docs/inference-providers",
         usage_url: Some("https://huggingface.co/docs/inference-providers/pricing"),
+    }
+}
+
+#[cfg(feature = "openai-compatible")]
+fn nvidia_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "nvidia",
+        enabled: true,
+        default: false,
+        credential_env: Some("NVIDIA_API_KEY"),
+        credential_configured: Some(env_is_configured("NVIDIA_API_KEY")),
+        default_base_url: Some(DEFAULT_NVIDIA_BASE_URL),
+        default_model: Some(DEFAULT_NVIDIA_MODEL),
+        documentation_url: "https://docs.api.nvidia.com/nim/reference/llm-apis",
+        usage_url: Some("https://build.nvidia.com/models"),
+    }
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn nvidia_status() -> ProviderStatus {
+    ProviderStatus {
+        name: "nvidia",
+        enabled: false,
+        default: false,
+        credential_env: Some("NVIDIA_API_KEY"),
+        credential_configured: None,
+        default_base_url: Some(DEFAULT_NVIDIA_BASE_URL),
+        default_model: Some(DEFAULT_NVIDIA_MODEL),
+        documentation_url: "https://docs.api.nvidia.com/nim/reference/llm-apis",
+        usage_url: Some("https://build.nvidia.com/models"),
     }
 }
 

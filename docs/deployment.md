@@ -79,6 +79,17 @@ docker run --rm \
 
 Use `--hugging-face-model` to select a different Hugging Face routed model.
 
+For NVIDIA API Catalog:
+
+```sh
+docker run --rm \
+  -e NVIDIA_API_KEY \
+  -v "$PWD:/work" \
+  vogon-runtime:local run --provider nvidia fixtures/workflows/support-triage.toml
+```
+
+Use `--nvidia-model` to select a different NVIDIA API Catalog model.
+
 For OpenRouter:
 
 ```sh

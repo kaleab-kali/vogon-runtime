@@ -107,19 +107,18 @@ let model = NvidiaModel::new(std::env::var("NVIDIA_API_KEY")?)?;
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-To use NVIDIA through the current CLI, select the generic OpenAI-compatible
-provider and pass the NVIDIA credential through its expected environment
-variable:
+To use NVIDIA through the CLI:
 
 ```sh
-OPENAI_COMPATIBLE_API_KEY="$NVIDIA_API_KEY" cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://integrate.api.nvidia.com/v1 --openai-compatible-model meta/llama-3.1-8b-instruct fixtures/workflows/support-triage.toml
+NVIDIA_API_KEY=... cargo run -p vogon-cli -- run --provider nvidia fixtures/workflows/support-triage.toml
 ```
 
-Select a different model by replacing `--openai-compatible-model` with an ID
-from NVIDIA's current API Catalog. NVIDIA's hosted LLM API reference documents
-the shared `/v1/chat/completions` endpoint and its available model IDs. Do not
-commit API keys or real replay outputs containing private prompts or customer
-data.
+Select a different model with `--nvidia-model`, using an ID from NVIDIA's
+current API Catalog. The `--nvidia-timeout-seconds` and
+`--nvidia-max-retries` options control request behavior. NVIDIA's hosted LLM API
+reference documents the shared `/v1/chat/completions` endpoint and its
+available model IDs. Do not commit API keys or real replay outputs containing
+private prompts or customer data.
 
 ### OpenAI-Compatible
 

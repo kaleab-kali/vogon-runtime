@@ -9,9 +9,9 @@ and this project follows semantic versioning.
 
 ### Added
 
-- First-class `NvidiaModel` adapter for NVIDIA API Catalog chat completions,
-  using `NVIDIA_API_KEY`, the hosted NVIDIA endpoint, and provider-specific
-  replay metadata.
+- First-class `NvidiaModel` adapter and `--provider nvidia` CLI path for NVIDIA
+  API Catalog chat completions, using `NVIDIA_API_KEY`, the hosted NVIDIA
+  endpoint, and provider-specific replay metadata.
 - `vogon run` and `vogon verify` can explicitly omit authentication for local
   OpenAI-compatible endpoints with `--openai-compatible-no-auth`, while bearer
   authentication remains the default for hosted providers.

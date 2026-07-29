@@ -47,8 +47,8 @@ OpenAI-compatible chat-completions endpoint when `OPENAI_COMPATIBLE_API_KEY` is
 set. It also includes a Groq preset for Groq's OpenAI-compatible endpoint when
 `GROQ_API_KEY` is set, and a Hugging Face preset for Hugging Face Inference
 Providers when `HF_TOKEN` is set. OpenRouter is available as a first-class
-preset when `OPENROUTER_API_KEY` is set. The adapter crate also provides a
-first-class NVIDIA API Catalog preset using `NVIDIA_API_KEY`.
+preset when `OPENROUTER_API_KEY` is set. NVIDIA API Catalog is available as a
+first-class CLI and adapter preset using `NVIDIA_API_KEY`.
 
 ## Requirements
 
@@ -140,8 +140,10 @@ Run against NVIDIA's hosted OpenAI-compatible API with an NVIDIA Developer API
 key:
 
 ```sh
-OPENAI_COMPATIBLE_API_KEY="$NVIDIA_API_KEY" cargo run -p vogon-cli -- run --provider openai-compatible --openai-compatible-base-url https://integrate.api.nvidia.com/v1 --openai-compatible-model meta/llama-3.1-8b-instruct fixtures/workflows/support-triage.toml
+NVIDIA_API_KEY=... cargo run -p vogon-cli -- run --provider nvidia fixtures/workflows/support-triage.toml
 ```
+
+Use `--nvidia-model` to select another current NVIDIA API Catalog model.
 
 For a real-provider smoke path with the lowest setup friction, start with
 OpenRouter's `openrouter/free` default, Gemini's documented free API tier, or
