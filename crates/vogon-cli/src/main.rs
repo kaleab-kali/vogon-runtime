@@ -178,6 +178,10 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_RUN_CACHE_MAX_ENTRIES)]
         cache_max_entries: usize,
 
+        /// Exit unsuccessfully when the workflow decision denies the run.
+        #[arg(long)]
+        enforce_decision: bool,
+
         workflow_file: PathBuf,
     },
 
@@ -397,6 +401,7 @@ fn main() -> ExitCode {
             output,
             cache_file,
             cache_max_entries,
+            enforce_decision,
             redactions,
             redaction_environment_values,
             workflow_file,
@@ -409,6 +414,7 @@ fn main() -> ExitCode {
                 output: output.as_deref(),
                 cache_file: cache_file.as_deref(),
                 cache_max_entries,
+                enforce_decision,
             },
             RunModelConfig {
                 provider,

@@ -51,6 +51,31 @@
         }
       }
     },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "pointer", "policy_hash", "value", "outcome"],
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "policy_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "enum": ["allow", "deny"]
+        }
+      }
+    },
     "run_hash": {
       "$ref": "#/$defs/sha256"
     },

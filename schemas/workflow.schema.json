@@ -29,6 +29,39 @@
           }
         }
       }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "pointer", "allow", "deny"],
+      "properties": {
+        "step": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$"
+        },
+        "pointer": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "allow": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "deny": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   }
 }

@@ -38,7 +38,9 @@ pub use vogon_adapters::{
     DEFAULT_OPENROUTER_TIMEOUT_SECONDS, MAX_GROQ_RETRIES, MAX_HUGGING_FACE_RETRIES,
     MAX_NVIDIA_RETRIES, MAX_OPENAI_COMPATIBLE_RETRIES, MAX_OPENROUTER_RETRIES,
 };
-use vogon_core::{ModelAdapter, RedactionSet, RunCache, RunReport, Runtime};
+use vogon_core::{
+    DecisionOutcome, ModelAdapter, RedactionSet, RunCache, RunReport, Runtime, VogonError,
+};
 
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
@@ -110,6 +112,9 @@ pub fn run(
     reject_overlapping_artifact_paths(config.output, config.cache_file)?;
     let workflow = read_toml_workflow(workflow_file)?;
     let workflow = render_workflow(&workflow, config.workflow_inputs)?;
+    if config.enforce_decision && workflow.decision().is_none() {
+        return Err(VogonError::DecisionPolicyRequired.into());
+    }
     let redactions =
         parse_redactions(config.redaction_values, config.redaction_environment_values)?;
     let mut cache = load_run_cache(config.cache_file, config.cache_max_entries)?;
@@ -137,6 +142,20 @@ pub fn run(
         print!("{replay_json}");
     }
 
+    if config.enforce_decision {
+        let decision = report
+            .decision
+            .as_ref()
+            .expect("decision policy was required before execution");
+        if decision.outcome == DecisionOutcome::Deny {
+            return Err(VogonError::DecisionDenied {
+                step_id: decision.step_id.as_str().to_owned(),
+                value: decision.value.clone(),
+            }
+            .into());
+        }
+    }
+
     Ok(())
 }
 
@@ -148,6 +167,7 @@ pub struct RunConfig<'a> {
     pub output: Option<&'a Path>,
     pub cache_file: Option<&'a Path>,
     pub cache_max_entries: usize,
+    pub enforce_decision: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

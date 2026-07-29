@@ -13,6 +13,13 @@ fn support_triage_workflow() -> PathBuf {
         .join("support-triage.toml")
 }
 
+fn release_gate_workflow() -> PathBuf {
+    repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("release-gate.toml")
+}
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -204,6 +211,28 @@ fn check_command_reports_required_workflow_inputs() {
     assert_eq!(summary["workflow_name"], "git-change-review");
     assert_eq!(summary["step_count"], 2);
     assert_eq!(summary["required_inputs"], serde_json::json!(["git_diff"]));
+}
+
+#[test]
+fn check_command_reports_the_decision_policy() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg("--json")
+        .arg(release_gate_workflow())
+        .output()
+        .expect("check command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let summary: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(summary["decision"]["step"], "release_decision");
+    assert_eq!(summary["decision"]["pointer"], "/decision");
+    assert_eq!(summary["decision"]["allow"], serde_json::json!(["GO"]));
+    assert_eq!(summary["decision"]["deny"], serde_json::json!(["NO_GO"]));
 }
 
 #[test]

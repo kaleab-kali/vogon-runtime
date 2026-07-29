@@ -6814,7 +6814,7 @@ fn check_workflow_fixtures(root: &Path) -> Vec<String> {
 
 fn check_workflow_document(relative_path: &str, workflow: &TomlTable) -> Vec<String> {
     let mut errors = Vec::new();
-    for field in sorted_unknown_fields(workflow.keys(), &["name", "steps"]) {
+    for field in sorted_unknown_fields(workflow.keys(), &["name", "steps", "decision"]) {
         errors.push(format!("{relative_path}: unknown workflow field `{field}`"));
     }
 
@@ -6859,6 +6859,94 @@ fn check_workflow_document(relative_path: &str, workflow: &TomlTable) -> Vec<Str
                 "{relative_path}: workflow step {index} prompt must be non-empty"
             ));
         }
+    }
+
+    if let Some(decision) = workflow.get("decision") {
+        errors.extend(check_workflow_decision(
+            relative_path,
+            decision,
+            steps.last(),
+        ));
+    }
+
+    errors
+}
+
+fn check_workflow_decision(
+    relative_path: &str,
+    decision: &Value,
+    final_step: Option<&Value>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let Some(decision) = decision.as_table() else {
+        return vec![format!(
+            "{relative_path}: workflow decision must be an object"
+        )];
+    };
+    for field in sorted_unknown_fields(decision.keys(), &["step", "pointer", "allow", "deny"]) {
+        errors.push(format!(
+            "{relative_path}: workflow decision has unknown field `{field}`"
+        ));
+    }
+    if !is_identifier_toml(decision.get("step")) {
+        errors.push(format!(
+            "{relative_path}: workflow decision step must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+        ));
+    }
+    let pointer_valid = decision
+        .get("pointer")
+        .and_then(Value::as_str)
+        .is_some_and(|pointer| pointer.starts_with('/') && !pointer.is_empty());
+    if !pointer_valid {
+        errors.push(format!(
+            "{relative_path}: workflow decision pointer must begin with `/`"
+        ));
+    }
+    let mut policy_values = BTreeMap::new();
+    for field in ["allow", "deny"] {
+        let values = decision
+            .get(field)
+            .and_then(Value::as_array)
+            .filter(|values| {
+                !values.is_empty()
+                    && values.iter().all(|value| {
+                        value
+                            .as_str()
+                            .is_some_and(|value| !value.is_empty() && value == value.trim())
+                    })
+            })
+            .map(|values| values.iter().filter_map(Value::as_str).collect::<Vec<_>>());
+        if let Some(values) = values {
+            if values.iter().collect::<BTreeSet<_>>().len() != values.len() {
+                errors.push(format!(
+                    "{relative_path}: workflow decision {field} values must be unique"
+                ));
+            }
+            policy_values.insert(field, values);
+        } else {
+            errors.push(format!(
+                "{relative_path}: workflow decision {field} must be a non-empty string list"
+            ));
+        }
+    }
+    if let (Some(allow), Some(deny)) = (policy_values.get("allow"), policy_values.get("deny")) {
+        let allowed = allow.iter().collect::<BTreeSet<_>>();
+        if deny.iter().any(|value| allowed.contains(value)) {
+            errors.push(format!(
+                "{relative_path}: workflow decision allow and deny values must be disjoint"
+            ));
+        }
+    }
+
+    let decision_step = decision.get("step").and_then(Value::as_str);
+    let final_step_id = final_step
+        .and_then(Value::as_table)
+        .and_then(|step| step.get("id"))
+        .and_then(Value::as_str);
+    if decision_step.is_some() && decision_step != final_step_id {
+        errors.push(format!(
+            "{relative_path}: workflow decision step must match the final workflow step"
+        ));
     }
 
     errors
@@ -6915,6 +7003,14 @@ fn check_replay_document(
         "schema_version",
         "workflow_name",
         "runtime",
+        "decision",
+        "run_hash",
+        "steps",
+    ];
+    let required_fields = [
+        "schema_version",
+        "workflow_name",
+        "runtime",
         "run_hash",
         "steps",
     ];
@@ -6922,7 +7018,7 @@ fn check_replay_document(
     for field in sorted_unknown_fields(replay.keys(), &allowed_fields) {
         errors.push(format!("{relative_path}: unknown replay field `{field}`"));
     }
-    for field in allowed_fields {
+    for field in required_fields {
         if !replay.contains_key(field) {
             errors.push(format!("{relative_path}: missing replay field `{field}`"));
         }
@@ -6945,6 +7041,14 @@ fn check_replay_document(
     match replay.get("runtime").and_then(JsonValue::as_object) {
         Some(runtime) => errors.extend(check_runtime_metadata(relative_path, runtime)),
         None => errors.push(format!("{relative_path}: replay runtime must be an object")),
+    }
+    if let Some(decision) = replay.get("decision") {
+        match decision.as_object() {
+            Some(decision) => errors.extend(check_replay_decision(relative_path, decision)),
+            None => errors.push(format!(
+                "{relative_path}: replay decision must be an object"
+            )),
+        }
     }
 
     let Some(steps) = replay.get("steps").and_then(JsonValue::as_array) else {
@@ -6970,6 +7074,59 @@ fn check_replay_document(
         errors.extend(check_replay_step(relative_path, index, step));
     }
 
+    errors
+}
+
+fn check_replay_decision(
+    relative_path: &str,
+    decision: &serde_json::Map<String, JsonValue>,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let fields = ["step_id", "pointer", "policy_hash", "value", "outcome"];
+    for field in sorted_unknown_fields(decision.keys(), &fields) {
+        errors.push(format!(
+            "{relative_path}: replay decision has unknown field `{field}`"
+        ));
+    }
+    for field in fields {
+        if !decision.contains_key(field) {
+            errors.push(format!(
+                "{relative_path}: missing replay decision field `{field}`"
+            ));
+        }
+    }
+    if !is_identifier_json(decision.get("step_id")) {
+        errors.push(format!(
+            "{relative_path}: replay decision step_id must use {IDENTIFIER_PATTERN_DESCRIPTION}"
+        ));
+    }
+    if !decision
+        .get("pointer")
+        .and_then(JsonValue::as_str)
+        .is_some_and(|pointer| pointer.starts_with('/') && !pointer.is_empty())
+    {
+        errors.push(format!(
+            "{relative_path}: replay decision pointer must begin with `/`"
+        ));
+    }
+    if !is_sha256_json(decision.get("policy_hash")) {
+        errors.push(format!(
+            "{relative_path}: replay decision policy_hash must be lowercase sha256"
+        ));
+    }
+    if !is_non_empty_json_string(decision.get("value")) {
+        errors.push(format!(
+            "{relative_path}: replay decision value must be non-empty"
+        ));
+    }
+    if !matches!(
+        decision.get("outcome").and_then(JsonValue::as_str),
+        Some("allow" | "deny")
+    ) {
+        errors.push(format!(
+            "{relative_path}: replay decision outcome must be `allow` or `deny`"
+        ));
+    }
     errors
 }
 
@@ -7033,7 +7190,13 @@ fn check_replay_step(
     let mut errors = Vec::new();
     for field in sorted_unknown_fields(
         step.keys(),
-        &["step_id", "input_hash", "output_hash", "output"],
+        &[
+            "step_id",
+            "prompt_hash",
+            "input_hash",
+            "output_hash",
+            "output",
+        ],
     ) {
         errors.push(format!(
             "{relative_path}: replay step {index} has unknown field `{field}`"
@@ -7047,6 +7210,11 @@ fn check_replay_step(
     if !is_sha256_json(step.get("input_hash")) {
         errors.push(format!(
             "{relative_path}: replay step {index} input_hash must be lowercase sha256"
+        ));
+    }
+    if step.contains_key("prompt_hash") && !is_sha256_json(step.get("prompt_hash")) {
+        errors.push(format!(
+            "{relative_path}: replay step {index} prompt_hash must be lowercase sha256 when present"
         ));
     }
     if !is_sha256_json(step.get("output_hash")) {
@@ -9424,6 +9592,40 @@ and this project follows semantic versioning once the first release is tagged.
 
         assert_eq!(check_schema_files(&root), Ok(()));
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn validates_workflow_decision_fixture_shape() {
+        let valid = r#"
+name = "release"
+
+[decision]
+step = "decide"
+pointer = "/decision"
+allow = ["GO"]
+deny = ["NO_GO"]
+
+[[steps]]
+id = "review"
+prompt = "Review"
+
+[[steps]]
+id = "decide"
+prompt = "Decide"
+"#
+        .parse::<TomlTable>()
+        .unwrap();
+        assert!(check_workflow_document("workflow.toml", &valid).is_empty());
+
+        let mut invalid = valid;
+        invalid["decision"].as_table_mut().unwrap().insert(
+            "deny".to_owned(),
+            Value::Array(vec![Value::String("GO".to_owned())]),
+        );
+        assert_eq!(
+            check_workflow_document("workflow.toml", &invalid),
+            ["workflow.toml: workflow decision allow and deny values must be disjoint"]
+        );
     }
 
     #[test]

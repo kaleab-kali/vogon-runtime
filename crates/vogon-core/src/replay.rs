@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{Result, StepId, VogonError, workflow::validate_workflow_name};
+use crate::{DecisionResult, Result, StepId, VogonError, workflow::validate_workflow_name};
 
 /// Replay schema version emitted by current runtime runs.
 pub const CURRENT_REPLAY_SCHEMA_VERSION: u32 = 1;
@@ -122,6 +122,9 @@ pub struct RunReport {
     #[serde(default)]
     /// Non-secret runtime provenance for this run.
     pub runtime: RuntimeMetadata,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Evaluated workflow decision, when the workflow declares a decision policy.
+    pub decision: Option<DecisionResult>,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     /// Stable hash of the ordered step identifiers and step hashes.
     pub run_hash: String,
@@ -170,6 +173,20 @@ pub enum ReplayMismatch {
         expected: Box<RuntimeMetadata>,
         /// Runtime metadata from the actual run.
         actual: Box<RuntimeMetadata>,
+    },
+    /// Decision policies differ between the expected replay and actual run.
+    DecisionPolicyHash {
+        /// Policy hash from the expected replay, when present.
+        expected: Option<String>,
+        /// Policy hash from the actual run, when present.
+        actual: Option<String>,
+    },
+    /// Exact evaluated decisions differ.
+    Decision {
+        /// Decision from the expected replay, when present.
+        expected: Option<Box<DecisionResult>>,
+        /// Decision from the actual run, when present.
+        actual: Option<Box<DecisionResult>>,
     },
     /// The expected and actual step counts differ.
     StepCount {
@@ -249,6 +266,8 @@ impl ReplayMismatch {
             ReplayMismatch::WorkflowName { .. }
             | ReplayMismatch::RunHash { .. }
             | ReplayMismatch::RuntimeMetadata { .. }
+            | ReplayMismatch::DecisionPolicyHash { .. }
+            | ReplayMismatch::Decision { .. }
             | ReplayMismatch::StepCount { .. } => None,
             ReplayMismatch::StepId { actual, .. }
             | ReplayMismatch::StepPromptHash {

@@ -46,6 +46,32 @@ hyphens. Spaces and other punctuation are rejected.
 Unknown top-level workflow fields and unknown step fields are rejected. This
 keeps workflow files explicit and catches misspelled keys before execution.
 
+## Decision Policies
+
+A workflow can turn the final step into a machine-enforceable gate:
+
+```toml
+[decision]
+step = "release_decision"
+pointer = "/decision"
+allow = ["GO"]
+deny = ["NO_GO"]
+```
+
+The configured step must be the final workflow step. `pointer` is an RFC 6901
+JSON Pointer beginning with `/`. Allow and deny lists must be non-empty,
+internally unique, and disjoint; values are compared exactly.
+
+The decision step must return one JSON object with no Markdown fence or
+surrounding prose. The pointer must resolve to a string listed in either
+`allow` or `deny`. Invalid JSON, a missing or non-string field, and an unlisted
+value fail closed. Use `vogon run --enforce-decision` to convert a valid denied
+result into a nonzero process exit after the replay has been written.
+
+The decision policy makes model output machine-readable; it does not make the
+model correct. Keep deterministic tests and required reviews in the release
+path.
+
 ## Step Inputs
 
 The first step receives its prompt as input. Each later step receives its prompt

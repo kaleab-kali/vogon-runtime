@@ -216,11 +216,28 @@ where
             })
             .collect::<Vec<_>>()
             .join("|");
+        let decision = workflow.decision().map(|policy| {
+            let output = steps
+                .last()
+                .expect("validated workflows contain at least one step")
+                .output
+                .as_str();
+            policy.evaluate(output)
+        });
+        let decision = decision.transpose()?;
+        let run_hash_material = match &decision {
+            Some(decision) => format!(
+                "{run_hash_material}|decision_policy:{}",
+                decision.policy_hash
+            ),
+            None => run_hash_material,
+        };
 
         Ok(RunReport {
             schema_version: CURRENT_REPLAY_SCHEMA_VERSION,
             workflow_name: workflow.name().to_owned(),
             runtime: self.adapter.runtime_metadata(),
+            decision,
             run_hash: stable_hash(run_hash_material),
             steps,
         })
@@ -433,6 +450,45 @@ where
             );
         }
 
+        match mode {
+            VerificationMode::Exact if expected.decision != actual.decision => {
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::Decision {
+                        expected: expected.decision.clone().map(Box::new),
+                        actual: actual.decision.clone().map(Box::new),
+                    },
+                    &mut observer,
+                );
+            }
+            VerificationMode::Structure
+                if expected
+                    .decision
+                    .as_ref()
+                    .map(|decision| &decision.policy_hash)
+                    != actual
+                        .decision
+                        .as_ref()
+                        .map(|decision| &decision.policy_hash) =>
+            {
+                push_mismatch(
+                    &mut mismatches,
+                    ReplayMismatch::DecisionPolicyHash {
+                        expected: expected
+                            .decision
+                            .as_ref()
+                            .map(|decision| decision.policy_hash.clone()),
+                        actual: actual
+                            .decision
+                            .as_ref()
+                            .map(|decision| decision.policy_hash.clone()),
+                    },
+                    &mut observer,
+                );
+            }
+            _ => {}
+        }
+
         if expected.steps.len() != actual.steps.len() {
             push_mismatch(
                 &mut mismatches,
@@ -551,8 +607,8 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::{
-        RedactionRule, RedactionSet, ReplayMismatch, Result, RunCache, RuntimeEvent, Step, StepId,
-        VerificationMode, VogonError, Workflow, stable_hash,
+        DecisionOutcome, DecisionPolicy, RedactionRule, RedactionSet, ReplayMismatch, Result,
+        RunCache, RuntimeEvent, Step, StepId, VerificationMode, VogonError, Workflow, stable_hash,
     };
 
     use std::{cell::Cell, rc::Rc};
@@ -574,6 +630,19 @@ mod tests {
     impl ModelAdapter for SecretModel {
         fn complete(&self, _step: &Step, _input: &str) -> Result<String> {
             Ok("token=sk-test-123".to_owned())
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct DecisionModel;
+
+    impl ModelAdapter for DecisionModel {
+        fn complete(&self, step: &Step, _input: &str) -> Result<String> {
+            if step.id().as_str() == "decide" {
+                Ok(r#"{"decision":"NO_GO","reasons":["missing rollback"]}"#.to_owned())
+            } else {
+                Ok("missing rollback plan".to_owned())
+            }
         }
     }
 
@@ -652,6 +721,75 @@ mod tests {
         assert_eq!(report.workflow_name, "demo");
         assert_eq!(report.steps.len(), 2);
         assert_ne!(report.run_hash, "");
+    }
+
+    #[test]
+    fn runtime_records_a_policy_bound_decision() {
+        let workflow = Workflow::new(
+            "release",
+            vec![
+                Step::new(StepId::new("review").unwrap(), "Review"),
+                Step::new(StepId::new("decide").unwrap(), "Decide"),
+            ],
+        )
+        .unwrap()
+        .with_decision(DecisionPolicy {
+            step: StepId::new("decide").unwrap(),
+            pointer: "/decision".to_owned(),
+            allow: vec!["GO".to_owned()],
+            deny: vec!["NO_GO".to_owned()],
+        })
+        .unwrap();
+
+        let report = Runtime::new(DecisionModel).run(&workflow).unwrap();
+        let decision = report.decision.unwrap();
+
+        assert_eq!(decision.value, "NO_GO");
+        assert_eq!(decision.outcome, DecisionOutcome::Deny);
+        assert_eq!(
+            decision.policy_hash,
+            workflow.decision().unwrap().policy_hash()
+        );
+    }
+
+    #[test]
+    fn structural_verification_reports_decision_policy_drift() {
+        let base = Workflow::new(
+            "release",
+            vec![
+                Step::new(StepId::new("review").unwrap(), "Review"),
+                Step::new(StepId::new("decide").unwrap(), "Decide"),
+            ],
+        )
+        .unwrap();
+        let expected_workflow = base
+            .clone()
+            .with_decision(DecisionPolicy {
+                step: StepId::new("decide").unwrap(),
+                pointer: "/decision".to_owned(),
+                allow: vec!["GO".to_owned()],
+                deny: vec!["NO_GO".to_owned()],
+            })
+            .unwrap();
+        let actual_workflow = base
+            .with_decision(DecisionPolicy {
+                step: StepId::new("decide").unwrap(),
+                pointer: "/decision".to_owned(),
+                allow: vec!["GO".to_owned(), "APPROVED".to_owned()],
+                deny: vec!["NO_GO".to_owned()],
+            })
+            .unwrap();
+        let runtime = Runtime::new(DecisionModel);
+        let replay = runtime.run(&expected_workflow).unwrap();
+
+        let report = runtime
+            .verify_with_mode(&actual_workflow, &replay, VerificationMode::Structure)
+            .unwrap();
+
+        assert!(matches!(
+            report.mismatches.as_slice(),
+            [ReplayMismatch::DecisionPolicyHash { .. }]
+        ));
     }
 
     #[test]

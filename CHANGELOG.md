@@ -19,6 +19,9 @@ and this project follows semantic versioning.
 - New runs record rendered step prompt hashes, and `vogon verify --mode
   structure` can execute nondeterministic providers while comparing workflow
   and provider structure without requiring exact output wording.
+- Workflows can declare strict final-step JSON decision policies. Replays bind
+  evaluated allow or deny evidence to the policy, and `vogon run
+  --enforce-decision` exits unsuccessfully after writing a denied replay.
 
 ## [0.1.4] - 2026-07-29
 

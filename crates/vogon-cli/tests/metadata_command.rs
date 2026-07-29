@@ -446,6 +446,7 @@ fn run_help_documents_replay_options() {
         "--output <FILE>",
         "--cache-file <FILE>",
         "--cache-max-entries <CACHE_MAX_ENTRIES>",
+        "--enforce-decision",
     ] {
         assert!(
             stdout.contains(expected),

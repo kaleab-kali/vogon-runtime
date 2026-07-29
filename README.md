@@ -93,6 +93,20 @@ The workflow references the injected context as `{{input.git_diff}}`. Literal
 and UTF-8 file inputs are also available through repeatable
 `--input NAME=VALUE` and `--input-file NAME=FILE` options.
 
+Run a pull request release gate that exits nonzero on `NO_GO` and writes the
+decision evidence to a replay:
+
+```sh
+cargo run -p vogon-cli -- run --provider nvidia --git-diff-base origin/main --enforce-decision --output target/release-gate.replay.json fixtures/workflows/release-gate.toml
+```
+
+The workflow policy selects a final-step JSON field with an RFC 6901 JSON
+Pointer and lists exact allow and deny values. Markdown-wrapped JSON, a missing
+field, a non-string value, or an unlisted value fails closed. This makes the
+exit status suitable for CI, but the decision remains a model judgment and
+must not replace deterministic tests, static analysis, or required human
+review.
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:
@@ -475,6 +489,7 @@ Already available:
 - Deterministic replay log generation.
 - Provider-aware replay verification with structured mismatch errors.
 - Exact and output-insensitive structural replay verification.
+- Strict workflow decision policies with replay evidence and CI exit enforcement.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
 - Provider-neutral runtime observer events for step lifecycle, replay mismatch,
