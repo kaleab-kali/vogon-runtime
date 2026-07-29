@@ -691,11 +691,7 @@ fn write_replay_file(output: &Path, replay_json: &str) -> io::Result<()> {
 fn create_temp_output(output: &Path) -> io::Result<(PathBuf, fs::File)> {
     for attempt in 0..100 {
         let temp_output = temp_output_path(output, attempt)?;
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp_output)
-        {
+        match open_private_temp_file(&temp_output) {
             Ok(file) => return Ok((temp_output, file)),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(error),
@@ -709,6 +705,19 @@ fn create_temp_output(output: &Path) -> io::Result<(PathBuf, fs::File)> {
             output.display()
         ),
     ))
+}
+
+fn open_private_temp_file(path: &Path) -> io::Result<fs::File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+
+    options.open(path)
 }
 
 fn temp_output_path(output: &Path, attempt: u32) -> io::Result<PathBuf> {
@@ -779,6 +788,29 @@ mod tests {
             "an invalid artifact must not replace the existing replay"
         );
         assert!(!temp_output_path(&output, 0).unwrap().exists());
+        fs::remove_dir_all(root).expect("test directory should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn artifact_write_uses_owner_only_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should follow Unix epoch")
+            .as_nanos();
+        let root = env::temp_dir().join(format!(
+            "vogon-run-private-artifact-{}-{unique}",
+            process::id()
+        ));
+        fs::create_dir(&root).expect("test directory should be created");
+        let output = root.join("replay.json");
+
+        write_replay_file(&output, "private replay\n").expect("artifact write should succeed");
+
+        let mode = fs::metadata(&output).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
         fs::remove_dir_all(root).expect("test directory should be removed");
     }
 }

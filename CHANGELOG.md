@@ -38,6 +38,9 @@ and this project follows semantic versioning.
 - Replay and run-cache writes now reserve collision-free temporary files and
   sync their contents before replacement, preventing stale or concurrent temp
   files from corrupting persisted artifacts.
+- New replay and run-cache artifacts now use owner-only permissions on Unix
+  instead of relying on the process umask to protect potentially sensitive
+  model output.
 
 ## [0.1.3] - 2026-07-10
 
