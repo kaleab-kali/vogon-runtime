@@ -671,6 +671,7 @@ const REQUIRED_RELEASE_WORKFLOW_COUNTS: &[(&str, usize)] = &[
     ("check-archive-contents", 4),
     ("check-providers-json", 5),
     ("check-container-image", 3),
+    (" report --output ", 8),
 ];
 const SECURITY_WORKFLOW_REQUIREMENTS: &[(&str, &[(&str, &str)])] = &[
     (
