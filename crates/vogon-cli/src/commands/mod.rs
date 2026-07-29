@@ -6,6 +6,7 @@ pub mod init;
 pub mod providers;
 pub mod redaction;
 pub mod redaction_markers;
+pub mod report;
 pub mod run;
 pub mod trace;
 pub mod verify;

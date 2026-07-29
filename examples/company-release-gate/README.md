@@ -91,6 +91,14 @@ Exit code `0` means the model returned the exact allowed value `GO`. Exit code
 `1` covers a denied decision and other execution failures; inspect stderr and
 the replay rather than treating every nonzero result as a model denial.
 
+Turn a written replay into a review page:
+
+```sh
+vogon report \
+  --output .vogon/release-gate.html \
+  .vogon/release-gate.replay.json
+```
+
 This command sends the complete tracked Git diff and the rendered service-owner
 value to NVIDIA. Vogon does not currently filter diff paths or detect secrets
 inside the diff. Run deterministic secret scanning first and use this gate only
@@ -110,7 +118,7 @@ workflow and job to the target repository before enabling the required check:
 mkdir -p .vogon .github/workflows
 cp ../vogon-runtime/examples/company-release-gate/workflows/release-gate.toml .vogon/release-gate.toml
 cp ../vogon-runtime/examples/company-release-gate/github-actions/release-gate.yml .github/workflows/vogon-release-gate.yml
-printf '%s\n' '.vogon/*.cache.json' '.vogon/*.replay.json' >> .gitignore
+printf '%s\n' '.vogon/*.cache.json' '.vogon/*.replay.json' '.vogon/*.html' >> .gitignore
 git add .vogon/release-gate.toml .github/workflows/vogon-release-gate.yml .gitignore
 ```
 

@@ -1,6 +1,7 @@
 /target/
 /.idea/
 /.vscode/
+/.playwright-cli/
 *.rs.bk
 *.pdb
 __pycache__/

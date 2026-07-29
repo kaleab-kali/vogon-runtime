@@ -2,7 +2,9 @@ use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{DecisionResult, Result, StepId, VogonError, workflow::validate_workflow_name};
+use crate::{
+    DecisionResult, Result, StepId, VogonError, stable_hash, workflow::validate_workflow_name,
+};
 
 /// Replay schema version emitted by current runtime runs.
 pub const CURRENT_REPLAY_SCHEMA_VERSION: u32 = 1;
@@ -141,6 +143,38 @@ pub struct RunReport {
 }
 
 impl RunReport {
+    /// Validates output hashes and the aggregate run hash recorded in this replay.
+    ///
+    /// This checks internal consistency only. SHA-256 hashes are not signatures
+    /// and do not prove who created a replay or whether its model output is
+    /// correct.
+    pub fn validate_integrity(&self) -> Result<()> {
+        for step in &self.steps {
+            let computed = stable_hash(&step.output);
+            if computed != step.output_hash {
+                return Err(VogonError::ReplayOutputHashMismatch {
+                    step_id: step.step_id.as_str().to_owned(),
+                    recorded: step.output_hash.clone(),
+                    computed,
+                });
+            }
+        }
+
+        let computed = compute_run_hash(
+            &self.steps,
+            self.decision.as_ref(),
+            self.execution_policy_hash.as_deref(),
+        );
+        if computed != self.run_hash {
+            return Err(VogonError::ReplayRunHashMismatch {
+                recorded: self.run_hash.clone(),
+                computed,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Validates that this replay contains the data required by a verification mode.
     pub fn validate_for_verification(&self, mode: VerificationMode) -> Result<()> {
         if mode == VerificationMode::Structure {
@@ -154,6 +188,32 @@ impl RunReport {
         }
         Ok(())
     }
+}
+
+pub(crate) fn compute_run_hash(
+    steps: &[StepResult],
+    decision: Option<&DecisionResult>,
+    execution_policy_hash: Option<&str>,
+) -> String {
+    let mut material = steps
+        .iter()
+        .map(|step| {
+            format!(
+                "{}:{}:{}",
+                step.step_id.as_str(),
+                step.input_hash,
+                step.output_hash
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("|");
+    if let Some(decision) = decision {
+        material = format!("{material}|decision_policy:{}", decision.policy_hash);
+    }
+    if let Some(policy_hash) = execution_policy_hash {
+        material = format!("{material}|execution_policy:{policy_hash}");
+    }
+    stable_hash(material)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -450,7 +510,11 @@ fn is_sha256_hex(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CURRENT_REPLAY_SCHEMA_VERSION, LEGACY_REPLAY_SCHEMA_VERSION, RunReport};
+    use super::compute_run_hash;
+    use crate::{
+        CURRENT_REPLAY_SCHEMA_VERSION, LEGACY_REPLAY_SCHEMA_VERSION, RunReport, RuntimeMetadata,
+        StepId, StepResult, VogonError, stable_hash,
+    };
 
     fn valid_step_json() -> &'static str {
         r#"{
@@ -459,6 +523,53 @@ mod tests {
             "output_hash": "0000000000000000000000000000000000000000000000000000000000000000",
             "output": "done"
         }"#
+    }
+
+    fn integrity_report() -> RunReport {
+        let steps = vec![StepResult {
+            step_id: StepId::new("review").unwrap(),
+            prompt_hash: Some(stable_hash("Review")),
+            input_hash: stable_hash("input"),
+            output_hash: stable_hash("output"),
+            output: "output".to_owned(),
+        }];
+        let run_hash = compute_run_hash(&steps, None, None);
+        RunReport {
+            schema_version: CURRENT_REPLAY_SCHEMA_VERSION,
+            workflow_name: "integrity".to_owned(),
+            runtime: RuntimeMetadata::new("test", "test", "1", "test"),
+            decision: None,
+            execution_policy_hash: None,
+            run_hash,
+            steps,
+        }
+    }
+
+    #[test]
+    fn run_report_integrity_accepts_consistent_hashes() {
+        assert_eq!(integrity_report().validate_integrity(), Ok(()));
+    }
+
+    #[test]
+    fn run_report_integrity_rejects_changed_output() {
+        let mut report = integrity_report();
+        report.steps[0].output = "changed".to_owned();
+
+        assert!(matches!(
+            report.validate_integrity(),
+            Err(VogonError::ReplayOutputHashMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn run_report_integrity_rejects_changed_run_hash() {
+        let mut report = integrity_report();
+        report.run_hash = "0".repeat(64);
+
+        assert!(matches!(
+            report.validate_integrity(),
+            Err(VogonError::ReplayRunHashMismatch { .. })
+        ));
     }
 
     #[test]

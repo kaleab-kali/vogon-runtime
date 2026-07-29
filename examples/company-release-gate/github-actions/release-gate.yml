@@ -44,12 +44,21 @@ jobs:
             --output .vogon/release-gate.replay.json \
             .vogon/release-gate.toml
 
+      - name: Render evidence report
+        if: always() && hashFiles('.vogon/release-gate.replay.json') != ''
+        run: |
+          vogon report \
+            --output .vogon/release-gate.html \
+            .vogon/release-gate.replay.json
+
       - name: Upload decision evidence
         if: always() && hashFiles('.vogon/release-gate.replay.json') != ''
         uses: actions/upload-artifact@v6
         with:
           name: vogon-release-gate
-          path: .vogon/release-gate.replay.json
+          path: |
+            .vogon/release-gate.replay.json
+            .vogon/release-gate.html
           if-no-files-found: error
           retention-days: 30
 

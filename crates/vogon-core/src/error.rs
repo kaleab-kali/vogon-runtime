@@ -58,6 +58,28 @@ pub enum VogonError {
     #[error("step `{0}` has no prompt hash; create a new replay before structural verification")]
     MissingStepPromptHash(String),
 
+    /// A replay step output does not match its recorded hash.
+    #[error(
+        "replay step `{step_id}` output hash mismatch: recorded `{recorded}`, computed `{computed}`"
+    )]
+    ReplayOutputHashMismatch {
+        /// Step containing inconsistent output evidence.
+        step_id: String,
+        /// Hash stored in the replay.
+        recorded: String,
+        /// Hash recomputed from the recorded output.
+        computed: String,
+    },
+
+    /// A replay run hash does not match its step and policy evidence.
+    #[error("replay run hash mismatch: recorded `{recorded}`, computed `{computed}`")]
+    ReplayRunHashMismatch {
+        /// Aggregate hash stored in the replay.
+        recorded: String,
+        /// Hash recomputed from replay evidence.
+        computed: String,
+    },
+
     /// Decision policies must select the final workflow step.
     #[error(
         "decision step `{configured}` must be the final workflow step; final step is `{final_step}`"
