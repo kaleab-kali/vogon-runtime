@@ -72,6 +72,28 @@ The decision policy makes model output machine-readable; it does not make the
 model correct. Keep deterministic tests and required reviews in the release
 path.
 
+## Execution Policies
+
+An optional execution policy restricts adapter provenance and raw step output:
+
+```toml
+[execution]
+allowed_providers = ["nvidia"]
+allowed_models = ["meta/llama-3.1-8b-instruct"]
+max_step_output_bytes = 65536
+```
+
+All fields are optional, but the table must configure at least one restriction.
+Allowlist entries are exact, unique, non-empty strings. Empty or omitted
+allowlists are unrestricted. Provider and model checks use the non-secret
+runtime metadata reported by the adapter and happen before the first step.
+
+`max_step_output_bytes` must be between 1 and 1,048,576. It applies to fresh and
+cached raw UTF-8 output before redaction, replay storage, or use as the next
+step's input. The check occurs after an adapter returns, so it limits local
+propagation and artifact size, not provider generation, billing, or the memory
+used to receive the response.
+
 ## Step Inputs
 
 The first step receives its prompt as input. Each later step receives its prompt

@@ -125,6 +125,13 @@ pub struct RunReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Evaluated workflow decision, when the workflow declares a decision policy.
     pub decision: Option<DecisionResult>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_sha256_hex"
+    )]
+    /// Stable hash of the workflow execution policy, when configured.
+    pub execution_policy_hash: Option<String>,
     #[serde(deserialize_with = "deserialize_sha256_hex")]
     /// Stable hash of the ordered step identifiers and step hashes.
     pub run_hash: String,
@@ -187,6 +194,13 @@ pub enum ReplayMismatch {
         expected: Option<Box<DecisionResult>>,
         /// Decision from the actual run, when present.
         actual: Option<Box<DecisionResult>>,
+    },
+    /// Workflow execution policies differ.
+    ExecutionPolicyHash {
+        /// Policy hash from the expected replay, when present.
+        expected: Option<String>,
+        /// Policy hash from the actual run, when present.
+        actual: Option<String>,
     },
     /// The expected and actual step counts differ.
     StepCount {
@@ -268,6 +282,7 @@ impl ReplayMismatch {
             | ReplayMismatch::RuntimeMetadata { .. }
             | ReplayMismatch::DecisionPolicyHash { .. }
             | ReplayMismatch::Decision { .. }
+            | ReplayMismatch::ExecutionPolicyHash { .. }
             | ReplayMismatch::StepCount { .. } => None,
             ReplayMismatch::StepId { actual, .. }
             | ReplayMismatch::StepPromptHash {

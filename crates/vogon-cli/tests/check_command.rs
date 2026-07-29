@@ -233,6 +233,7 @@ fn check_command_reports_the_decision_policy() {
     assert_eq!(summary["decision"]["pointer"], "/decision");
     assert_eq!(summary["decision"]["allow"], serde_json::json!(["GO"]));
     assert_eq!(summary["decision"]["deny"], serde_json::json!(["NO_GO"]));
+    assert_eq!(summary["execution"]["max_step_output_bytes"], 65536);
 }
 
 #[test]

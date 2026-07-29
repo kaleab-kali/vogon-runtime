@@ -158,6 +158,12 @@ where
         F: FnMut(RuntimeEvent),
     {
         workflow.validate()?;
+        let runtime_metadata = self.adapter.runtime_metadata();
+        let execution_policy_hash = workflow.execution().map(|policy| {
+            policy.validate_runtime(&runtime_metadata)?;
+            Ok(policy.policy_hash())
+        });
+        let execution_policy_hash = execution_policy_hash.transpose()?;
 
         let mut previous_output = String::new();
         let mut steps = Vec::with_capacity(workflow.steps().len());
@@ -187,6 +193,18 @@ where
             } else {
                 self.adapter.complete(step, &input)?
             };
+            if let Some(maximum) = workflow
+                .execution()
+                .and_then(|policy| policy.max_step_output_bytes)
+            {
+                if output.len() > maximum {
+                    return Err(crate::VogonError::StepOutputTooLarge {
+                        step_id: step.id().as_str().to_owned(),
+                        actual: output.len(),
+                        maximum,
+                    });
+                }
+            }
             let redacted_output = redactions.redact(&output);
 
             steps.push(StepResult {
@@ -232,12 +250,19 @@ where
             ),
             None => run_hash_material,
         };
+        let run_hash_material = match &execution_policy_hash {
+            Some(policy_hash) => {
+                format!("{run_hash_material}|execution_policy:{policy_hash}")
+            }
+            None => run_hash_material,
+        };
 
         Ok(RunReport {
             schema_version: CURRENT_REPLAY_SCHEMA_VERSION,
             workflow_name: workflow.name().to_owned(),
-            runtime: self.adapter.runtime_metadata(),
+            runtime: runtime_metadata,
             decision,
+            execution_policy_hash,
             run_hash: stable_hash(run_hash_material),
             steps,
         })
@@ -488,6 +513,16 @@ where
             }
             _ => {}
         }
+        if expected.execution_policy_hash != actual.execution_policy_hash {
+            push_mismatch(
+                &mut mismatches,
+                ReplayMismatch::ExecutionPolicyHash {
+                    expected: expected.execution_policy_hash.clone(),
+                    actual: actual.execution_policy_hash.clone(),
+                },
+                &mut observer,
+            );
+        }
 
         if expected.steps.len() != actual.steps.len() {
             push_mismatch(
@@ -607,8 +642,9 @@ fn step_input(step: &Step, previous_output: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::{
-        DecisionOutcome, DecisionPolicy, RedactionRule, RedactionSet, ReplayMismatch, Result,
-        RunCache, RuntimeEvent, Step, StepId, VerificationMode, VogonError, Workflow, stable_hash,
+        DecisionOutcome, DecisionPolicy, ExecutionPolicy, RedactionRule, RedactionSet,
+        ReplayMismatch, Result, RunCache, RuntimeEvent, Step, StepId, VerificationMode, VogonError,
+        Workflow, stable_hash,
     };
 
     use std::{cell::Cell, rc::Rc};
@@ -750,6 +786,98 @@ mod tests {
             decision.policy_hash,
             workflow.decision().unwrap().policy_hash()
         );
+    }
+
+    #[test]
+    fn runtime_rejects_disallowed_provider_before_execution() {
+        let calls = Rc::new(Cell::new(0));
+        let workflow = Workflow::new(
+            "restricted",
+            vec![Step::new(StepId::new("review").unwrap(), "Review")],
+        )
+        .unwrap()
+        .with_execution_policy(ExecutionPolicy {
+            allowed_providers: vec!["nvidia".to_owned()],
+            allowed_models: Vec::new(),
+            max_step_output_bytes: None,
+        })
+        .unwrap();
+
+        let error = Runtime::new(CountingModel::new(Rc::clone(&calls)))
+            .run(&workflow)
+            .unwrap_err();
+
+        assert_eq!(error, VogonError::ProviderNotAllowed("custom".to_owned()));
+        assert_eq!(calls.get(), 0);
+    }
+
+    #[test]
+    fn runtime_limits_fresh_and_cached_step_outputs() {
+        let calls = Rc::new(Cell::new(0));
+        let model = NamespacedModel::new("bounded", "oversized", Rc::clone(&calls));
+        let base = Workflow::new(
+            "bounded",
+            vec![Step::new(StepId::new("review").unwrap(), "Review")],
+        )
+        .unwrap();
+        let bounded = base
+            .clone()
+            .with_execution_policy(ExecutionPolicy {
+                allowed_providers: Vec::new(),
+                allowed_models: Vec::new(),
+                max_step_output_bytes: Some(4),
+            })
+            .unwrap();
+        let runtime = Runtime::new(model);
+        let mut cache = RunCache::new();
+
+        let fresh_error = runtime.run(&bounded).unwrap_err();
+        runtime.run_with_cache(&base, &mut cache).unwrap();
+        let cached_error = runtime.run_with_cache(&bounded, &mut cache).unwrap_err();
+
+        let expected = VogonError::StepOutputTooLarge {
+            step_id: "review".to_owned(),
+            actual: 9,
+            maximum: 4,
+        };
+        assert_eq!(fresh_error, expected);
+        assert_eq!(cached_error, expected);
+        assert_eq!(calls.get(), 2);
+    }
+
+    #[test]
+    fn structural_verification_reports_execution_policy_drift() {
+        let base = Workflow::new(
+            "bounded",
+            vec![Step::new(StepId::new("review").unwrap(), "Review")],
+        )
+        .unwrap();
+        let expected_workflow = base
+            .clone()
+            .with_execution_policy(ExecutionPolicy {
+                allowed_providers: Vec::new(),
+                allowed_models: Vec::new(),
+                max_step_output_bytes: Some(32),
+            })
+            .unwrap();
+        let actual_workflow = base
+            .with_execution_policy(ExecutionPolicy {
+                allowed_providers: Vec::new(),
+                allowed_models: Vec::new(),
+                max_step_output_bytes: Some(64),
+            })
+            .unwrap();
+        let runtime = Runtime::new(TestModel);
+        let replay = runtime.run(&expected_workflow).unwrap();
+
+        let report = runtime
+            .verify_with_mode(&actual_workflow, &replay, VerificationMode::Structure)
+            .unwrap();
+
+        assert!(matches!(
+            report.mismatches.as_slice(),
+            [ReplayMismatch::ExecutionPolicyHash { .. }]
+        ));
     }
 
     #[test]

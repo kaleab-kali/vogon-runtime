@@ -17,6 +17,9 @@ pub fn run(workflow_file: &Path, json: bool) -> Result<(), Box<dyn std::error::E
         if let Some(decision) = workflow.decision() {
             summary["decision"] = serde_json::to_value(decision)?;
         }
+        if let Some(execution) = workflow.execution() {
+            summary["execution"] = serde_json::to_value(execution)?;
+        }
         println!("{}", serde_json::to_string(&summary)?);
         return Ok(());
     }
@@ -38,6 +41,24 @@ pub fn run(workflow_file: &Path, json: bool) -> Result<(), Box<dyn std::error::E
             decision.deny.join(", ")
         );
     }
+    if let Some(execution) = workflow.execution() {
+        println!(
+            "Execution policy: providers={} models={} max_step_output_bytes={}",
+            display_values(&execution.allowed_providers),
+            display_values(&execution.allowed_models),
+            execution
+                .max_step_output_bytes
+                .map_or_else(|| "unrestricted".to_owned(), |value| value.to_string())
+        );
+    }
 
     Ok(())
+}
+
+fn display_values(values: &[String]) -> String {
+    if values.is_empty() {
+        "unrestricted".to_owned()
+    } else {
+        values.join(", ")
+    }
 }

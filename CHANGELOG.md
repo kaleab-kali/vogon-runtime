@@ -25,6 +25,9 @@ and this project follows semantic versioning.
 - Live replay validation now accepts explicit workflow, ordered step, and
   decision expectations, and verifies recorded hash shape and output integrity
   instead of assuming the two-step support-triage fixture.
+- Workflows can restrict allowed provider/model metadata and raw per-step
+  output bytes through `[execution]`; replays bind verification to the stable
+  execution-policy hash.
 
 ## [0.1.4] - 2026-07-29
 

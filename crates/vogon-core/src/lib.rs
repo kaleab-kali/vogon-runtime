@@ -39,6 +39,7 @@ mod cache;
 mod decision;
 mod error;
 mod events;
+mod execution;
 mod hash;
 mod redaction;
 mod replay;
@@ -50,6 +51,7 @@ pub use cache::{DEFAULT_RUN_CACHE_MAX_ENTRIES, RunCache};
 pub use decision::{DecisionOutcome, DecisionPolicy, DecisionResult};
 pub use error::{Result, VogonError};
 pub use events::RuntimeEvent;
+pub use execution::{ExecutionPolicy, MAX_STEP_OUTPUT_BYTES};
 pub use hash::stable_hash;
 pub use redaction::{RedactionRule, RedactionSet};
 pub use replay::{

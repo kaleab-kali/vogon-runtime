@@ -142,6 +142,56 @@ pub enum VogonError {
         value: String,
     },
 
+    /// An execution policy must configure at least one restriction.
+    #[error("workflow `[execution]` policy must configure at least one restriction")]
+    EmptyExecutionPolicy,
+
+    /// Execution policy values must be non-empty and unpadded.
+    #[error("execution policy `{field}` value `{value}` must be non-empty and unpadded")]
+    InvalidExecutionPolicyValue {
+        /// Policy field containing the invalid value.
+        field: String,
+        /// Invalid value.
+        value: String,
+    },
+
+    /// Execution policy values must be unique within an allowlist.
+    #[error("execution policy `{field}` contains duplicate value `{value}`")]
+    DuplicateExecutionPolicyValue {
+        /// Policy field containing the duplicate.
+        field: String,
+        /// Duplicate value.
+        value: String,
+    },
+
+    /// Step output limits must stay within the runtime safety bound.
+    #[error("max_step_output_bytes `{value}` must be between 1 and {maximum}")]
+    InvalidStepOutputLimit {
+        /// Configured byte limit.
+        value: usize,
+        /// Maximum supported byte limit.
+        maximum: usize,
+    },
+
+    /// The selected provider is outside the workflow allowlist.
+    #[error("provider `{0}` is not allowed by the workflow execution policy")]
+    ProviderNotAllowed(String),
+
+    /// The selected model is outside the workflow allowlist.
+    #[error("model `{0}` is not allowed by the workflow execution policy")]
+    ModelNotAllowed(String),
+
+    /// A provider or cached output exceeded the workflow limit.
+    #[error("step `{step_id}` output is {actual} bytes; workflow limit is {maximum} bytes")]
+    StepOutputTooLarge {
+        /// Step that returned the oversized output.
+        step_id: String,
+        /// Actual UTF-8 byte count.
+        actual: usize,
+        /// Configured maximum byte count.
+        maximum: usize,
+    },
+
     /// Redaction labels must contain at least one non-whitespace character.
     #[error("redaction label cannot be empty")]
     EmptyRedactionLabel,

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{DecisionPolicy, Result, Step, VogonError};
+use crate::{DecisionPolicy, ExecutionPolicy, Result, Step, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -15,6 +15,9 @@ pub struct Workflow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     /// Optional machine-enforceable decision policy for the final step.
     pub decision: Option<DecisionPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional provider, model, and output restrictions.
+    pub execution: Option<ExecutionPolicy>,
     #[serde(skip)]
     inputs_rendered: bool,
 }
@@ -26,6 +29,7 @@ impl Workflow {
             name: name.into(),
             steps,
             decision: None,
+            execution: None,
             inputs_rendered: false,
         };
         workflow.validate()?;
@@ -47,9 +51,21 @@ impl Workflow {
         self.decision.as_ref()
     }
 
+    /// Returns the optional execution policy.
+    pub fn execution(&self) -> Option<&ExecutionPolicy> {
+        self.execution.as_ref()
+    }
+
     /// Attaches and validates a final-step decision policy.
     pub fn with_decision(mut self, decision: DecisionPolicy) -> Result<Self> {
         self.decision = Some(decision);
+        self.validate()?;
+        Ok(self)
+    }
+
+    /// Attaches and validates provider, model, and output restrictions.
+    pub fn with_execution_policy(mut self, execution: ExecutionPolicy) -> Result<Self> {
+        self.execution = Some(execution);
         self.validate()?;
         Ok(self)
     }
@@ -107,6 +123,7 @@ impl Workflow {
             name: self.name.clone(),
             steps,
             decision: self.decision.clone(),
+            execution: self.execution.clone(),
             inputs_rendered: true,
         };
         rendered.validate()?;
@@ -143,6 +160,9 @@ impl Workflow {
 
         if let Some(decision) = &self.decision {
             decision.validate(self.steps.last().expect("steps are non-empty").id())?;
+        }
+        if let Some(execution) = &self.execution {
+            execution.validate()?;
         }
 
         Ok(())
@@ -236,6 +256,8 @@ impl<'de> Deserialize<'de> for Workflow {
             steps: Vec<Step>,
             #[serde(default)]
             decision: Option<DecisionPolicy>,
+            #[serde(default)]
+            execution: Option<ExecutionPolicy>,
         }
 
         let fields = WorkflowFields::deserialize(deserializer)?;
@@ -243,6 +265,7 @@ impl<'de> Deserialize<'de> for Workflow {
             name: fields.name,
             steps: fields.steps,
             decision: fields.decision,
+            execution: fields.execution,
             inputs_rendered: false,
         };
         workflow.validate().map_err(de::Error::custom)?;
