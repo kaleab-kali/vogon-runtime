@@ -51,3 +51,15 @@ Use `--cache-max-entries` to choose the retained entry count; the default is
 
 Treat cache files as sensitive. They may contain raw model outputs, including
 values redacted from replay files, and should stay out of version control.
+
+## Runtime Output Bounds
+
+Provider adapters cap successful HTTP response bodies at 1 MiB before JSON
+decoding. This limits memory use when a provider or compatible endpoint returns
+an unexpectedly large response.
+
+Persisted replay and run-cache files use the same 1 MiB ceiling as Vogon's
+workflow, replay, and cache readers. Oversized writes fail before replacing an
+existing artifact, so Vogon does not create files that it will later refuse to
+open. Runs written directly to standard output are not persisted artifacts and
+are unaffected by the file limit.

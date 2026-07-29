@@ -651,6 +651,17 @@ fn create_parent(path: &Path, description: &str) -> io::Result<()> {
 }
 
 fn write_replay_file(output: &Path, replay_json: &str) -> io::Result<()> {
+    if replay_json.len() > file_io::MAX_INPUT_FILE_BYTES as usize {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "artifact `{}` is {} bytes, exceeding the 1 MiB limit",
+                output.display(),
+                replay_json.len()
+            ),
+        ));
+    }
+
     let (temp_output, mut temp_file) = create_temp_output(output)?;
     let write_result = temp_file
         .write_all(replay_json.as_bytes())
@@ -740,6 +751,34 @@ mod tests {
         assert_eq!(fs::read_to_string(&output).unwrap(), "new replay\n");
         assert_eq!(fs::read_to_string(&stale_temp).unwrap(), "stale run");
         assert!(!temp_output_path(&output, 1).unwrap().exists());
+        fs::remove_dir_all(root).expect("test directory should be removed");
+    }
+
+    #[test]
+    fn artifact_write_rejects_files_that_cannot_be_reopened() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should follow Unix epoch")
+            .as_nanos();
+        let root = env::temp_dir().join(format!(
+            "vogon-run-oversized-artifact-{}-{unique}",
+            process::id()
+        ));
+        fs::create_dir(&root).expect("test directory should be created");
+        let output = root.join("replay.json");
+        fs::write(&output, "existing replay\n").expect("existing replay should be written");
+        let oversized = "x".repeat(file_io::MAX_INPUT_FILE_BYTES as usize + 1);
+
+        let error = write_replay_file(&output, &oversized).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("exceeding the 1 MiB limit"));
+        assert_eq!(
+            fs::read_to_string(&output).unwrap(),
+            "existing replay\n",
+            "an invalid artifact must not replace the existing replay"
+        );
+        assert!(!temp_output_path(&output, 0).unwrap().exists());
         fs::remove_dir_all(root).expect("test directory should be removed");
     }
 }

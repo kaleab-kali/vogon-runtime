@@ -28,6 +28,9 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(missing_docs)]
 
+#[cfg(any(feature = "gemini", feature = "openai-compatible"))]
+const MAX_PROVIDER_RESPONSE_BODY_BYTES: u64 = 1024 * 1024;
+
 mod fake;
 #[cfg(feature = "gemini")]
 mod gemini;
