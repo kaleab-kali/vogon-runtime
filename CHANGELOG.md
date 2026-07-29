@@ -22,6 +22,8 @@ and this project follows semantic versioning.
 
 ### Changed
 
+- The container build image now uses the Rust 1.97.1 patch release on Debian
+  Bookworm, with the Rust container-policy validator enforcing the same pin.
 - OpenAI-compatible hosted endpoints must now use HTTPS. Plain HTTP remains
   available for loopback hosts so local Ollama and development servers keep
   working without weakening remote credential and prompt transport.
