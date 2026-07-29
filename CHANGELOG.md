@@ -34,6 +34,12 @@ and this project follows semantic versioning.
 - `vogon report` renders a self-contained offline HTML evidence page only after
   recomputing step output hashes and the aggregate replay run hash.
 
+### Documentation
+
+- A public product-fit guide defines the supervised Git release-gate target,
+  compares established alternatives, states current safety boundaries, and
+  records an open-source beta launch verdict.
+
 ## [0.1.4] - 2026-07-29
 
 ### Added

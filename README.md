@@ -142,6 +142,14 @@ model's grounded reasons and required actions as reviewable evidence.
 
 ![Vogon company release gate report showing a NO_GO decision, four grounded risks, and four required actions](docs/images/company-release-gate-report.png)
 
+The initial target is platform and release teams that need a supervised,
+Git-native AI decision gate in pull request CI. Vogon is not a replacement for
+deterministic scanners, production observability platforms, evaluation suites,
+or durable agent orchestrators. The
+[product fit and launch readiness guide](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/product-fit.md)
+gives a direct comparison with Promptfoo, LangSmith, Braintrust, LangGraph,
+Temporal, and a small CI script.
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:
@@ -479,6 +487,7 @@ Useful documentation:
 - [Replay format](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/replay-format.md)
 - [Schemas](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/schemas.md)
 - [Performance](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/performance.md)
+- [Product fit and launch readiness](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/product-fit.md)
 - [Release process](https://github.com/kaleab-kali/vogon-runtime/blob/main/docs/release.md)
 - [Support](https://github.com/kaleab-kali/vogon-runtime/blob/main/SUPPORT.md)
 
