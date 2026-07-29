@@ -52,12 +52,44 @@ first-class CLI and adapter preset using `NVIDIA_API_KEY`.
 
 ## Requirements
 
-- Rust 1.85.0 or newer.
-- Cargo with access to the committed `Cargo.lock` dependencies.
+- Prebuilt binaries: Windows x86_64 or Linux x86_64.
+- Source builds and Git installs: Rust 1.85.0 or newer.
+- Cargo with access to the committed `Cargo.lock` dependencies when building
+  from source.
+
+## Installation
+
+Download the Linux or Windows archive from the
+[v0.2.0 release](https://github.com/kaleab-kali/vogon-runtime/releases/tag/v0.2.0),
+verify its adjacent `.sha256` file, extract it, and put `vogon` or `vogon.exe`
+on `PATH`. The release also provides a container image archive, locked
+dependency metadata, an SPDX SBOM, and GitHub build-provenance attestations.
+See the [release verification guide](docs/release.md#verify-published-artifacts)
+for exact Linux and PowerShell commands.
+
+With Rust installed, install the same tagged source directly from GitHub:
+
+```sh
+cargo install --git https://github.com/kaleab-kali/vogon-runtime.git --tag v0.2.0 --locked vogon-cli
+vogon --version
+vogon doctor
+```
+
+Vogon is not currently published to crates.io. Use a release archive or the
+version-pinned Git command above rather than an unversioned branch install.
+
+Create and execute a local workflow without cloning this repository:
+
+```sh
+vogon init --output workflow.toml
+vogon check workflow.toml
+vogon run workflow.toml
+```
 
 ## Quickstart
 
-Run the deterministic demo workflow:
+The remaining examples assume a repository checkout because they reference
+committed fixtures. Run the deterministic demo workflow:
 
 ```sh
 cargo run -p vogon-cli -- demo

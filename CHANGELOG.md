@@ -7,6 +7,11 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Documented prebuilt release archives, the version-pinned Git installation
+  command, a fixture-free first run, and the current crates.io boundary.
+
 ## [0.2.0] - 2026-07-30
 
 ### Added
