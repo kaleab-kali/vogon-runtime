@@ -605,6 +605,75 @@ fn run_and_verify_support_unauthenticated_openai_compatible_endpoint() {
 }
 
 #[test]
+fn verify_command_reuses_run_cache_without_provider_access() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+            let body = r#"{"choices":[{"message":{"content":"cached response"}}]}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        }
+    });
+    let fixture = support_triage_workflow();
+    let artifact_directory = repo_root().join("target").join("vogon-tests");
+    let replay_file = artifact_directory.join("cached-provider.replay.json");
+    let cache_file = artifact_directory.join("cached-provider.cache.json");
+    remove_file_if_exists(&replay_file);
+    remove_file_if_exists(&cache_file);
+    let base_url = format!("http://{address}");
+
+    let run = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-base-url")
+        .arg(&base_url)
+        .arg("--openai-compatible-model")
+        .arg("local/model")
+        .arg("--openai-compatible-no-auth")
+        .arg("--openai-compatible-max-retries")
+        .arg("0")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg("--output")
+        .arg(&replay_file)
+        .arg(&fixture)
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+    assert!(
+        run.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    server.join().unwrap();
+
+    let verify = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--cache-file")
+        .arg(&cache_file)
+        .arg(&fixture)
+        .arg(&replay_file)
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("verify command should execute");
+
+    assert!(
+        verify.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&verify.stderr)
+    );
+    assert!(String::from_utf8_lossy(&verify.stdout).contains("Replay verified"));
+}
+
+#[test]
 fn run_command_rejects_remote_plaintext_openai_compatible_endpoint() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("run")

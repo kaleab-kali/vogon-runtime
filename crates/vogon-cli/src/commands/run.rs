@@ -526,7 +526,7 @@ fn run_with_openai_compatible(
     .into())
 }
 
-fn load_run_cache(
+pub(crate) fn load_run_cache(
     cache_file: Option<&Path>,
     cache_max_entries: usize,
 ) -> Result<Option<RunCache>, Box<dyn std::error::Error>> {
@@ -552,7 +552,7 @@ fn load_run_cache(
     Ok(Some(cache))
 }
 
-fn write_run_cache_file(
+pub(crate) fn write_run_cache_file(
     cache_file: &Path,
     cache: &RunCache,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -597,7 +597,7 @@ fn create_cache_parent(cache_file: &Path) -> io::Result<()> {
     create_parent(cache_file, "run cache directory")
 }
 
-fn reject_overlapping_artifact_paths(
+pub(crate) fn reject_overlapping_artifact_paths(
     output: Option<&Path>,
     cache_file: Option<&Path>,
 ) -> io::Result<()> {
@@ -611,6 +611,28 @@ fn reject_overlapping_artifact_paths(
             format!(
                 "replay output path `{}` and run cache path `{}` must be different",
                 output.display(),
+                cache_file.display()
+            ),
+        ));
+    }
+
+    Ok(())
+}
+
+pub(crate) fn reject_replay_cache_paths(
+    replay_file: &Path,
+    cache_file: Option<&Path>,
+) -> io::Result<()> {
+    let Some(cache_file) = cache_file else {
+        return Ok(());
+    };
+
+    if comparable_path(replay_file)? == comparable_path(cache_file)? {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "replay file path `{}` and run cache path `{}` must be different",
+                replay_file.display(),
                 cache_file.display()
             ),
         ));

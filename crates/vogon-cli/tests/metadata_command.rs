@@ -483,6 +483,8 @@ fn verify_help_documents_json_option() {
         "--git-diff",
         "--git-diff-base <REVISION>",
         "--repository <DIRECTORY>",
+        "--cache-file <FILE>",
+        "--cache-max-entries <CACHE_MAX_ENTRIES>",
     ] {
         assert!(
             stdout.contains(expected),
