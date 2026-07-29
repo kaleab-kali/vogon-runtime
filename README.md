@@ -136,6 +136,12 @@ For a complete company-facing example, including an external Git repository
 smoke, an NVIDIA release decision, and a pull request job, see the
 [company release gate](examples/company-release-gate/README.md).
 
+The report below came from the authorized NVIDIA run against the example's
+synthetic unsafe payments deployment. It blocked the release and preserved the
+model's grounded reasons and required actions as reviewable evidence.
+
+![Vogon company release gate report showing a NO_GO decision, four grounded risks, and four required actions](docs/images/company-release-gate-report.png)
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:
