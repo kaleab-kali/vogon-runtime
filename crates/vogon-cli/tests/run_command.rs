@@ -36,6 +36,41 @@ fn remove_path_if_exists(path: &Path) {
     }
 }
 
+fn git_change_review_workflow() -> PathBuf {
+    repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("git-change-review.toml")
+}
+
+fn create_git_diff_repository(name: &str) -> PathBuf {
+    let repository = repo_root().join("target").join("vogon-tests").join(name);
+    remove_path_if_exists(&repository);
+    fs::create_dir_all(&repository).unwrap();
+    fs::write(repository.join("service.toml"), "timeout_seconds = 30\n").unwrap();
+
+    for arguments in [
+        vec!["init", "-b", "main"],
+        vec!["config", "user.name", "Vogon Tests"],
+        vec!["config", "user.email", "vogon-tests@example.invalid"],
+        vec!["add", "service.toml"],
+        vec!["commit", "-m", "Add baseline"],
+    ] {
+        let output = Command::new("git")
+            .args(arguments)
+            .current_dir(&repository)
+            .output()
+            .expect("Git should execute");
+        assert!(
+            output.status.success(),
+            "Git stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    repository
+}
+
 #[test]
 fn run_command_executes_toml_workflow() {
     let fixture = support_triage_workflow();
@@ -60,6 +95,217 @@ fn run_command_executes_toml_workflow() {
     assert_eq!(report["runtime"]["provider"], "deterministic");
     assert_eq!(report["runtime"]["model"], "deterministic-echo");
     assert_eq!(report["steps"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn run_command_renders_literal_workflow_inputs() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--input")
+        .arg("git_diff=timeout_seconds changed from 30 to 0")
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(report["workflow_name"], "git-change-review");
+    assert_eq!(report["steps"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn run_command_renders_file_workflow_inputs() {
+    let input_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("workflow-input.diff");
+    fs::create_dir_all(input_file.parent().unwrap()).unwrap();
+    fs::write(&input_file, "timeout_seconds changed from 30 to 0").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--input-file")
+        .arg(format!("git_diff={}", input_file.display()))
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn run_command_rejects_missing_and_unused_workflow_inputs() {
+    let missing = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(!missing.status.success());
+    assert!(
+        String::from_utf8_lossy(&missing.stderr)
+            .contains("workflow input `git_diff` is required but was not supplied")
+    );
+
+    let unused = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--input")
+        .arg("unused=value")
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(!unused.status.success());
+    assert!(
+        String::from_utf8_lossy(&unused.stderr)
+            .contains("workflow input `unused` was supplied but is not used")
+    );
+}
+
+#[test]
+fn run_command_injects_current_git_diff() {
+    let repository = create_git_diff_repository("workflow-git-diff");
+    fs::write(repository.join("service.toml"), "timeout_seconds = 0\n").unwrap();
+
+    let first = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--git-diff")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(
+        first.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let first_report: serde_json::Value =
+        serde_json::from_slice(&first.stdout).expect("stdout should be JSON");
+
+    fs::write(repository.join("service.toml"), "timeout_seconds = 5\n").unwrap();
+    let second = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--git-diff")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(
+        second.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    let second_report: serde_json::Value =
+        serde_json::from_slice(&second.stdout).expect("stdout should be JSON");
+
+    assert_ne!(
+        first_report["steps"][0]["input_hash"],
+        second_report["steps"][0]["input_hash"]
+    );
+}
+
+#[test]
+fn run_command_injects_git_diff_from_base_revision() {
+    let repository = create_git_diff_repository("workflow-git-base-diff");
+    fs::write(repository.join("service.toml"), "timeout_seconds = 0\n").unwrap();
+    for arguments in [
+        vec!["add", "service.toml"],
+        vec!["commit", "-m", "Remove timeout"],
+    ] {
+        let output = Command::new("git")
+            .args(arguments)
+            .current_dir(&repository)
+            .output()
+            .expect("Git should execute");
+        assert!(
+            output.status.success(),
+            "Git stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--git-diff-base")
+        .arg("HEAD~1")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn run_command_rejects_empty_and_duplicate_git_diff_inputs() {
+    let repository = create_git_diff_repository("workflow-empty-git-diff");
+    let empty = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--git-diff")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(!empty.status.success());
+    assert!(String::from_utf8_lossy(&empty.stderr).contains("contains no tracked changes"));
+
+    fs::write(repository.join("service.toml"), "timeout_seconds = 0\n").unwrap();
+    let duplicate = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--input")
+        .arg("git_diff=manual diff")
+        .arg("--git-diff")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+    assert!(!duplicate.status.success());
+    assert!(
+        String::from_utf8_lossy(&duplicate.stderr)
+            .contains("workflow input `git_diff` was supplied more than once")
+    );
+}
+
+#[test]
+fn run_command_rejects_git_diffs_over_one_mebibyte() {
+    let repository = create_git_diff_repository("workflow-oversized-git-diff");
+    fs::write(
+        repository.join("service.toml"),
+        format!("payload = \"{}\"\n", "x".repeat(1024 * 1024)),
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--git-diff")
+        .arg("--repository")
+        .arg(&repository)
+        .arg(git_change_review_workflow())
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("exceeding the 1 MiB limit"),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]

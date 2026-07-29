@@ -43,6 +43,7 @@ use vogon_core::{ModelAdapter, RedactionSet, RunCache, RunReport, Runtime};
 use crate::commands::file_io;
 use crate::commands::redaction::parse_redactions;
 use crate::commands::workflow_file::read_toml_workflow;
+use crate::commands::workflow_inputs::{WorkflowInputArgs, render_workflow};
 
 #[cfg(not(feature = "gemini"))]
 pub const DEFAULT_GEMINI_MAX_RETRIES: u32 = 2;
@@ -103,24 +104,22 @@ pub const MAX_OPENROUTER_RETRIES: u32 = 20;
 
 pub fn run(
     workflow_file: &Path,
-    redaction_values: &[String],
-    redaction_environment_values: &[String],
-    output: Option<&Path>,
-    cache_file: Option<&Path>,
-    cache_max_entries: usize,
+    config: RunConfig<'_>,
     model_config: RunModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    reject_overlapping_artifact_paths(output, cache_file)?;
+    reject_overlapping_artifact_paths(config.output, config.cache_file)?;
     let workflow = read_toml_workflow(workflow_file)?;
-    let redactions = parse_redactions(redaction_values, redaction_environment_values)?;
-    let mut cache = load_run_cache(cache_file, cache_max_entries)?;
+    let workflow = render_workflow(&workflow, config.workflow_inputs)?;
+    let redactions =
+        parse_redactions(config.redaction_values, config.redaction_environment_values)?;
+    let mut cache = load_run_cache(config.cache_file, config.cache_max_entries)?;
     let report = run_with_model(&workflow, &redactions, model_config, cache.as_mut())?;
     let replay_json = format!("{}\n", serde_json::to_string_pretty(&report)?);
-    if let (Some(cache_file), Some(cache)) = (cache_file, cache.as_ref()) {
+    if let (Some(cache_file), Some(cache)) = (config.cache_file, cache.as_ref()) {
         write_run_cache_file(cache_file, cache)?;
     }
 
-    if let Some(output) = output {
+    if let Some(output) = config.output {
         create_output_parent(output)?;
         reject_directory_output(output)?;
 
@@ -139,6 +138,16 @@ pub fn run(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RunConfig<'a> {
+    pub workflow_inputs: &'a WorkflowInputArgs,
+    pub redaction_values: &'a [String],
+    pub redaction_environment_values: &'a [String],
+    pub output: Option<&'a Path>,
+    pub cache_file: Option<&'a Path>,
+    pub cache_max_entries: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

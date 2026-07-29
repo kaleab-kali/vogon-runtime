@@ -30,18 +30,21 @@ use crate::commands::run::{
     DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider, OpenAiCompatibleConfig,
 };
 use crate::commands::workflow_file::read_toml_workflow;
+use crate::commands::workflow_inputs::{WorkflowInputArgs, render_workflow};
 
 const REDACTED_MISMATCH_OUTPUT: &str = "[UNREPORTED: replay is redacted]";
 
 pub fn run(
     workflow_file: &Path,
     replay_file: &Path,
+    workflow_input_args: &WorkflowInputArgs,
     redaction_values: &[String],
     redaction_environment_values: &[String],
     json: bool,
     model_config: VerifyModelConfig<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let workflow = read_toml_workflow(workflow_file)?;
+    let workflow = render_workflow(&workflow, workflow_input_args)?;
     let replay_text = file_io::read_to_string(replay_file, "replay file")?;
     let replay: RunReport = serde_json::from_str(&replay_text).map_err(|error| {
         io::Error::new(

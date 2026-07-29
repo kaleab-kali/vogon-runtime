@@ -38,6 +38,22 @@ pub enum VogonError {
     #[error("duplicate step id `{0}`")]
     DuplicateStepId(String),
 
+    /// Workflow input placeholders must use a valid name and closing delimiter.
+    #[error("step `{0}` contains malformed workflow input placeholder `{1}`")]
+    MalformedWorkflowInputPlaceholder(String, String),
+
+    /// Workflow input names may only contain ASCII letters, digits, underscores, and hyphens.
+    #[error("workflow input name `{0}` contains unsupported characters")]
+    InvalidWorkflowInputName(String),
+
+    /// Every declared workflow input must be supplied before execution.
+    #[error("workflow input `{0}` is required but was not supplied")]
+    MissingWorkflowInput(String),
+
+    /// Supplied workflow inputs must be referenced by at least one step.
+    #[error("workflow input `{0}` was supplied but is not used")]
+    UnusedWorkflowInput(String),
+
     /// Redaction labels must contain at least one non-whitespace character.
     #[error("redaction label cannot be empty")]
     EmptyRedactionLabel,

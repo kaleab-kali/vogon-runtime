@@ -7,6 +7,13 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Workflows can declare strict `{{input.NAME}}` prompt placeholders. `vogon
+  check` reports required names, while `vogon run` and `vogon verify` resolve
+  bounded literal, UTF-8 file, current Git working tree, or pull request base
+  diff inputs with fail-closed validation.
+
 ## [0.1.4] - 2026-07-29
 
 ### Added

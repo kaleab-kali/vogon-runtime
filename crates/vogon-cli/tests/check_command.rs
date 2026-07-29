@@ -176,6 +176,34 @@ fn check_command_can_emit_json_summary() {
         serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
     assert_eq!(summary["workflow_name"], "support-triage");
     assert_eq!(summary["step_count"], 2);
+    assert!(summary.get("required_inputs").is_none());
+}
+
+#[test]
+fn check_command_reports_required_workflow_inputs() {
+    let workflow = repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("git-change-review.toml");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("check")
+        .arg("--json")
+        .arg(workflow)
+        .output()
+        .expect("check command should execute");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let summary: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("stdout should be JSON");
+    assert_eq!(summary["workflow_name"], "git-change-review");
+    assert_eq!(summary["step_count"], 2);
+    assert_eq!(summary["required_inputs"], serde_json::json!(["git_diff"]));
 }
 
 #[test]

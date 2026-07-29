@@ -15,6 +15,50 @@ fn verify_command_accepts_writing_pipeline_replay() {
 }
 
 #[test]
+fn verify_command_renders_the_same_workflow_inputs_as_run() {
+    let workflow = repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("git-change-review.toml");
+    let replay = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("input-rendered.replay.json");
+    fs::create_dir_all(replay.parent().unwrap()).unwrap();
+
+    let run_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--input")
+        .arg("git_diff=timeout_seconds changed from 30 to 0")
+        .arg("--output")
+        .arg(&replay)
+        .arg(&workflow)
+        .output()
+        .expect("run command should execute");
+    assert!(
+        run_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&run_output.stderr)
+    );
+
+    let verify_output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("verify")
+        .arg("--input")
+        .arg("git_diff=timeout_seconds changed from 30 to 0")
+        .arg(&workflow)
+        .arg(&replay)
+        .output()
+        .expect("verify command should execute");
+
+    assert!(
+        verify_output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&verify_output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&verify_output.stdout).contains("Replay verified"));
+}
+
+#[test]
 fn verify_command_can_emit_json_match_report() {
     let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
         .arg("verify")
