@@ -6,6 +6,9 @@ pointer = "/decision"
 allow = ["GO"]
 deny = ["NO_GO"]
 
+[execution]
+max_step_output_bytes = 65536
+
 [[steps]]
 id = "risk_analysis"
 prompt = """

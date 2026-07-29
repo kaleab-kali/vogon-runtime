@@ -72,6 +72,11 @@ does not assert that two runs reached the same decision.
 }
 ```
 
+When a workflow declares an execution policy, the replay includes
+`execution_policy_hash`. The hash binds verification to the effective provider
+allowlist, model allowlist, and output-byte limit without copying the policy
+into every replay. Exact and structural verification both report policy drift.
+
 `vogon verify` uses this metadata to select the replay provider by default and
 compares current-schema runtime metadata against the actual verification run.
 Legacy unversioned replays remain readable and verify with the deterministic

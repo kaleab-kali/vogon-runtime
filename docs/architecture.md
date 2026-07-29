@@ -39,3 +39,10 @@ stores raw adapter outputs, so callers can apply different redaction rules to
 cached outputs without changing cache keys. `RunCache` is bounded by entry
 count, supports explicit removal and clearing, and uses a default limit of 1024
 outputs for long-lived callers.
+
+Workflow execution policies remain provider-neutral by comparing configured
+allowlists with an adapter's non-secret `RuntimeMetadata` before any step runs.
+The runtime also applies a configured raw output-byte limit to fresh and cached
+outputs before redaction, replay recording, or downstream prompt assembly.
+Replays store only the stable policy hash so exact and structural verification
+can detect policy drift.

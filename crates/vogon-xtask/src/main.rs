@@ -2891,6 +2891,11 @@ fn check_live_replay(
     if !is_sha256_json(data.get("run_hash")) {
         errors.push("run_hash must be lowercase sha256".to_owned());
     }
+    if data.contains_key("execution_policy_hash")
+        && !is_sha256_json(data.get("execution_policy_hash"))
+    {
+        errors.push("execution_policy_hash must be lowercase sha256 when present".to_owned());
+    }
 
     let runtime = match data.get("runtime").and_then(JsonValue::as_object) {
         Some(runtime) => Some(runtime),
@@ -7011,7 +7016,8 @@ fn check_workflow_fixtures(root: &Path) -> Vec<String> {
 
 fn check_workflow_document(relative_path: &str, workflow: &TomlTable) -> Vec<String> {
     let mut errors = Vec::new();
-    for field in sorted_unknown_fields(workflow.keys(), &["name", "steps", "decision"]) {
+    for field in sorted_unknown_fields(workflow.keys(), &["name", "steps", "decision", "execution"])
+    {
         errors.push(format!("{relative_path}: unknown workflow field `{field}`"));
     }
 
@@ -7065,7 +7071,72 @@ fn check_workflow_document(relative_path: &str, workflow: &TomlTable) -> Vec<Str
             steps.last(),
         ));
     }
+    if let Some(execution) = workflow.get("execution") {
+        errors.extend(check_workflow_execution(relative_path, execution));
+    }
 
+    errors
+}
+
+fn check_workflow_execution(relative_path: &str, execution: &Value) -> Vec<String> {
+    let mut errors = Vec::new();
+    let Some(execution) = execution.as_table() else {
+        return vec![format!(
+            "{relative_path}: workflow execution policy must be an object"
+        )];
+    };
+    let fields = [
+        "allowed_providers",
+        "allowed_models",
+        "max_step_output_bytes",
+    ];
+    for field in sorted_unknown_fields(execution.keys(), &fields) {
+        errors.push(format!(
+            "{relative_path}: workflow execution policy has unknown field `{field}`"
+        ));
+    }
+    let has_effective_restriction = execution
+        .get("allowed_providers")
+        .and_then(Value::as_array)
+        .is_some_and(|values| !values.is_empty())
+        || execution
+            .get("allowed_models")
+            .and_then(Value::as_array)
+            .is_some_and(|values| !values.is_empty())
+        || execution.contains_key("max_step_output_bytes");
+    if !has_effective_restriction {
+        errors.push(format!(
+            "{relative_path}: workflow execution policy must configure a restriction"
+        ));
+    }
+    for field in ["allowed_providers", "allowed_models"] {
+        let Some(values) = execution.get(field) else {
+            continue;
+        };
+        let valid = values.as_array().is_some_and(|values| {
+            let strings = values.iter().filter_map(Value::as_str).collect::<Vec<_>>();
+            strings.len() == values.len()
+                && strings
+                    .iter()
+                    .all(|value| !value.is_empty() && *value == value.trim())
+                && strings.iter().collect::<BTreeSet<_>>().len() == strings.len()
+        });
+        if !valid {
+            errors.push(format!(
+                "{relative_path}: workflow execution {field} must be a unique unpadded string list"
+            ));
+        }
+    }
+    if let Some(limit) = execution.get("max_step_output_bytes") {
+        let valid = limit
+            .as_integer()
+            .is_some_and(|limit| (1..=1_048_576).contains(&limit));
+        if !valid {
+            errors.push(format!(
+                "{relative_path}: workflow execution max_step_output_bytes must be between 1 and 1048576"
+            ));
+        }
+    }
     errors
 }
 
@@ -7201,6 +7272,7 @@ fn check_replay_document(
         "workflow_name",
         "runtime",
         "decision",
+        "execution_policy_hash",
         "run_hash",
         "steps",
     ];
@@ -7246,6 +7318,13 @@ fn check_replay_document(
                 "{relative_path}: replay decision must be an object"
             )),
         }
+    }
+    if replay.contains_key("execution_policy_hash")
+        && !is_sha256_json(replay.get("execution_policy_hash"))
+    {
+        errors.push(format!(
+            "{relative_path}: replay execution_policy_hash must be lowercase sha256 when present"
+        ));
     }
 
     let Some(steps) = replay.get("steps").and_then(JsonValue::as_array) else {
@@ -9822,6 +9901,42 @@ prompt = "Decide"
         assert_eq!(
             check_workflow_document("workflow.toml", &invalid),
             ["workflow.toml: workflow decision allow and deny values must be disjoint"]
+        );
+    }
+
+    #[test]
+    fn validates_workflow_execution_fixture_shape() {
+        let valid = r#"
+name = "release"
+
+[execution]
+allowed_providers = ["nvidia"]
+max_step_output_bytes = 65536
+
+[[steps]]
+id = "review"
+prompt = "Review"
+"#
+        .parse::<TomlTable>()
+        .unwrap();
+        assert!(check_workflow_document("workflow.toml", &valid).is_empty());
+
+        let invalid = r#"
+name = "release"
+
+[execution]
+allowed_providers = []
+allowed_models = []
+
+[[steps]]
+id = "review"
+prompt = "Review"
+"#
+        .parse::<TomlTable>()
+        .unwrap();
+        assert_eq!(
+            check_workflow_document("workflow.toml", &invalid),
+            ["workflow.toml: workflow execution policy must configure a restriction"]
         );
     }
 

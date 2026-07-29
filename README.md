@@ -107,6 +107,21 @@ exit status suitable for CI, but the decision remains a model judgment and
 must not replace deterministic tests, static analysis, or required human
 review.
 
+Restrict where a workflow may run and how much output any step may feed into
+the replay or next step:
+
+```toml
+[execution]
+allowed_providers = ["nvidia"]
+allowed_models = ["meta/llama-3.1-8b-instruct"]
+max_step_output_bytes = 65536
+```
+
+Provider and model allowlists are checked before the first adapter call.
+The output limit applies to fresh and cached raw UTF-8 responses. It prevents
+oversized replay and prompt propagation, but it is checked after a provider
+responds and therefore does not cap generation cost or response-body memory.
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:
@@ -490,6 +505,7 @@ Already available:
 - Provider-aware replay verification with structured mismatch errors.
 - Exact and output-insensitive structural replay verification.
 - Strict workflow decision policies with replay evidence and CI exit enforcement.
+- Workflow provider/model allowlists and bounded step-output propagation.
 - Contributor-ready fixtures and examples.
 - Human-readable and JSON Lines replay trace output.
 - Provider-neutral runtime observer events for step lifecycle, replay mismatch,

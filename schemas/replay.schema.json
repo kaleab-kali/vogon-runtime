@@ -76,6 +76,9 @@
         }
       }
     },
+    "execution_policy_hash": {
+      "$ref": "#/$defs/sha256"
+    },
     "run_hash": {
       "$ref": "#/$defs/sha256"
     },
