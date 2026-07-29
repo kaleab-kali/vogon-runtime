@@ -259,6 +259,11 @@ preset when `HF_TOKEN` is configured. Its manual dispatch input lets
 maintainers choose a different Hugging Face model without changing repository
 code.
 
+The `Live NVIDIA Smoke` workflow does the same for the NVIDIA preset when
+`NVIDIA_API_KEY` is configured. Its manual dispatch input lets maintainers
+choose a different current NVIDIA API Catalog model without changing repository
+code.
+
 The `Live OpenRouter Smoke` workflow does the same for the OpenRouter preset
 when `OPENROUTER_API_KEY` is configured. Its manual dispatch input lets
 maintainers choose a different OpenRouter model without changing repository
@@ -285,6 +290,7 @@ Official references:
 - Groq rate limits: <https://console.groq.com/docs/rate-limits>
 - NVIDIA API Catalog quickstart: <https://docs.api.nvidia.com/nim/re/docs/api-quickstart>
 - NVIDIA hosted LLM API reference: <https://docs.api.nvidia.com/nim/reference/llm-apis>
+- NVIDIA model catalog: <https://build.nvidia.com/models>
 - Ollama OpenAI compatibility: <https://docs.ollama.com/api/openai-compatibility>
 - Ollama authentication: <https://docs.ollama.com/api/authentication>
 
