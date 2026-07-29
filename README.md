@@ -122,6 +122,10 @@ The output limit applies to fresh and cached raw UTF-8 responses. It prevents
 oversized replay and prompt propagation, but it is checked after a provider
 responds and therefore does not cap generation cost or response-body memory.
 
+For a complete company-facing example, including an external Git repository
+smoke, an NVIDIA release decision, and a pull request job, see the
+[company release gate](examples/company-release-gate/README.md).
+
 Check available providers, credential setup, and provider documentation links
 without running a workflow. Provider-backed entries also include public usage,
 pricing, or rate-limit links when available:

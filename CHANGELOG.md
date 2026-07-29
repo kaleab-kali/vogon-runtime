@@ -28,6 +28,9 @@ and this project follows semantic versioning.
 - Workflows can restrict allowed provider/model metadata and raw per-step
   output bytes through `[execution]`; replays bind verification to the stable
   execution-policy hash.
+- A public company release-gate example demonstrates native Git diff capture,
+  deterministic cache/replay verification, a policy-restricted NVIDIA
+  decision, and pull request evidence upload.
 
 ## [0.1.4] - 2026-07-29
 
