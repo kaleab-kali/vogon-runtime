@@ -59,7 +59,7 @@ const REQUIRED_ISSUE_AREAS: &[&str] = &[
     "Runtime",
 ];
 const REQUIRED_ISSUE_CHECK_LABELS: &[&str] = &["removed secrets", "searched existing issues"];
-const REQUIRED_BUG_VERSION_PLACEHOLDER: &str = "placeholder: \"vogon 0.1.4\"";
+const REQUIRED_BUG_VERSION_PLACEHOLDER: &str = "placeholder: \"vogon 0.2.0\"";
 const MAX_SECRET_SCAN_TEXT_BYTES: u64 = 1_000_000;
 const SENSITIVE_ARTIFACT_SUFFIXES: &[&str] = &[".cache.json"];
 const PROVIDER_CREDENTIAL_VARS: &[&str] = &[
@@ -861,14 +861,14 @@ const REQUIRED_PUBLIC_STATUS_SNIPPETS: &[(&str, &[&str])] = &[
     (
         "README.md",
         &[
-            "Vogon Runtime's latest public release is `v0.1.4`; `v0.1.0` was the first\npublic release.",
+            "Vogon Runtime's latest public release is `v0.2.0`; `v0.1.0` was the first\npublic release.",
             "The project is still in the `0.x` series, so command and\nlibrary APIs may change",
         ],
     ),
     (
         "SECURITY.md",
         &[
-            "`v0.1.4` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release.",
+            "`v0.2.0` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release.",
             "shipped in\nfollow-up patch or minor releases",
         ],
     ),
@@ -880,7 +880,7 @@ const REQUIRED_PUBLIC_STATUS_SNIPPETS: &[(&str, &[&str])] = &[
         "CHANGELOG.md",
         &[
             "and this project follows semantic versioning.",
-            "## [0.1.4] - 2026-07-29",
+            "## [0.2.0] - 2026-07-30",
             "## [0.1.0] - 2026-07-08",
         ],
     ),
@@ -8863,7 +8863,7 @@ mod tests {
 
         let errors = check_public_status_docs(&root).unwrap_err();
 
-        assert!(errors.contains(&"SECURITY.md: missing \"`v0.1.4` is the latest public release of Vogon Runtime; `v0.1.0` was the first public release.\"".to_owned()));
+        assert!(errors.contains(&"SECURITY.md: missing \"`v0.2.0` is the latest public release of Vogon Runtime; `v0.1.0` was the first public release.\"".to_owned()));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -9214,7 +9214,7 @@ mod tests {
                 ],
                 false,
                 None,
-                "vogon 0.1.4",
+                "vogon 0.2.0",
             ),
         )
         .unwrap();
@@ -9246,7 +9246,7 @@ mod tests {
                 &["problem", "proposal", "area", "checks"],
                 true,
                 Some(&["CLI", "Runtime"]),
-                "vogon 0.1.4",
+                "vogon 0.2.0",
             ),
         )
         .unwrap();
@@ -11576,7 +11576,7 @@ prompt = "Review"
             "runtime": {
                 "provider": "openrouter",
                 "adapter": "openrouter-openai-compatible-chat-completions",
-                "adapter_version": "0.1.4",
+                "adapter_version": "0.2.0",
                 "model": "openrouter/free",
                 "cache_identity": "openrouter:test",
                 "parameters": {
@@ -12481,14 +12481,14 @@ prompt = "Classify this support request."
         fs::write(
             root.join("README.md"),
             readme.unwrap_or(
-                "# README\n\nVogon Runtime's latest public release is `v0.1.4`; `v0.1.0` was the first\npublic release. The project is still in the `0.x` series, so command and\nlibrary APIs may change as the runtime\nstabilizes.\n",
+                "# README\n\nVogon Runtime's latest public release is `v0.2.0`; `v0.1.0` was the first\npublic release. The project is still in the `0.x` series, so command and\nlibrary APIs may change as the runtime\nstabilizes.\n",
             ),
         )
         .unwrap();
         fs::write(
             root.join("SECURITY.md"),
             security.unwrap_or(
-                "# Security\n\n`v0.1.4` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release. Security fixes are handled on the `main` branch and shipped in\nfollow-up patch or minor releases when they affect published artifacts.\n",
+                "# Security\n\n`v0.2.0` is the latest public release of Vogon Runtime; `v0.1.0` was the first\npublic release. Security fixes are handled on the `main` branch and shipped in\nfollow-up patch or minor releases when they affect published artifacts.\n",
             ),
         )
         .unwrap();
@@ -12499,7 +12499,7 @@ prompt = "Classify this support request."
         .unwrap();
         fs::write(
             root.join("CHANGELOG.md"),
-            "# Changelog\n\nand this project follows semantic versioning.\n\n## [0.1.4] - 2026-07-29\n\n## [0.1.1] - 2026-07-08\n\n## [0.1.0] - 2026-07-08\n",
+            "# Changelog\n\nand this project follows semantic versioning.\n\n## [0.2.0] - 2026-07-30\n\n## [0.1.1] - 2026-07-08\n\n## [0.1.0] - 2026-07-08\n",
         )
         .unwrap();
         fs::write(
@@ -12674,7 +12674,7 @@ updates:\n\
                 ],
                 true,
                 None,
-                "vogon 0.1.4",
+                "vogon 0.2.0",
             ),
         )
         .unwrap();
@@ -12687,7 +12687,7 @@ updates:\n\
                 &["problem", "proposal", "area", "checks"],
                 true,
                 None,
-                "vogon 0.1.4",
+                "vogon 0.2.0",
             ),
         )
         .unwrap();
