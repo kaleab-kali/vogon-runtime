@@ -262,7 +262,7 @@ jobs:
           echo "$trace_jsonl"
           printf '%s\n' "$trace_jsonl" | cargo run -p vogon-xtask -- check-trace-jsonl --expected-provider deterministic --expected-model deterministic-echo --expected-step-count 2
           docker run --rm --read-only -v "${{ runner.temp }}/vogon-container-smoke:/work" "$image" run --cache-file /work/cache-smoke.cache.json --cache-max-entries 1 /work/starter.toml > "${{ runner.temp }}/vogon-container-smoke/cache-smoke.replay.json"
-          cargo run -p vogon-xtask -- check-cache-json "${{ runner.temp }}/vogon-container-smoke/cache-smoke.cache.json" --expected-max-entries 1 --expected-entry-count 1
+          docker run --rm --read-only --entrypoint cat -v "${{ runner.temp }}/vogon-container-smoke:/work:ro" "$image" /work/cache-smoke.cache.json | cargo run -p vogon-xtask -- check-cache-json /dev/stdin --expected-max-entries 1 --expected-entry-count 1
 
   windows-release-smoke:
     name: Windows release smoke
