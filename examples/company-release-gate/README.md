@@ -21,6 +21,11 @@ should block it, but model judgment is nondeterministic. Keep tests,
 infrastructure policy checks, security scanning, and required human review as
 separate hard gates.
 
+This is the HTML evidence page produced by the authorized NVIDIA acceptance
+run against that synthetic change:
+
+![Company release gate report showing the blocked deployment and required remediations](../../docs/images/company-release-gate-report.png)
+
 ## Try The Offline Plumbing
 
 Create a disposable repository and commit the baseline:
