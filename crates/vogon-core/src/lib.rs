@@ -36,6 +36,7 @@
 #![deny(missing_docs)]
 
 mod cache;
+mod decision;
 mod error;
 mod events;
 mod hash;
@@ -46,6 +47,7 @@ mod step;
 mod workflow;
 
 pub use cache::{DEFAULT_RUN_CACHE_MAX_ENTRIES, RunCache};
+pub use decision::{DecisionOutcome, DecisionPolicy, DecisionResult};
 pub use error::{Result, VogonError};
 pub use events::RuntimeEvent;
 pub use hash::stable_hash;

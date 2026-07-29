@@ -53,6 +53,25 @@ model when present, cache identity, and provider/runtime parameters such as
 base URL, timeout, and retry count. Credentials and private prompt/output data
 must not be stored in runtime metadata.
 
+When a workflow declares a decision policy, the replay includes the selected
+value, its allow or deny outcome, and a policy hash. The hash binds the evidence
+to the configured decision step, JSON Pointer, and exact allow and deny lists.
+Exact verification compares the complete decision result. Structural
+verification compares the policy hash but remains output-insensitive, so it
+does not assert that two runs reached the same decision.
+
+```json
+{
+  "decision": {
+    "step_id": "release_decision",
+    "pointer": "/decision",
+    "policy_hash": "sha256-hex",
+    "value": "NO_GO",
+    "outcome": "deny"
+  }
+}
+```
+
 `vogon verify` uses this metadata to select the replay provider by default and
 compares current-schema runtime metadata against the actual verification run.
 Legacy unversioned replays remain readable and verify with the deterministic

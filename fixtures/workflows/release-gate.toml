@@ -1,0 +1,26 @@
+name = "release-gate"
+
+[decision]
+step = "release_decision"
+pointer = "/decision"
+allow = ["GO"]
+deny = ["NO_GO"]
+
+[[steps]]
+id = "risk_analysis"
+prompt = """
+Review this Git diff for concrete reliability, security, and operability risks.
+Do not invent facts outside the diff.
+
+{{input.git_diff}}
+"""
+
+[[steps]]
+id = "release_decision"
+prompt = """
+Using the previous risk analysis, return exactly one JSON object with this shape:
+{"decision":"GO or NO_GO","reasons":["grounded reason"],"required_actions":["blocking action"]}
+
+Use GO only when no blocking risk remains. Use NO_GO for every blocking risk.
+Do not wrap the JSON in Markdown and do not add text before or after it.
+"""

@@ -146,6 +146,20 @@ excludes untracked files, external diff drivers, text conversion filters, and
 submodule content. Empty Git diffs are rejected. Combined input values and Git
 diffs are bounded at 1 MiB.
 
+Workflows with a `[decision]` policy can act as a CI gate. Pass
+`--enforce-decision` to exit unsuccessfully when the selected final-step value
+is denied:
+
+```sh
+cargo run -p vogon-cli -- run --provider nvidia --git-diff-base origin/main --enforce-decision --output target/release-gate.replay.json fixtures/workflows/release-gate.toml
+```
+
+The replay is written before a valid denied decision causes the command to
+fail, preserving the evidence for CI artifacts. Invalid JSON, Markdown fences,
+missing or non-string selected fields, and values absent from both policy lists
+fail closed. `--enforce-decision` is rejected before provider execution when
+the workflow has no decision policy.
+
 Use `--gemini-model` to override the default Gemini model:
 
 ```sh

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::{Deserialize, Deserializer, Serialize, de};
 
-use crate::{Result, Step, VogonError};
+use crate::{DecisionPolicy, Result, Step, VogonError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -12,6 +12,9 @@ pub struct Workflow {
     pub name: String,
     /// Ordered workflow steps.
     pub steps: Vec<Step>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional machine-enforceable decision policy for the final step.
+    pub decision: Option<DecisionPolicy>,
     #[serde(skip)]
     inputs_rendered: bool,
 }
@@ -22,6 +25,7 @@ impl Workflow {
         let workflow = Self {
             name: name.into(),
             steps,
+            decision: None,
             inputs_rendered: false,
         };
         workflow.validate()?;
@@ -36,6 +40,18 @@ impl Workflow {
     /// Returns the workflow steps in execution order.
     pub fn steps(&self) -> &[Step] {
         &self.steps
+    }
+
+    /// Returns the optional final-step decision policy.
+    pub fn decision(&self) -> Option<&DecisionPolicy> {
+        self.decision.as_ref()
+    }
+
+    /// Attaches and validates a final-step decision policy.
+    pub fn with_decision(mut self, decision: DecisionPolicy) -> Result<Self> {
+        self.decision = Some(decision);
+        self.validate()?;
+        Ok(self)
     }
 
     /// Returns the sorted names of inputs referenced by step prompt placeholders.
@@ -90,6 +106,7 @@ impl Workflow {
         let rendered = Workflow {
             name: self.name.clone(),
             steps,
+            decision: self.decision.clone(),
             inputs_rendered: true,
         };
         rendered.validate()?;
@@ -122,6 +139,10 @@ impl Workflow {
             if !self.inputs_rendered {
                 input_placeholders(step)?;
             }
+        }
+
+        if let Some(decision) = &self.decision {
+            decision.validate(self.steps.last().expect("steps are non-empty").id())?;
         }
 
         Ok(())
@@ -213,12 +234,15 @@ impl<'de> Deserialize<'de> for Workflow {
         struct WorkflowFields {
             name: String,
             steps: Vec<Step>,
+            #[serde(default)]
+            decision: Option<DecisionPolicy>,
         }
 
         let fields = WorkflowFields::deserialize(deserializer)?;
         let workflow = Workflow {
             name: fields.name,
             steps: fields.steps,
+            decision: fields.decision,
             inputs_rendered: false,
         };
         workflow.validate().map_err(de::Error::custom)?;
@@ -250,7 +274,7 @@ pub(crate) fn validate_workflow_name(name: &str) -> Result<()> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::{Step, StepId, VogonError, Workflow};
+    use crate::{DecisionPolicy, Step, StepId, VogonError, Workflow};
 
     #[test]
     fn workflow_rejects_empty_names() {
@@ -466,6 +490,53 @@ mod tests {
         assert_eq!(
             result.unwrap_err(),
             VogonError::InvalidWorkflowInputName("git diff".to_owned())
+        );
+    }
+
+    #[test]
+    fn workflow_accepts_a_final_step_decision_policy() {
+        let workflow = Workflow::new(
+            "release",
+            vec![
+                Step::new(StepId::new("review").unwrap(), "Review"),
+                Step::new(StepId::new("decide").unwrap(), "Decide"),
+            ],
+        )
+        .unwrap()
+        .with_decision(DecisionPolicy {
+            step: StepId::new("decide").unwrap(),
+            pointer: "/decision".to_owned(),
+            allow: vec!["GO".to_owned()],
+            deny: vec!["NO_GO".to_owned()],
+        })
+        .unwrap();
+
+        assert_eq!(workflow.decision().unwrap().step.as_str(), "decide");
+    }
+
+    #[test]
+    fn workflow_deserialization_rejects_a_nonfinal_decision_step() {
+        let error = serde_json::from_str::<Workflow>(
+            r#"{
+                "name": "release",
+                "decision": {
+                    "step": "review",
+                    "pointer": "/decision",
+                    "allow": ["GO"],
+                    "deny": ["NO_GO"]
+                },
+                "steps": [
+                    {"id": "review", "prompt": "Review"},
+                    {"id": "decide", "prompt": "Decide"}
+                ]
+            }"#,
+        )
+        .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("must be the final workflow step")
         );
     }
 }

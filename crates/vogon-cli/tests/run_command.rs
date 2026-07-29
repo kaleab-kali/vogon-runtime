@@ -43,6 +43,35 @@ fn git_change_review_workflow() -> PathBuf {
         .join("git-change-review.toml")
 }
 
+fn release_gate_workflow() -> PathBuf {
+    repo_root()
+        .join("fixtures")
+        .join("workflows")
+        .join("release-gate.toml")
+}
+
+fn spawn_openai_compatible_server(outputs: Vec<&'static str>) -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for output in outputs {
+            let (mut stream, _) = listener.accept().unwrap();
+            read_http_request(&mut stream);
+            let body = serde_json::json!({
+                "choices": [{"message": {"content": output}}]
+            })
+            .to_string();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        }
+    });
+    (format!("http://{address}"), server)
+}
+
 fn create_git_diff_repository(name: &str) -> PathBuf {
     let repository = repo_root().join("target").join("vogon-tests").join(name);
     remove_path_if_exists(&repository);
@@ -95,6 +124,111 @@ fn run_command_executes_toml_workflow() {
     assert_eq!(report["runtime"]["provider"], "deterministic");
     assert_eq!(report["runtime"]["model"], "deterministic-echo");
     assert_eq!(report["steps"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn run_command_enforces_an_allowed_structured_decision() {
+    let (base_url, server) =
+        spawn_openai_compatible_server(vec!["no blocking risks", r#"{"decision":"GO"}"#]);
+    let replay_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("allowed-release-gate.replay.json");
+    remove_file_if_exists(&replay_file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-base-url")
+        .arg(base_url)
+        .arg("--openai-compatible-model")
+        .arg("local/model")
+        .arg("--openai-compatible-no-auth")
+        .arg("--openai-compatible-max-retries")
+        .arg("0")
+        .arg("--input")
+        .arg("git_diff=timeout_seconds changed from 30 to 45")
+        .arg("--enforce-decision")
+        .arg("--output")
+        .arg(&replay_file)
+        .arg(release_gate_workflow())
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+    server.join().unwrap();
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_file).unwrap()).unwrap();
+    assert_eq!(replay["decision"]["value"], "GO");
+    assert_eq!(replay["decision"]["outcome"], "allow");
+    assert_eq!(replay["decision"]["step_id"], "release_decision");
+}
+
+#[test]
+fn run_command_writes_denied_decision_before_failing_the_gate() {
+    let (base_url, server) = spawn_openai_compatible_server(vec![
+        "rollback plan is missing",
+        r#"{"decision":"NO_GO","required_actions":["add rollback plan"]}"#,
+    ]);
+    let replay_file = repo_root()
+        .join("target")
+        .join("vogon-tests")
+        .join("denied-release-gate.replay.json");
+    remove_file_if_exists(&replay_file);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--provider")
+        .arg("openai-compatible")
+        .arg("--openai-compatible-base-url")
+        .arg(base_url)
+        .arg("--openai-compatible-model")
+        .arg("local/model")
+        .arg("--openai-compatible-no-auth")
+        .arg("--openai-compatible-max-retries")
+        .arg("0")
+        .arg("--input")
+        .arg("git_diff=removed rollback handling")
+        .arg("--enforce-decision")
+        .arg("--output")
+        .arg(&replay_file)
+        .arg(release_gate_workflow())
+        .env_remove("OPENAI_COMPATIBLE_API_KEY")
+        .output()
+        .expect("run command should execute");
+    server.join().unwrap();
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("workflow decision denied by step `release_decision` with value `NO_GO`")
+    );
+    let replay: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(replay_file).unwrap()).unwrap();
+    assert_eq!(replay["decision"]["value"], "NO_GO");
+    assert_eq!(replay["decision"]["outcome"], "deny");
+}
+
+#[test]
+fn run_command_rejects_decision_enforcement_without_a_policy() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vogon"))
+        .arg("run")
+        .arg("--enforce-decision")
+        .arg(support_triage_workflow())
+        .output()
+        .expect("run command should execute");
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("decision enforcement requires a `[decision]` workflow policy")
+    );
 }
 
 #[test]
