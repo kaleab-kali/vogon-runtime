@@ -11,6 +11,8 @@ use vogon_adapters::GroqModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::HuggingFaceModel;
 #[cfg(feature = "openai-compatible")]
+use vogon_adapters::NvidiaModel;
+#[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenAiCompatibleModel;
 #[cfg(feature = "openai-compatible")]
 use vogon_adapters::OpenRouterModel;
@@ -22,7 +24,8 @@ use crate::commands::redaction_markers::replay_redaction_labels;
 use crate::commands::run::{
     DEFAULT_GEMINI_MAX_RETRIES, DEFAULT_GEMINI_TIMEOUT_SECONDS, DEFAULT_GROQ_MAX_RETRIES,
     DEFAULT_GROQ_TIMEOUT_SECONDS, DEFAULT_HUGGING_FACE_MAX_RETRIES,
-    DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
+    DEFAULT_HUGGING_FACE_TIMEOUT_SECONDS, DEFAULT_NVIDIA_MAX_RETRIES,
+    DEFAULT_NVIDIA_TIMEOUT_SECONDS, DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, DEFAULT_OPENROUTER_MAX_RETRIES,
     DEFAULT_OPENROUTER_TIMEOUT_SECONDS, ModelProvider, OpenAiCompatibleConfig,
 };
@@ -118,6 +121,9 @@ pub struct VerifyModelConfig<'a> {
     pub hugging_face_model: &'a str,
     pub hugging_face_timeout_seconds: u64,
     pub hugging_face_max_retries: u32,
+    pub nvidia_model: &'a str,
+    pub nvidia_timeout_seconds: u64,
+    pub nvidia_max_retries: u32,
     pub openrouter_model: &'a str,
     pub openrouter_timeout_seconds: u64,
     pub openrouter_max_retries: u32,
@@ -140,6 +146,9 @@ struct ResolvedModelConfig {
     hugging_face_model: String,
     hugging_face_timeout_seconds: u64,
     hugging_face_max_retries: u32,
+    nvidia_model: String,
+    nvidia_timeout_seconds: u64,
+    nvidia_max_retries: u32,
     openrouter_model: String,
     openrouter_timeout_seconds: u64,
     openrouter_max_retries: u32,
@@ -231,6 +240,25 @@ fn resolve_model_config(
             replay_max_retries(replay, DEFAULT_HUGGING_FACE_MAX_RETRIES)?
         } else {
             model_config.hugging_face_max_retries
+        },
+        nvidia_model: if use_replay_metadata && provider == ModelProvider::Nvidia {
+            replay
+                .runtime
+                .model
+                .clone()
+                .unwrap_or_else(|| model_config.nvidia_model.to_owned())
+        } else {
+            model_config.nvidia_model.to_owned()
+        },
+        nvidia_timeout_seconds: if use_replay_metadata && provider == ModelProvider::Nvidia {
+            replay_timeout_seconds(replay, DEFAULT_NVIDIA_TIMEOUT_SECONDS)?
+        } else {
+            model_config.nvidia_timeout_seconds
+        },
+        nvidia_max_retries: if use_replay_metadata && provider == ModelProvider::Nvidia {
+            replay_max_retries(replay, DEFAULT_NVIDIA_MAX_RETRIES)?
+        } else {
+            model_config.nvidia_max_retries
         },
         openrouter_model: if use_replay_metadata && provider == ModelProvider::OpenRouter {
             replay
@@ -401,6 +429,14 @@ fn verify_with_model(
             model_config.hugging_face_timeout_seconds,
             model_config.hugging_face_max_retries,
         ),
+        ModelProvider::Nvidia => verify_with_nvidia(
+            workflow,
+            replay,
+            redactions,
+            &model_config.nvidia_model,
+            model_config.nvidia_timeout_seconds,
+            model_config.nvidia_max_retries,
+        ),
         ModelProvider::OpenRouter => verify_with_openrouter(
             workflow,
             replay,
@@ -521,6 +557,39 @@ fn verify_with_hugging_face(
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "Hugging Face provider support is not enabled in this build",
+    )
+    .into())
+}
+
+#[cfg(feature = "openai-compatible")]
+fn verify_with_nvidia(
+    workflow: &vogon_core::Workflow,
+    replay: &RunReport,
+    redactions: &RedactionSet,
+    model: &str,
+    timeout_seconds: u64,
+    max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Ok(Runtime::new(NvidiaModel::from_env_with_timeout_and_retries(
+        model,
+        Duration::from_secs(timeout_seconds),
+        max_retries,
+    )?)
+    .verify_with_redactions(workflow, replay, redactions)?)
+}
+
+#[cfg(not(feature = "openai-compatible"))]
+fn verify_with_nvidia(
+    _workflow: &vogon_core::Workflow,
+    _replay: &RunReport,
+    _redactions: &RedactionSet,
+    _model: &str,
+    _timeout_seconds: u64,
+    _max_retries: u32,
+) -> Result<VerificationReport, Box<dyn std::error::Error>> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "NVIDIA provider support is not enabled in this build",
     )
     .into())
 }

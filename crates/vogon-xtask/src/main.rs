@@ -102,6 +102,7 @@ const DEPLOYMENT_PROVIDER_EXAMPLES: &[(&str, &str)] = &[
     ("openai-compatible", "OPENAI_COMPATIBLE_API_KEY"),
     ("groq", "GROQ_API_KEY"),
     ("hugging-face", "HF_TOKEN"),
+    ("nvidia", "NVIDIA_API_KEY"),
     ("openrouter", "OPENROUTER_API_KEY"),
 ];
 const EXPECTED_PROVIDER_JSON: &[ProviderJsonExpectation] = &[
@@ -146,6 +147,16 @@ const EXPECTED_PROVIDER_JSON: &[ProviderJsonExpectation] = &[
         default_model: Some("openai/gpt-oss-120b:fastest"),
         documentation_url: Some("https://huggingface.co/docs/inference-providers"),
         usage_url: Some("https://huggingface.co/docs/inference-providers/pricing"),
+    },
+    ProviderJsonExpectation {
+        name: "nvidia",
+        default_provider: false,
+        credential_env: Some("NVIDIA_API_KEY"),
+        credential_configured: ExpectedProviderJsonValue::BoolOrNull,
+        default_base_url: Some("https://integrate.api.nvidia.com/v1"),
+        default_model: Some("meta/llama-3.1-8b-instruct"),
+        documentation_url: Some("https://docs.api.nvidia.com/nim/reference/llm-apis"),
+        usage_url: Some("https://build.nvidia.com/models"),
     },
     ProviderJsonExpectation {
         name: "openrouter",
@@ -10862,6 +10873,17 @@ and this project follows semantic versioning once the first release is tagged.
                     "usage_url": "https://huggingface.co/docs/inference-providers/pricing"
                 },
                 {
+                    "name": "nvidia",
+                    "enabled": true,
+                    "default": false,
+                    "credential_env": "NVIDIA_API_KEY",
+                    "credential_configured": true,
+                    "default_base_url": "https://integrate.api.nvidia.com/v1",
+                    "default_model": "meta/llama-3.1-8b-instruct",
+                    "documentation_url": "https://docs.api.nvidia.com/nim/reference/llm-apis",
+                    "usage_url": "https://build.nvidia.com/models"
+                },
+                {
                     "name": "openrouter",
                     "enabled": true,
                     "default": false,
@@ -10915,6 +10937,10 @@ and this project follows semantic versioning once the first release is tagged.
                 {
                     "name": "hugging-face",
                     "usage_url": "https://huggingface.co/docs/inference-providers/pricing"
+                },
+                {
+                    "name": "nvidia",
+                    "usage_url": "https://build.nvidia.com/models"
                 },
                 {
                     "name": "openrouter",
