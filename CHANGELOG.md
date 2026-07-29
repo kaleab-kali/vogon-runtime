@@ -7,6 +7,8 @@ and this project follows semantic versioning.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-29
+
 ### Added
 
 - `vogon run`, `vogon verify`, and `vogon trace` now accept
