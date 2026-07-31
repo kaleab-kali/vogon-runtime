@@ -116,7 +116,7 @@ jobs:
           test -s archive-smoke/support-triage.html
 
       - name: Attest CLI archive
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: vogon-${{ github.ref_name }}-linux-x86_64.tar.gz
 
@@ -219,7 +219,7 @@ jobs:
           if ((Get-Item -LiteralPath archive-smoke\support-triage.html).Length -eq 0) { throw "Empty evidence report" }
 
       - name: Attest CLI archive
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: vogon-${{ github.ref_name }}-windows-x86_64.zip
 
@@ -315,7 +315,7 @@ jobs:
           test -s "${{ runner.temp }}/vogon-packaged-container-smoke/support-triage.html"
 
       - name: Attest container image archive
-        uses: actions/attest@v4
+        uses: actions/attest@v4.2.0
         with:
           subject-path: vogon-${{ github.ref_name }}-container-image.tar.gz
 
